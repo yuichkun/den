@@ -6,8 +6,12 @@ running inside an AudioWorklet. Part of [`den`](https://github.com/yuichkun/den)
 ## Install
 
 ```sh
-npm install @denaudio/effects
+vp add @denaudio/effects
 ```
+
+(The repo is [VitePlus](https://viteplus.dev/)-managed. Downstream
+projects can use whatever package manager they prefer — the published
+artifact is a standard ESM npm module.)
 
 ## Usage
 

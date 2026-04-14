@@ -23,6 +23,9 @@ import {
  * ```
  */
 export class Passthrough extends AudioWorkletNode {
+  /** Idempotency guard for `dispose()`; second and later calls no-op. */
+  #disposed = false;
+
   constructor(ctx: BaseAudioContext) {
     const bytes = getCachedWasmBytes(ctx);
     super(ctx, DEN_PROCESSOR_NAME, {
@@ -34,12 +37,14 @@ export class Passthrough extends AudioWorkletNode {
   }
 
   /**
-   * Free WASM-side I/O buffers in the underlying processor and disconnect
-   * the node. After dispose the node MUST NOT be re-used. AudioWorklet has
-   * no JS-side destructor hook, so this is the only way to release the
-   * per-node WASM heap allocation.
+   * Free WASM-side I/O buffers and disconnect the node from the audio
+   * graph. **WARNING — disconnects ALL connections to/from this node**
+   * (matching `Gain.dispose`); see `Gain` TSDoc for full semantics.
+   * Idempotent. After dispose the node MUST NOT be re-used.
    */
   dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
     this.port.postMessage({ __denCmd: "destroy" });
     this.disconnect();
   }

@@ -16,6 +16,15 @@ function render(): void {
   const page = PAGES[hash];
   const stage = document.getElementById("stage")!;
   stage.innerHTML = "";
+  // Reset the Tier3a bridge before the new page mounts. Without this,
+  // navigating /#/passthrough → /#/gain → /#/passthrough would briefly
+  // surface stale `Gain` references via `__denTier3a` (each page sets
+  // `__denReady` true at the END of its render, but `__denTier3a` is
+  // mutated incrementally via spread). Resetting up front means the
+  // Playwright spec only sees a fresh bridge populated by the
+  // currently-mounting page.
+  window.__denReady = false;
+  delete window.__denTier3a;
   if (!page) {
     stage.textContent = `Unknown effect: ${hash}`;
     return;

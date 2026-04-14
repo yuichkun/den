@@ -58,7 +58,7 @@ class DenProcessor extends AudioWorkletProcessor {
   private paramScratchPtr = 0;
   private paramScratchSize = 0;
 
-  protected alive = true;
+  private alive = true;
 
   // Render quantum (always 128 in Web Audio).
   private static readonly QUANTUM = 128;
@@ -110,6 +110,20 @@ class DenProcessor extends AudioWorkletProcessor {
     this.r_in_ptr = ex.den_alloc(bytes);
     this.l_out_ptr = ex.den_alloc(bytes);
     this.r_out_ptr = ex.den_alloc(bytes);
+    // `den_alloc` returns 0 (null) on OOM; without this guard a
+    // subsequent kernel call would scribble at WASM linear-memory
+    // offset 0. Dead processors return false from process() so the
+    // host can GC us; the main thread sees a silenced node, which is
+    // the closest approximation to "OOM" Web Audio gives us.
+    if (
+      this.l_in_ptr === 0 ||
+      this.r_in_ptr === 0 ||
+      this.l_out_ptr === 0 ||
+      this.r_out_ptr === 0
+    ) {
+      this.alive = false;
+      return;
+    }
     this.refreshHeapViews(ex.memory);
 
     // Per-kernel allocation. The processor file knows about every kernel
@@ -121,6 +135,10 @@ class DenProcessor extends AudioWorkletProcessor {
       this.paramScratchPtr = ex.den_alloc(this.paramScratchSize);
       this.stateHeapSize = ex.den_gain_size();
       this.stateHeapPtr = ex.den_alloc(this.stateHeapSize);
+      if (this.paramScratchPtr === 0 || this.stateHeapPtr === 0) {
+        this.alive = false;
+        return;
+      }
       // `sampleRate` is a global injected into every AudioWorkletGlobalScope
       // by the host (W3C Web Audio API §AudioWorkletGlobalScope).
       ex.den_gain_init(this.stateHeapPtr, sampleRate);
@@ -133,28 +151,45 @@ class DenProcessor extends AudioWorkletProcessor {
     // the host GC the processor (W3C spec, AudioWorkletProcessor.process).
     this.port.onmessage = (ev: MessageEvent) => {
       if (ev.data?.__denCmd === "destroy") {
-        const dex = this.instance.exports as unknown as {
-          den_dealloc(ptr: number, n: number): void;
-        };
-        // Free in reverse alloc order: param scratch → state → I/O.
-        // Sizes MUST match the alloc sizes exactly (Layout mismatch is a
-        // silent no-op in Rust's allocator, leaving the bytes leaked).
-        // Calls go through `dex.den_dealloc(...)` (method form) rather
-        // than via an extracted reference so the `unbound-method` lint
-        // stays quiet — WASM exports aren't class methods, but the
-        // linter can't know that.
-        if (this.paramScratchPtr) {
-          dex.den_dealloc(this.paramScratchPtr, this.paramScratchSize);
-          this.paramScratchPtr = 0;
-          this.paramScratchSize = 0;
+        // Wrap the whole teardown in try/catch: a panic from
+        // `den_dealloc` (e.g., layout-size mismatch) would otherwise
+        // tear down the entire AudioWorkletGlobalScope and silently
+        // kill every other effect on this context. We log and force
+        // `alive = false` so at least the next `process()` returns
+        // false and the host can GC.
+        try {
+          const dex = this.instance.exports as unknown as {
+            den_dealloc(ptr: number, n: number): void;
+          };
+          // Free in reverse alloc order: param scratch → state → I/O.
+          // Sizes MUST match the alloc sizes exactly (Layout mismatch is a
+          // silent no-op in Rust's allocator, leaving the bytes leaked).
+          // Calls go through `dex.den_dealloc(...)` (method form) rather
+          // than via an extracted reference so the `unbound-method` lint
+          // stays quiet — WASM exports aren't class methods, but the
+          // linter can't know that.
+          if (this.paramScratchPtr) {
+            dex.den_dealloc(this.paramScratchPtr, this.paramScratchSize);
+            this.paramScratchPtr = 0;
+            this.paramScratchSize = 0;
+          }
+          if (this.stateHeapPtr) {
+            dex.den_dealloc(this.stateHeapPtr, this.stateHeapSize);
+            this.stateHeapPtr = 0;
+            this.stateHeapSize = 0;
+          }
+          this.disposeIoBuffers();
+        } catch (err) {
+          console.error("[den-processor] destroy failed:", err);
+        } finally {
+          this.alive = false;
         }
-        if (this.stateHeapPtr) {
-          dex.den_dealloc(this.stateHeapPtr, this.stateHeapSize);
-          this.stateHeapPtr = 0;
-          this.stateHeapSize = 0;
-        }
-        this.disposeIoBuffers();
-        this.alive = false;
+      } else if (ev.data?.__denCmd) {
+        // Unknown den command — surface it so a future protocol typo
+        // doesn't silently no-op. Plain user messages (no __denCmd
+        // prefix) are NOT logged here so app code is free to use the
+        // port for its own purposes once we add that capability.
+        console.warn("[den-processor] unknown __denCmd:", ev.data.__denCmd);
       }
     };
   }
@@ -179,8 +214,10 @@ class DenProcessor extends AudioWorkletProcessor {
   /**
    * Free WASM-side I/O buffer allocations. Called from the destroy-message
    * handler. Sizes MUST match the `den_alloc` sizes exactly. Idempotent.
+   * Private — there is no subclass today and Sub E's template specifies
+   * `extends DenProcessor` only via composition, not inheritance.
    */
-  protected disposeIoBuffers(): void {
+  private disposeIoBuffers(): void {
     const ex = this.instance.exports as unknown as {
       den_dealloc(ptr: number, n: number): void;
     };

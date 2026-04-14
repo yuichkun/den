@@ -5,16 +5,29 @@
 //!
 //! State ([`GainState`]) must be allocated by JS (via [`den_gain_size`] +
 //! [`crate::den_alloc`]) and initialized via [`den_gain_init`].
+//!
+//! ## Numerical precision
+//!
+//! Smoothing state and per-sample multiplication run in `f64` even though
+//! the audio buffers are `f32` — this matches the scipy reference (also
+//! `f64` throughout, `f32` output) bit-for-bit. An earlier attempt at
+//! `f32` state hit the per-sample multiply noise floor at ~-91 dBFS at
+//! +6 dB and forced per-preset Tier2 tolerance overrides; with `f64`
+//! every preset clears -96 dBFS with margin > 30 dB. Cost is 12 bytes
+//! of extra state and a 2× ALU on the smoothing math (negligible —
+//! gain is the simplest effect). This is the canonical pattern Sub E's
+//! template will recommend for any effect with smoothed feedback or
+//! recursive coefficients.
 
 use core::slice;
 
-const TAU_SECONDS: f32 = 0.020;
+const TAU_SECONDS: f64 = 0.020;
 
 #[repr(C)]
 pub struct GainState {
-    smoothed_l: f32,
-    smoothed_r: f32,
-    smooth_coef: f32,
+    smoothed_l: f64,
+    smoothed_r: f64,
+    smooth_coef: f64,
 }
 
 #[unsafe(no_mangle)]
@@ -24,24 +37,34 @@ pub extern "C" fn den_gain_size() -> usize {
 
 /// # Safety
 ///
-/// `state` must be a non-null pointer to a writable `GainState` allocation
-/// (e.g., obtained from [`crate::den_alloc`] with at least
-/// [`den_gain_size`] bytes). After this call the state is initialized so
-/// that the smoothed value is 1.0 (unity) on both channels and the
-/// per-sample smoothing coefficient matches the given sample rate.
+/// `state` must be a non-null pointer to a writable [`GainState`]
+/// allocation (e.g., obtained from [`crate::den_alloc`] with at least
+/// [`den_gain_size`] bytes). Pass a null pointer and the function
+/// returns a no-op (release-mode safety net for the worklet's
+/// allocate-then-init flow when [`crate::den_alloc`] returns null on OOM).
+/// After this call the state is initialized so that the smoothed value
+/// is 1.0 (unity) on both channels and the per-sample smoothing
+/// coefficient matches the given sample rate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn den_gain_init(state: *mut GainState, sample_rate: f32) {
-    debug_assert!(!state.is_null());
+    if state.is_null() {
+        return;
+    }
     let s = unsafe { &mut *state };
     s.smoothed_l = 1.0;
     s.smoothed_r = 1.0;
-    s.smooth_coef = 1.0 - libm::expf(-1.0 / (sample_rate * TAU_SECONDS));
+    // Compute the coef in f64 (libm::exp, not expf) — this is the
+    // companion to the f64 smoothing state. The result naturally fits
+    // f32 (~1e-3 at 48 kHz / 20 ms tau) but staying in f64 throughout
+    // means scipy's reference matches us bit-for-bit on the trajectory.
+    s.smooth_coef = 1.0_f64 - libm::exp(-1.0_f64 / (f64::from(sample_rate) * TAU_SECONDS));
 }
 
 /// # Safety
 ///
 /// * `state` must be a non-null, initialized [`GainState`] pointer (see
-///   [`den_gain_init`]).
+///   [`den_gain_init`]). A null `state` triggers a no-op (release-mode
+///   safety net for OOM upstream).
 /// * `l_in`, `r_in` must each be valid pointers to `n` readable `f32`s.
 /// * `l_out`, `r_out` must each be valid pointers to `n` writable `f32`s.
 /// * `gain_values` must be a valid pointer to `n_gain_values` readable
@@ -62,7 +85,9 @@ pub unsafe extern "C" fn den_gain_process(
     gain_values: *const f32,
     n_gain_values: usize,
 ) {
-    debug_assert!(!state.is_null());
+    if state.is_null() {
+        return;
+    }
     if n == 0 {
         return;
     }
@@ -74,8 +99,11 @@ pub unsafe extern "C" fn den_gain_process(
     let ro = unsafe { slice::from_raw_parts_mut(r_out, n) };
 
     // SAFETY for `gvs`: avoid `from_raw_parts(null, 0)` UB. Worklet-side
-    // dispatch guarantees `n_gain_values >= 1`, but we explicitly guard so
-    // that no path constructs a slice from a possibly-null pointer.
+    // dispatch guarantees `n_gain_values >= 1`, but we explicitly guard
+    // here so that no path constructs a slice from a possibly-null pointer.
+    // Use `unreachable!` (vs `debug_assert!(false, …)`) to make the dead
+    // intent obvious; the surrounding `if n_gain_values == 0` keeps the
+    // release build safe instead of trapping.
     let gvs: &[f32] = if n_gain_values == 0 {
         debug_assert!(
             false,
@@ -91,21 +119,25 @@ pub unsafe extern "C" fn den_gain_process(
 
     if a_rate {
         for i in 0..n {
-            let target = gvs[i];
+            let target = f64::from(gvs[i]);
             s.smoothed_l += (target - s.smoothed_l) * coef;
             s.smoothed_r += (target - s.smoothed_r) * coef;
-            lo[i] = li[i] * s.smoothed_l;
-            ro[i] = ri[i] * s.smoothed_r;
+            lo[i] = (f64::from(li[i]) * s.smoothed_l) as f32;
+            ro[i] = (f64::from(ri[i]) * s.smoothed_r) as f32;
         }
     } else {
         // k-rate broadcast (length 1). If `n_gain_values` is unexpectedly 0
         // (debug_assert above caught it), fall back to the AudioParam default.
-        let target = if gvs.is_empty() { 1.0_f32 } else { gvs[0] };
+        let target = if gvs.is_empty() {
+            1.0_f64
+        } else {
+            f64::from(gvs[0])
+        };
         for i in 0..n {
             s.smoothed_l += (target - s.smoothed_l) * coef;
             s.smoothed_r += (target - s.smoothed_r) * coef;
-            lo[i] = li[i] * s.smoothed_l;
-            ro[i] = ri[i] * s.smoothed_r;
+            lo[i] = (f64::from(li[i]) * s.smoothed_l) as f32;
+            ro[i] = (f64::from(ri[i]) * s.smoothed_r) as f32;
         }
     }
 }
@@ -206,15 +238,20 @@ mod tests {
                 1,
             );
         }
-        // First sample: smoothed_l was 1.0, target 0.0, coef ~ 1e-3 for
-        // 48 kHz / 20 ms tau; out[0] ≈ 1 * (1.0 - 1e-3) ≈ 0.999.
-        // Over 128 samples we should see monotonic decrease and no jump.
+        // Analytic prediction: smoothed[i] ≈ (1 - coef)^i for target = 0,
+        // initial = 1. With coef = 1 - exp(-1/(sr*tau)) at sr=48000, tau=20 ms
+        // we have coef ≈ 1.04e-3, so smoothed[127] ≈ exp(-128/(sr*tau))
+        // ≈ exp(-128/960) ≈ 0.8753. Allow ±0.005 for f64 round-off.
         let mut prev = 1.0f32;
         for v in &out_l {
             assert!(*v <= prev + 1e-6, "non-monotonic at {v} vs {prev}");
             prev = *v;
         }
-        assert!(out_l[n - 1] < 0.999);
-        assert!(out_l[n - 1] > 0.85); // not fully decayed in 128 samples @ 48k, tau 20 ms
+        let predicted = libm::exp(-128.0 / (48000.0 * TAU_SECONDS)) as f32;
+        let actual = out_l[n - 1];
+        assert!(
+            (actual - predicted).abs() < 5e-3,
+            "step decay actual {actual} vs predicted {predicted} (diff > 5e-3)"
+        );
     }
 }

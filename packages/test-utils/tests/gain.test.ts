@@ -85,26 +85,17 @@ function runGain(stereoIn: Float32Array[], preset: string): Float32Array[] {
   return [L, R];
 }
 
-// Tight presets (-96 dBFS, parent epic D19 default).
+// Single tolerance for all 5 presets — the kernel keeps smoothing state
+// in f64, matching the scipy reference bit-for-bit on the trajectory,
+// so even at +6 dB peak (~+1.41 from the chirp) the diff stays below
+// the parent epic's D19 default of -96 dBFS by > 30 dB. An earlier f32
+// kernel needed a per-preset -90 override (Issue §8 Fallback #2 (b))
+// because steady-state f32 multiplication noise integrated over 2 s
+// crossed -96 at unity-amplitude × +6 dB; f64 fixes that without
+// per-preset configs and is the canonical pattern for any future
+// effect with smoothed feedback or recursive coefficients.
 await runGoldenNull({
   effect: "gain",
-  presets: ["unity", "minus_6db", "silence", "mid_fade"],
-  process: runGain,
-});
-
-// `plus_6db` peaks at ~+1.41 (chirp -3 dBFS × 1.995). At that magnitude
-// the f32 smoothing state and the f64 scipy reference state diverge by
-// ~1 ULP per sample during the 20 ms transient; the chirp's wide-band
-// content samples the divergence at every frequency. Issue #5 §8
-// Fallback #2 (b) anticipates exactly this case and prescribes -90 dBFS
-// for presets that involve high-amplitude sub-sample transitions. Other
-// `plus_6db` signals (sines, impulse, dc, silence) all clear -96 with
-// margin; only the chirp is wide-band enough to be noisy here. We loosen
-// for the whole `plus_6db` preset rather than per-(preset, signal) so
-// the runner stays simple.
-await runGoldenNull({
-  effect: "gain",
-  presets: ["plus_6db"],
-  tolerance: -90,
+  presets: Object.keys(presetToGain),
   process: runGain,
 });

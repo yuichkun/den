@@ -41,6 +41,9 @@ export interface GainOptions {
 export class Gain extends AudioWorkletNode {
   readonly gain: AudioParam;
 
+  /** Idempotency guard for `dispose()`; second and later calls no-op. */
+  #disposed = false;
+
   /**
    * Stereo in, stereo out. If the upstream source is mono (single-channel
    * `AudioBuffer` etc.), the worklet duplicates the L channel into R for
@@ -66,14 +69,27 @@ export class Gain extends AudioWorkletNode {
   }
 
   /**
-   * Free WASM-side state and I/O buffers. AudioWorklet has no JS-side
-   * destructor hook, so users that create-and-destroy many Gain nodes
-   * (e.g., per-track UI) MUST call `dispose()` to avoid leaking a few
-   * hundred bytes per node into the WASM linear memory. After dispose the
-   * node MUST NOT be re-used; disconnect upstream/downstream first if not
-   * already wired through this method.
+   * Free WASM-side state + I/O buffers and disconnect the node from
+   * the audio graph.
+   *
+   * **WARNING — disconnects ALL connections to/from this node.** Calling
+   * `dispose()` on a wired node (e.g., `src.connect(gain).connect(dest)`)
+   * silences the entire chain immediately: both the upstream→gain edge
+   * and the gain→downstream edge are dropped synchronously on the main
+   * thread. The destroy message is then posted to the worklet to free
+   * the WASM-side state on the next quantum boundary. After dispose the
+   * node MUST NOT be re-used.
+   *
+   * Idempotent — second and later calls no-op.
+   *
+   * Required for any UI that creates many short-lived Gain nodes
+   * (per-track effect chains, dynamic patching). Without it each
+   * disposed node leaks a few hundred bytes of WASM linear memory —
+   * AudioWorklet has no JS-side destructor hook.
    */
   dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
     this.port.postMessage({ __denCmd: "destroy" });
     this.disconnect();
   }

@@ -111,8 +111,24 @@ export async function mountEffectPage<TNode extends AudioNode>(
   async function enableLive(): Promise<void> {
     enableBtn.disabled = true;
     const ctx = new AudioContext();
-    if (ctx.state === "suspended") await ctx.resume();
-    await opts.register(ctx, { workletUrl: opts.workletUrl });
+    try {
+      if (ctx.state === "suspended") await ctx.resume();
+      await opts.register(ctx, { workletUrl: opts.workletUrl });
+    } catch (err) {
+      // Restore the button so the user can retry (typo in URL,
+      // transient network failure, CSP rejection). Without this guard
+      // the page is permanently broken with the only affordance
+      // greyed out.
+      console.error("[den] enableLive failed:", err);
+      enableBtn.disabled = false;
+      enableBtn.textContent = "Enable A/B player (retry)";
+      try {
+        await ctx.close();
+      } catch {
+        /* close() throws if already closed; ignore */
+      }
+      throw err;
+    }
     abContainer.innerHTML = "";
 
     // Live param dictionary — each slider mutates this map and the

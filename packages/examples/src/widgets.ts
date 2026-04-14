@@ -138,10 +138,24 @@ export function mountABPlayer(
     current.src.disconnect();
     current.dry.disconnect();
     current.wet.disconnect();
-    try {
-      current.effect.disconnect();
-    } catch {
-      /* noop */
+    // Call `dispose()` on the effect node if it provides one (every
+    // canonical `@denaudio/effects` class does). Without this call,
+    // each Play / signal-switch leaks the worklet's WASM-side state
+    // (~hundreds of bytes) for the lifetime of the AudioContext —
+    // catalog browsing for a few minutes can chew MB.
+    const eff = current.effect as AudioNode & { dispose?: () => void };
+    if (typeof eff.dispose === "function") {
+      try {
+        eff.dispose();
+      } catch {
+        /* dispose() also disconnects, so any throw is benign here */
+      }
+    } else {
+      try {
+        current.effect.disconnect();
+      } catch {
+        /* noop */
+      }
     }
     current = null;
   }
@@ -477,16 +491,31 @@ export function mountFilePicker(
     status.style.color = isError ? "#ff8080" : "";
   }
 
+  // Pre-decode size cap. 30 s × 192 kHz × 32-bit stereo ≈ 23 MB
+  // uncompressed, so 50 MB is generous for any realistic file under
+  // `maxDurationSec` and rejects multi-GB hostile/buggy uploads BEFORE
+  // we read them into memory + hand them to `decodeAudioData`. Without
+  // this guard a 5 GB WAV would be fully read + cloned via `slice(0)`
+  // before the post-decode duration check fires.
+  const MAX_FILE_BYTES = 50 * 1024 * 1024;
+
   fileInput.addEventListener("change", () => {
     void (async () => {
       const file = fileInput.files?.[0];
       if (!file) return;
       setStatus(`decoding ${file.name}…`);
       try {
+        if (file.size > MAX_FILE_BYTES) {
+          throw new Error(
+            `file is ${(file.size / 1024 / 1024).toFixed(1)} MB, max is ${MAX_FILE_BYTES / 1024 / 1024} MB`,
+          );
+        }
         const arrayBuf = await file.arrayBuffer();
-        // Some browsers (Safari historically) reject the same
-        // ArrayBuffer being passed to decodeAudioData twice; clone via
-        // `slice(0)` so a re-pick of the same file works.
+        // `decodeAudioData` neuters the underlying ArrayBuffer (Web
+        // Audio spec — ownership transfer to the decoder). We slice
+        // first so a re-pick of the same file via a fresh
+        // `file.arrayBuffer()` call still works without surprise
+        // cross-call dependencies.
         const decoded = await ctx.decodeAudioData(arrayBuf.slice(0));
         if (decoded.duration > maxDur) {
           throw new Error(`file is ${decoded.duration.toFixed(1)} s, max is ${maxDur} s`);

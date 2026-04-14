@@ -104,12 +104,19 @@ export function registerDenWorklet(
   if (inflight) return inflight;
   const workletUrl = options.workletUrl ?? new URL("./processor.js", import.meta.url).href;
   const p = (async () => {
-    const [bytes] = await Promise.all([
-      fetchWasmBytes(options.wasmUrl),
-      ctx.audioWorklet.addModule(workletUrl),
-    ]);
-    writeCached(ctx, { bytes });
-    clearInflight(ctx);
+    try {
+      const [bytes] = await Promise.all([
+        fetchWasmBytes(options.wasmUrl),
+        ctx.audioWorklet.addModule(workletUrl),
+      ]);
+      writeCached(ctx, { bytes });
+    } finally {
+      // Always clear the in-flight slot — on success the cache is the
+      // source of truth from now on; on failure subsequent retries with
+      // a corrected URL must not see the stale rejected promise. Without
+      // this, a single failed register() poisons the context forever.
+      clearInflight(ctx);
+    }
   })();
   writeInflight(ctx, p);
   return p;
