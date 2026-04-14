@@ -65,6 +65,15 @@ class DenProcessor extends AudioWorkletProcessor {
   private static readonly QUANTUM = 128;
   private static readonly BYTES_PER_BUFFER = DenProcessor.QUANTUM * 4;
 
+  // Reused zero buffer for the disconnected-input steady state. Audio thread
+  // is the wrong place for `new Float32Array(...)` per render quantum (parent
+  // epic #1 §2: "no heap allocation" on the audio thread) — Web Audio passes
+  // a length-0 array when the upstream is disconnected, and we substitute
+  // this single shared silence buffer instead of allocating each call. Safe
+  // to share across instances because every kernel reads inputs (`*const
+  // f32`) and never writes them.
+  private static readonly SILENT_INPUT = new Float32Array(DenProcessor.QUANTUM);
+
   static get parameterDescriptors(): AudioParamDescriptor[] {
     // Sub D adds params per-kernel.
     return [];
@@ -131,7 +140,9 @@ class DenProcessor extends AudioWorkletProcessor {
     // Important: when no upstream source is connected, Web Audio passes an
     // EMPTY ARRAY (length 0), NOT undefined. Check `.length` not truthiness.
     // (See WebAudio API issue #2177; Firefox bug 1629478.)
-    const l_src = (input[0]?.length ?? 0) > 0 ? input[0]! : new Float32Array(DenProcessor.QUANTUM);
+    // Substitute the shared SILENT_INPUT static instead of allocating per
+    // render quantum on the audio thread.
+    const l_src = (input[0]?.length ?? 0) > 0 ? input[0]! : DenProcessor.SILENT_INPUT;
     const r_src = (input[1]?.length ?? 0) > 0 ? input[1]! : l_src;
 
     const n = DenProcessor.QUANTUM;
