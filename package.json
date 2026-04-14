@@ -2,9 +2,9 @@
   "name": "den-root",
   "private": true,
   "scripts": {
-    "build": "pnpm -r build",
-    "typecheck": "vp check",
-    "test": "echo 'no tests in Sub A — Sub C will replace this with: vp run test:tier2 && vp run test:tier3a'"
+    "build": "vp run -r build",
+    "smoke": "node scripts/smoke.mjs",
+    "typecheck": "vp check"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

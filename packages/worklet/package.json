@@ -11,18 +11,32 @@
     "dist"
   ],
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js"
+    },
+    "./processor.js": {
+      "default": "./dist/processor.js"
     }
   },
   "scripts": {
-    "build": "echo 'build added in Sub B'",
+    "build": "vp run build:main && vp run build:worklet",
+    "build:main": "vite build",
+    "build:worklet": "DEN_WORKLET_BUILD=worklet vite build",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'lint runs via vp check at workspace root'",
     "test": "echo 'no test yet'"
+  },
+  "dependencies": {
+    "@denaudio/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/audioworklet": "^0.0.97",
+    "@types/node": "^22.0.0",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "4.5.4"
   }
 }

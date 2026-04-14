@@ -17,16 +17,37 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo check --workspace --all-targets
+      # den-core is `#![no_std]` + panics via `core::arch::wasm32::unreachable()`,
+      # so it only compiles for wasm32. Host-target checks (clippy/check across
+      # the rest of the workspace, including the std-using den-reference binary)
+      # run with `--exclude den-core`; den-core itself is checked explicitly for
+      # the wasm32 target.
+      - run: cargo clippy --workspace --exclude den-core --all-targets -- -D warnings
+      - run: cargo clippy -p den-core --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo check --workspace --exclude den-core --all-targets
+      - run: cargo check -p den-core --target wasm32-unknown-unknown
 
-  js-check:
+  wasm-build:
     runs-on: ubuntu-latest
+    needs: [rust-check]
     steps:
       - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y binaryen
       - uses: voidzero-dev/setup-vp@v1.6.0
         with:
           node-version-file: ./.node-version
           cache: true
           run-install: true # auto-runs `vp install --frozen-lockfile`
+      - run: vp run build
       - run: vp check
+      - run: vp run -r typecheck # full tsc --noEmit per package (cross-package types via dist/*.d.ts)
+      - run: vp run smoke
+      - uses: actions/upload-artifact@v5
+        with:
+          name: den_core.wasm
+          path: packages/core/dist/den_core.wasm

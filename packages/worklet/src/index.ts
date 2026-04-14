@@ -1,1 +1,1 @@
-export const __placeholder = true;
+export * from "./main.js";

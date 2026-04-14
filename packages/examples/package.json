@@ -12,7 +12,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "echo 'build added in Sub B'",
+    "build": "echo 'examples app scaffolding lands in Sub C'",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'lint runs via vp check at workspace root'",
     "test": "echo 'no test yet'"

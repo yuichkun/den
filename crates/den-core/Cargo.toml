@@ -9,4 +9,6 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# (empty for now — Sub B adds no_std-friendly deps; Sub D pulls in fundsp optionally)
+# alloc-only, no std — `alloc` on wasm32 requires a `#[global_allocator]`; rustc's
+# default for this target is the same dlmalloc family as below.
+dlmalloc = { version = "0.2.8", features = ["global"] }
