@@ -1,0 +1,28 @@
+{
+  "name": "@denaudio/worklet",
+  "version": "0.0.0",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yuichkun/den.git",
+    "directory": "packages/worklet"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "echo 'build added in Sub B'",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint runs via vp check at workspace root'",
+    "test": "echo 'no test yet'"
+  }
+}
