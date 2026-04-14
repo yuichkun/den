@@ -57,7 +57,19 @@ export class Gain extends AudioWorkletNode {
     // the same value so the AudioParam target and the kernel's smoother
     // seed agree from sample 0 — no audible "unity → target" decay on
     // startup. Default = 1.0 (matches the descriptor's defaultValue).
-    const initialGain = options.gain ?? 1.0;
+    //
+    // Clamp / coerce here before either path consumes it: the AudioParam
+    // descriptor caps `parameterData.gain` to [0, 10] on its own, but
+    // `__denInitialGain` is forwarded raw to `den_gain_init` which writes
+    // it directly into `smoothed_l` / `smoothed_r`. Without clamping a
+    // caller passing `gain: -1` would seed the kernel with -1 and emit
+    // inverted-phase audio for the first ~100 ms, and `gain: NaN` would
+    // pin the smoother at NaN forever (NaN × anything = NaN). Match the
+    // descriptor's [0, 10] range and fall back to 1.0 on non-finite.
+    const requested = options.gain ?? 1.0;
+    const initialGain = Number.isFinite(requested)
+      ? Math.max(0, Math.min(10, requested))
+      : 1.0;
     super(ctx, DEN_PROCESSOR_NAME, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
