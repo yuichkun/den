@@ -174,7 +174,7 @@ export function mountParamSlider(
 }
 
 export function mountWaveform(container: HTMLElement, buffer: AudioBuffer): void {
-  container.innerHTML = `<h3>Waveform (L + R)</h3><canvas></canvas>`;
+  container.innerHTML = `<h3>Waveform (L top / R bottom)</h3><canvas></canvas>`;
   const canvas = container.querySelector<HTMLCanvasElement>("canvas")!;
   const dpr = globalThis.devicePixelRatio ?? 1;
   const w = (canvas.width = canvas.clientWidth * dpr);
@@ -182,10 +182,29 @@ export function mountWaveform(container: HTMLElement, buffer: AudioBuffer): void
   const g = canvas.getContext("2d")!;
   g.fillStyle = "#000";
   g.fillRect(0, 0, w, h);
-  for (let ch = 0; ch < Math.min(2, buffer.numberOfChannels); ch++) {
+
+  const numCh = Math.min(2, buffer.numberOfChannels);
+  // Stack L and R vertically (DAW-style) so both stay visible even when
+  // they're identical (Passthrough has L==R for our test signals — if
+  // we drew them in the same band the second would completely hide
+  // the first).
+  for (let ch = 0; ch < numCh; ch++) {
     const data = buffer.getChannelData(ch);
     const bins = w;
     const samplesPerBin = Math.max(1, Math.floor(data.length / bins));
+    const bandTop = numCh === 1 ? 0 : (ch * h) / 2;
+    const bandHeight = numCh === 1 ? h : h / 2;
+    const yMid = bandTop + bandHeight / 2;
+    const yScale = bandHeight / 2;
+
+    // Faint center line per band for amplitude reference.
+    g.strokeStyle = "#222";
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(0, yMid);
+    g.lineTo(w, yMid);
+    g.stroke();
+
     g.strokeStyle = ch === 0 ? "#5b6cff" : "#ff6c5b";
     g.beginPath();
     for (let x = 0; x < bins; x++) {
@@ -197,8 +216,8 @@ export function mountWaveform(container: HTMLElement, buffer: AudioBuffer): void
         if (s < min) min = s;
         if (s > max) max = s;
       }
-      const yMin = ((1 - min) * h) / 2;
-      const yMax = ((1 - max) * h) / 2;
+      const yMin = yMid - min * yScale;
+      const yMax = yMid - max * yScale;
       g.moveTo(x, yMin);
       g.lineTo(x, yMax);
     }
@@ -219,7 +238,7 @@ interface FftConstructor {
 }
 
 export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): void {
-  container.innerHTML = `<h3>Spectrogram (L, log-freq)</h3><canvas></canvas>`;
+  container.innerHTML = `<h3>Spectrogram (L, log-freq 20 Hz → Nyquist)</h3><canvas></canvas>`;
   const canvas = container.querySelector<HTMLCanvasElement>("canvas")!;
   const dpr = globalThis.devicePixelRatio ?? 1;
   const w = (canvas.width = canvas.clientWidth * dpr);
@@ -229,6 +248,7 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
   g.fillRect(0, 0, w, h);
 
   const mono = buffer.getChannelData(0);
+  const sr = buffer.sampleRate;
   const frames = Math.max(1, Math.floor((mono.length - SPEC_FFT) / SPEC_HOP));
   const fft = new (FFT as unknown as FftConstructor)(SPEC_FFT);
   const outSpec: number[] = Array.from({ length: SPEC_FFT * 2 }, () => 0);
@@ -237,9 +257,38 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
     window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (SPEC_FFT - 1)));
   }
 
-  const mags = new Float32Array(SPEC_FFT / 2);
-  const imageData = g.createImageData(frames, SPEC_FFT / 2);
+  // Render the FFT result into a SEPARATE offscreen canvas at native
+  // (frames × h) resolution, then drawImage-scale onto the display
+  // canvas. Drawing canvas-to-itself with overlapping src/dest is
+  // undefined per the Canvas2D spec — the previous version fell into
+  // exactly that trap and produced a tiny bitmap stuck in the top-
+  // left corner.
+  const off = document.createElement("canvas");
+  off.width = frames;
+  off.height = h;
+  const og = off.getContext("2d")!;
+  const imageData = og.createImageData(frames, h);
   const data = imageData.data;
+
+  // Precompute display-row → FFT-bin lookup using a log-frequency axis
+  // (top of canvas = Nyquist, bottom = ~20 Hz). Without this remap a
+  // log chirp shows up as a near-vertical streak on the right; with
+  // it, the chirp draws as the expected diagonal sweep.
+  const F_MIN = 20;
+  const F_MAX = sr / 2;
+  const binLookup = new Int16Array(h);
+  for (let row = 0; row < h; row++) {
+    const yNorm = row / Math.max(1, h - 1);
+    const freq = F_MAX * Math.pow(F_MIN / F_MAX, yNorm);
+    binLookup[row] = Math.min(SPEC_FFT / 2 - 1, Math.max(0, Math.round((freq * SPEC_FFT) / sr)));
+  }
+
+  // Normalize so a full-scale sinusoid lands near 0 dBFS rather than
+  // saturating at ~+50 dBFS. Hann window halves the windowed energy,
+  // so peak FFT magnitude for amplitude A is roughly A*N/4; dividing
+  // by N/2 gets us close to A in linear scale.
+  const NORM = SPEC_FFT / 2;
+  const mags = new Float32Array(SPEC_FFT / 2);
   const input: number[] = Array.from({ length: SPEC_FFT }, () => 0);
   for (let f = 0; f < frames; f++) {
     const base = f * SPEC_HOP;
@@ -251,13 +300,13 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
     for (let k = 0; k < SPEC_FFT / 2; k++) {
       const re = outSpec[2 * k] ?? 0;
       const im = outSpec[2 * k + 1] ?? 0;
-      mags[k] = Math.sqrt(re * re + im * im);
+      mags[k] = Math.sqrt(re * re + im * im) / NORM;
     }
-    for (let k = 0; k < SPEC_FFT / 2; k++) {
+    for (let row = 0; row < h; row++) {
+      const k = binLookup[row]!;
       const mag = mags[k] ?? 0;
       const db = 20 * Math.log10(mag + 1e-9);
       const norm = Math.max(0, Math.min(1, (db + 96) / 96));
-      const row = SPEC_FFT / 2 - 1 - k;
       const pxIdx = (row * frames + f) * 4;
       const c = Math.floor(norm * 255);
       data[pxIdx] = c;
@@ -266,10 +315,7 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
       data[pxIdx + 3] = 255;
     }
   }
-  const bmp = g.createImageData(frames, SPEC_FFT / 2);
-  bmp.data.set(data);
-  g.putImageData(bmp, 0, 0);
-  // Scale to canvas size.
+  og.putImageData(imageData, 0, 0);
   g.imageSmoothingEnabled = false;
-  g.drawImage(canvas, 0, 0, frames, SPEC_FFT / 2, 0, 0, w, h);
+  g.drawImage(off, 0, 0, frames, h, 0, 0, w, h);
 }
