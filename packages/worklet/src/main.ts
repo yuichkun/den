@@ -13,6 +13,31 @@ interface AugmentedContext extends BaseAudioContext {
   [CACHE_KEY]?: Promise<WasmReady>;
 }
 
+/**
+ * Forward-compat fallback per issue #3 §3 Decision row 43: the W3C Web Audio
+ * spec does not mandate freezing `BaseAudioContext`, so the `Symbol.for`
+ * hidden-property write succeeds in every 2026 browser, but a host (or user
+ * code) may `Object.preventExtensions(ctx)` / `Object.freeze(ctx)` and break
+ * the property write. The WeakMap is module-private so its entries are GCed
+ * with the context.
+ */
+const FALLBACK_CACHE = new WeakMap<BaseAudioContext, Promise<WasmReady>>();
+
+function readCache(ctx: BaseAudioContext): Promise<WasmReady> | undefined {
+  const aug = ctx as AugmentedContext;
+  return aug[CACHE_KEY] ?? FALLBACK_CACHE.get(ctx);
+}
+
+function writeCache(ctx: BaseAudioContext, p: Promise<WasmReady>): void {
+  const aug = ctx as AugmentedContext;
+  try {
+    aug[CACHE_KEY] = p;
+  } catch {
+    // ctx is non-extensible / frozen — fall back to the module-private WeakMap.
+    FALLBACK_CACHE.set(ctx, p);
+  }
+}
+
 export interface WasmReady {
   bytes: ArrayBuffer;
   workletModuleAdded: true;
@@ -36,10 +61,8 @@ export function registerDenWorklet(
   ctx: BaseAudioContext,
   options: RegisterOptions = {},
 ): Promise<WasmReady> {
-  const aug = ctx as AugmentedContext;
-  if (aug[CACHE_KEY]) {
-    return aug[CACHE_KEY];
-  }
+  const cached = readCache(ctx);
+  if (cached) return cached;
   const workletUrl = options.workletUrl ?? new URL("./processor.js", import.meta.url).href;
   const p = (async () => {
     const [bytes] = await Promise.all([
@@ -48,7 +71,7 @@ export function registerDenWorklet(
     ]);
     return { bytes, workletModuleAdded: true as const };
   })();
-  aug[CACHE_KEY] = p;
+  writeCache(ctx, p);
   return p;
 }
 
