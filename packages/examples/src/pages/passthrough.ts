@@ -28,7 +28,6 @@ export async function render(root: HTMLElement): Promise<void> {
     </p>
     <section id="wave"></section>
     <section id="spec"></section>
-    <section id="render"><button class="re">Re-render wave + spec</button></section>
   `;
 
   const status = document.getElementById("status")!;
@@ -78,9 +77,6 @@ export async function render(root: HTMLElement): Promise<void> {
         mountSpectrogram(document.getElementById("spec")!, buf);
       };
       await refreshViz();
-      root
-        .querySelector<HTMLButtonElement>(".re")
-        ?.addEventListener("click", () => void refreshViz());
     })();
   });
 
