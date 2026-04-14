@@ -102,9 +102,12 @@ export async function render(root: HTMLElement): Promise<void> {
       return;
     }
     fileInfo.textContent = `decoding ${f.name}…`;
+    // Same close-temp-ctx pattern as `pages/gain.ts` — see that file's
+    // expanded comment. Without this, repeated file picks before Play
+    // exhaust the browser's AudioContext limit.
+    const tempCtx = ctx ?? new AudioContext();
     try {
-      const decodeCtx = ctx ?? new AudioContext();
-      const decoded = await decodeCtx.decodeAudioData((await f.arrayBuffer()).slice(0));
+      const decoded = await tempCtx.decodeAudioData((await f.arrayBuffer()).slice(0));
       if (decoded.duration > MAX_FILE_SECONDS) {
         fileInfo.textContent = `error: ${decoded.duration.toFixed(1)}s > ${MAX_FILE_SECONDS}s cap`;
         return;
@@ -116,6 +119,14 @@ export async function render(root: HTMLElement): Promise<void> {
       if (isPlaying()) restartSource();
     } catch (err) {
       fileInfo.textContent = `error: ${(err as Error).message}`;
+    } finally {
+      if (tempCtx !== ctx) {
+        try {
+          await tempCtx.close();
+        } catch {
+          /* close() throws on already-closed contexts; ignore */
+        }
+      }
     }
   }
 

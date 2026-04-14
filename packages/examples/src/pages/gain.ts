@@ -128,16 +128,20 @@ export async function render(root: HTMLElement): Promise<void> {
       return;
     }
     fileInfo.textContent = `decoding ${f.name}…`;
+    // `decodeAudioData` must run against an actual AudioContext (not
+    // OAC). Reuse the play ctx if we have one, otherwise spin up a
+    // throw-away realtime ctx — the resulting `AudioBuffer` is
+    // portable across contexts per Web Audio §1.4 (decoded data is
+    // not tied to the context that created it), so we can close the
+    // temp ctx as soon as decode completes. Without this close,
+    // re-picking files a few times would exhaust the browser's
+    // ~6-AudioContext limit and brick the page until reload.
+    const tempCtx = ctx ?? new AudioContext();
     try {
-      // `decodeAudioData` must run against an actual AudioContext (not
-      // OAC). Reuse the play ctx if we have one, otherwise spin up a
-      // throw-away realtime ctx — the resulting AudioBuffer is
-      // portable across contexts per Web Audio §1.4.
-      const decodeCtx = ctx ?? new AudioContext();
       // `slice(0)` clones the ArrayBuffer; `decodeAudioData` neuters
       // the input per spec, and a clone lets the user re-pick the
       // same file later via a fresh `file.arrayBuffer()` call.
-      const decoded = await decodeCtx.decodeAudioData((await f.arrayBuffer()).slice(0));
+      const decoded = await tempCtx.decodeAudioData((await f.arrayBuffer()).slice(0));
       if (decoded.duration > MAX_FILE_SECONDS) {
         fileInfo.textContent = `error: ${decoded.duration.toFixed(1)}s > ${MAX_FILE_SECONDS}s cap`;
         return;
@@ -151,6 +155,16 @@ export async function render(root: HTMLElement): Promise<void> {
       if (isPlaying()) restartSource();
     } catch (err) {
       fileInfo.textContent = `error: ${(err as Error).message}`;
+    } finally {
+      // Only close if we created the temp ctx — never close the live
+      // play ctx out from under the user.
+      if (tempCtx !== ctx) {
+        try {
+          await tempCtx.close();
+        } catch {
+          /* close() throws on already-closed contexts; ignore */
+        }
+      }
     }
   }
 
