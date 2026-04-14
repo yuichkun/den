@@ -7,8 +7,18 @@ repository.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+# Plain `cargo test -p den-core` (without `--lib`) would otherwise try
+# to build doctests against the cdylib on host, which fails with
+# "unwinding panics are not supported without std" because the host
+# profile pulls in liballoc's eh_personality. We don't ship doctests
+# anyway — the tests that matter are the host-target `#[cfg(test)] mod
+# tests` blocks under `effects/<kernel>.rs`.
+doctest = false
 
 [dependencies]
 # alloc-only, no std — `alloc` on wasm32 requires a `#[global_allocator]`; rustc's
 # default for this target is the same dlmalloc family as below.
 dlmalloc = { version = "0.2.8", features = ["global"] }
+# `no_std`-compatible math (`exp` / `expf` / `log10f`) for the 1-pole
+# smoothing coefficient in Gain and any future kernel that needs it.
+libm = "0.2"

@@ -18,7 +18,9 @@ test.describe("Tier3a: Passthrough through AudioWorklet", () => {
       // slip through CI — flagged by codex review on PR #12.
       const result = await page.evaluate(async (signalName) => {
         const api = window.__denTier3a;
-        if (!api) throw new Error("__denTier3a missing — page not ready");
+        if (!api?.Passthrough) {
+          throw new Error("__denTier3a.Passthrough missing — page not ready");
+        }
         const { Passthrough, CANONICAL, workletUrl } = api;
         const factory = CANONICAL[signalName];
         if (!factory) throw new Error(`unknown signal: ${signalName}`);
@@ -28,8 +30,11 @@ test.describe("Tier3a: Passthrough through AudioWorklet", () => {
           length: inSig.length,
           sampleRate: 48000,
         });
+        // Sub D's canonical effect shape: async register, then sync
+        // construct. `new Passthrough(ctx)` reads the WASM bytes from
+        // the per-context cache that `register` populated.
         await Passthrough.register(ctx, { workletUrl });
-        const node = await Passthrough.create(ctx, { workletUrl });
+        const node = new Passthrough(ctx);
         const src = ctx.createBufferSource();
         const buf = ctx.createBuffer(2, inSig.length, 48000);
         const stereo = new Float32Array(inSig.length);

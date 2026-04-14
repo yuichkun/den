@@ -60,6 +60,9 @@ importers:
       '@denaudio/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@denaudio/worklet':
+        specifier: workspace:*
+        version: link:../worklet
     devDependencies:
       '@playwright/test':
         specifier: ^1.59.1
@@ -67,9 +70,6 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
-      fft.js:
-        specifier: ^4.0.4
-        version: 4.0.4
       vite:
         specifier: ^6.0.0
         version: 6.4.2(@types/node@22.19.17)
@@ -634,9 +634,6 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
-
-  fft.js@4.0.4:
-    resolution: {integrity: sha512-f9c00hphOgeQTlDyavwTtu6RiK8AIFjD6+jvXkNkpeQ7rirK3uFWVpalkoS4LAwbdX7mfZ8aoBfFVQX1Re/8aw==}
 
   fs-extra@11.3.4:
     resolution: {integrity: sha512-CTXd6rk/M3/ULNQj8FBqBWHYBVYybQ3VPBw0xGKFe3tuH7ytT6ACnvzpIQ3UZtB8yvUKC2cXn1a+x+5EVQLovA==}
@@ -1341,8 +1338,6 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
-
-  fft.js@4.0.4: {}
 
   fs-extra@11.3.4:
     dependencies:
