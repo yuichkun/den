@@ -1,9 +1,0 @@
-{
-  "name": "@webaudio/types",
-  "version": "0.0.0",
-  "private": true,
-  "types": "index.d.ts",
-  "dependencies": {
-    "@types/audioworklet": "^0.0.97"
-  }
-}

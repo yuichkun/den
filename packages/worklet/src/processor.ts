@@ -2,7 +2,7 @@
 // at runtime. This file is built as a classic IIFE; types are stripped.
 // All needed WASM-loading logic is inlined here.
 
-/// <reference types="@webaudio/types" />
+/// <reference types="audioworklet" />
 
 // --- Inlined instantiateSync (copy of @denaudio/core's version; no runtime import) ---
 function instantiateSync(bytes: ArrayBuffer): WebAssembly.Instance {
@@ -50,9 +50,9 @@ class DenProcessor extends AudioWorkletProcessor {
   private static readonly QUANTUM = 128;
   private static readonly BYTES_PER_BUFFER = DenProcessor.QUANTUM * 4;
 
-  static get parameterDescriptors() {
+  static get parameterDescriptors(): AudioParamDescriptor[] {
     // Sub D adds params per-kernel.
-    return [] as const;
+    return [];
   }
 
   constructor(options: AudioWorkletNodeOptions) {

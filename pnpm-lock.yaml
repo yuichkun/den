@@ -49,21 +49,7 @@ importers:
         specifier: ^6.0.0
         version: 6.4.2(@types/node@22.19.17)
 
-  packages/examples:
-    dependencies:
-      '@denaudio/core':
-        specifier: workspace:*
-        version: link:../core
-      '@denaudio/worklet':
-        specifier: workspace:*
-        version: link:../worklet
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.17
-      vite:
-        specifier: ^6.0.0
-        version: 6.4.2(@types/node@22.19.17)
+  packages/examples: {}
 
   packages/test-utils:
     devDependencies:
@@ -74,24 +60,18 @@ importers:
         specifier: ^6.0.0
         version: 6.4.2(@types/node@22.19.17)
 
-  packages/webaudio-types:
-    dependencies:
-      '@types/audioworklet':
-        specifier: ^0.0.97
-        version: 0.0.97
-
   packages/worklet:
     dependencies:
       '@denaudio/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/audioworklet':
+        specifier: ^0.0.97
+        version: 0.0.97
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
-      '@webaudio/types':
-        specifier: workspace:*
-        version: link:../webaudio-types
       vite:
         specifier: ^6.0.0
         version: 6.4.2(@types/node@22.19.17)

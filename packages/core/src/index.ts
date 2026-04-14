@@ -15,7 +15,7 @@
  * inside dist/, so the relative URL resolves correctly at consumer runtime.
  */
 export function getDefaultWasmUrl(): string {
-  return new URL(/* @vite-ignore */ "./den_core.wasm", import.meta.url).href;
+  return new URL("./den_core.wasm", import.meta.url).href;
 }
 
 /**

@@ -34,8 +34,8 @@
     "@denaudio/core": "workspace:*"
   },
   "devDependencies": {
+    "@types/audioworklet": "^0.0.97",
     "@types/node": "^22.0.0",
-    "@webaudio/types": "workspace:*",
     "vite": "^6.0.0"
   }
 }
