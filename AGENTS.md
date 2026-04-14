@@ -76,6 +76,16 @@ Before opening a PR, for every file you added or changed, ask yourself: **"Which
 
 Don't fall back to `pnpm`. Don't fall back to `npm`. Don't "just use `npx` for this one thing". Read `node_modules/vite-plus/AGENTS.md`, or fetch https://viteplus.dev, or ask the human. Falling back to pnpm because you were unsure is the single most common way agents break this repo.
 
+### 0.10 If you are a reviewer AI (codex auto-review, Claude review, any review sub-agent)
+
+Your job is to **verify against the spec**, not against your instincts. The diff and commit messages are not enough on their own.
+
+1. **Read the linked issues first.** Run `gh issue view <N> --repo yuichkun/den` for every issue this PR references — typically the "Closes #N" target plus its parent epic and any "Blocked by" / "Blocks" siblings. Read this `AGENTS.md`. Read the PR body's "Deviations" / "§0.6 disclosure" block. Only then look at the diff.
+2. **Treat the issue body as a literal checklist.** Walk every item in §4 (Out of Scope), §6 (Implementation Plan), §7 (Testing & Verification), §8 (Fallback Plans), and §9 (Definition of Done) against what the diff actually does. Cite `file:line` evidence for each judgment.
+3. **Flag every silent deviation.** Each deviation must be either (a) an enumerated §8 fallback that the PR description cites, or (b) explicitly disclosed in the PR body per §0.6. If it is neither, surface it as a blocker — even when the change "looks reasonable". Do not invent fallbacks; fallback authority comes from the issue's §8, not from the PR.
+4. **Past failure modes worth a direct check:** any direct `pnpm` / `npm` / `yarn` / `npx` / `pnpx` invocation anywhere — shell, `package.json` scripts, CI steps, config files, READMEs (§0.8); new workspace packages, new files, type shims, npm/cargo deps, or CI jobs not authorized by the issue (§0.2, §0.4); restructuring of files whose shape the issue specifies in §6 (§0.1).
+5. **Before approving, name what you walked.** State which issue sections you read end-to-end and what concrete evidence convinced you each DoD item was satisfied. A bare "LGTM" without that grounding is not a useful review and will be treated as if no review happened.
+
 ---
 
 ## 1. Required tools
