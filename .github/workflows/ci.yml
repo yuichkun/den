@@ -45,6 +45,7 @@ jobs:
           run-install: true # auto-runs `vp install --frozen-lockfile`
       - run: vp run build
       - run: vp check
+      - run: vp run -r typecheck # full tsc --noEmit per package (cross-package types via dist/*.d.ts)
       - run: vp run smoke
       - uses: actions/upload-artifact@v5
         with:

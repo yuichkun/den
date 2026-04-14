@@ -4,6 +4,21 @@
 
 /// <reference types="audioworklet" />
 
+// `AudioParamDescriptor` is part of the Web Audio AudioWorklet spec
+// (https://webaudio.github.io/web-audio-api/#dom-audioparamdescriptor) but
+// is not declared in `@types/audioworklet@0.0.97` (the latest as of writing
+// — see microsoft/TypeScript-DOM-Lib-Generator) nor in TypeScript's
+// `lib.dom.d.ts`. Declare the spec shape locally so the typed
+// `parameterDescriptors` getter (issue #3 §6.4 literal) typechecks. The
+// `AutomationRate` string-literal union itself comes from `lib.dom.d.ts`.
+interface AudioParamDescriptor {
+  name: string;
+  defaultValue?: number;
+  minValue?: number;
+  maxValue?: number;
+  automationRate?: AutomationRate;
+}
+
 // --- Inlined instantiateSync (copy of @denaudio/core's version; no runtime import) ---
 function instantiateSync(bytes: ArrayBuffer): WebAssembly.Instance {
   const mod = new WebAssembly.Module(bytes);
