@@ -23,9 +23,23 @@ const CACHE_KEY = Symbol.for("den.worklet.cache");
  */
 const INFLIGHT_KEY = Symbol.for("den.worklet.inflight");
 
+/**
+ * Per-context flag recording that `audioWorklet.addModule` has succeeded
+ * for the den processor. Persists across partial-register failures so a
+ * retry (e.g., after fixing a bad `wasmUrl`) does NOT re-call
+ * `addModule` — the processor file's `registerProcessor("den-processor",
+ * …)` would throw `NotSupportedError` on a duplicate name and Firefox /
+ * Safari are not specified to short-circuit duplicate addModule calls
+ * (Chrome happens to, but that's implementation-defined). Without this
+ * flag, a fetch-fails-but-addModule-succeeds first attempt would brick
+ * every subsequent retry on those browsers.
+ */
+const MODULE_KEY = Symbol.for("den.worklet.module-added");
+
 interface AugmentedContext extends BaseAudioContext {
   [CACHE_KEY]?: Cached;
   [INFLIGHT_KEY]?: Promise<void>;
+  [MODULE_KEY]?: true;
 }
 
 interface Cached {
@@ -34,11 +48,12 @@ interface Cached {
 
 // Freeze-tolerant fallback: if the host (or user code) called
 // `Object.preventExtensions(ctx)` / `Object.freeze(ctx)`, the symbol-keyed
-// hidden property write throws. We mirror both slots into a module-private
-// WeakMap so the cache still works. WeakMap entries are GCed with the
-// context.
+// hidden property write throws. We mirror all three slots into a
+// module-private WeakMap so the cache still works. WeakMap entries are
+// GCed with the context.
 const FALLBACK_CACHE = new WeakMap<BaseAudioContext, Cached>();
 const FALLBACK_INFLIGHT = new WeakMap<BaseAudioContext, Promise<void>>();
+const FALLBACK_MODULE = new WeakMap<BaseAudioContext, true>();
 
 function readCached(ctx: BaseAudioContext): Cached | undefined {
   const aug = ctx as AugmentedContext;
@@ -78,6 +93,20 @@ function clearInflight(ctx: BaseAudioContext): void {
   FALLBACK_INFLIGHT.delete(ctx);
 }
 
+function readModuleAdded(ctx: BaseAudioContext): boolean {
+  const aug = ctx as AugmentedContext;
+  return aug[MODULE_KEY] === true || FALLBACK_MODULE.get(ctx) === true;
+}
+
+function writeModuleAdded(ctx: BaseAudioContext): void {
+  const aug = ctx as AugmentedContext;
+  try {
+    aug[MODULE_KEY] = true;
+  } catch {
+    FALLBACK_MODULE.set(ctx, true);
+  }
+}
+
 export interface RegisterOptions {
   /** Override the default WASM URL (e.g., for CDN delivery). */
   wasmUrl?: string;
@@ -105,9 +134,21 @@ export function registerDenWorklet(
   const workletUrl = options.workletUrl ?? new URL("./processor.js", import.meta.url).href;
   const p = (async () => {
     try {
+      // Skip `addModule` if a previous (partial) attempt already
+      // succeeded on this ctx — re-running it would call
+      // `registerProcessor("den-processor", …)` a second time inside
+      // the worklet IIFE and throw `NotSupportedError` (Firefox /
+      // Safari behavior; Chrome short-circuits but that's
+      // implementation-defined). `writeModuleAdded` runs inside
+      // the addModule promise's then, BEFORE Promise.all settles,
+      // so partial-failure recovery sees the persisted flag.
       const [bytes] = await Promise.all([
         fetchWasmBytes(options.wasmUrl),
-        ctx.audioWorklet.addModule(workletUrl),
+        readModuleAdded(ctx)
+          ? Promise.resolve()
+          : ctx.audioWorklet.addModule(workletUrl).then(() => {
+              writeModuleAdded(ctx);
+            }),
       ]);
       writeCached(ctx, { bytes });
     } finally {
