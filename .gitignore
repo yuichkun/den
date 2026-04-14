@@ -13,6 +13,15 @@ dist/
 .vite/
 .turbo/
 
+# Playwright
+test-results/
+playwright-report/
+
+# uv (gen-golden Python env)
+scripts/gen-golden/.venv/
+__pycache__/
+*.pyc
+
 # Editor
 .DS_Store
 .idea/

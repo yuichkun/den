@@ -9,12 +9,23 @@
     "directory": "packages/examples"
   },
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "echo 'examples app scaffolding lands in Sub C'",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 5173",
+    "test:e2e": "playwright test",
+    "playwright:install": "playwright install --with-deps chromium",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'lint runs via vp check at workspace root'",
-    "test": "echo 'no test yet'"
+    "lint": "echo 'lint runs via vp check at workspace root'"
+  },
+  "dependencies": {
+    "@denaudio/effects": "workspace:*",
+    "@denaudio/test-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^22.0.0",
+    "fft.js": "^4.0.4",
+    "vite": "^6.0.0"
   }
 }
