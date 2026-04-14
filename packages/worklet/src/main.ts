@@ -5,11 +5,21 @@ import { fetchWasmBytes } from "@denaudio/core";
  * `registerDenWorklet` has resolved (module installed + bytes fetched).
  *
  * `Symbol.for(...)` keeps the key stable across multiple bundled copies of
- * `@denaudio/worklet` — so two pinned versions still share the same cache
- * per context. The slot itself is a hidden property on the context, which
- * the W3C Web Audio spec does not mandate freezing (true in every 2026
- * browser); see `FALLBACK_CACHE` below for the freeze-tolerant escape
- * hatch.
+ * `@denaudio/worklet` AT THE SAME MAJOR VERSION — different patch / minor
+ * builds of the current shape interoperate transparently (both write
+ * `{ bytes: ArrayBuffer }`), so a transitive-dep duplicate doesn't
+ * double-register the processor. Cross-major compat (e.g. a hypothetical
+ * future v2 alongside this v1) is NOT a goal here: shape validation in
+ * `readCached` rejects unknown shapes silently and the regular register
+ * path runs again. On browsers that don't dedupe duplicate
+ * `registerProcessor("den-processor", …)` (Firefox / Safari are not
+ * specified to), that re-register will fail. Pre-1.0 there is no v2 to
+ * worry about; if a future v2 lands it must include explicit migration
+ * (e.g. either await any legacy promise it finds in the slot, or pick a
+ * fresh symbol name for its own shape). The slot itself is a hidden
+ * property on the context, which the W3C Web Audio spec does not mandate
+ * freezing (true in every 2026 browser); see `FALLBACK_CACHE` below for
+ * the freeze-tolerant escape hatch.
  */
 const CACHE_KEY = Symbol.for("den.worklet.cache");
 
