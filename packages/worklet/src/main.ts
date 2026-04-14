@@ -34,22 +34,35 @@ const CACHE_KEY = Symbol.for("den.worklet.cache");
 const INFLIGHT_KEY = Symbol.for("den.worklet.inflight");
 
 /**
- * Per-context flag recording that `audioWorklet.addModule` has succeeded
- * for the den processor. Persists across partial-register failures so a
- * retry (e.g., after fixing a bad `wasmUrl`) does NOT re-call
- * `addModule` — the processor file's `registerProcessor("den-processor",
+ * Per-context record of which worklet `URL` was successfully added via
+ * `audioWorklet.addModule`. Persists across partial-register failures so
+ * a retry with the SAME url (e.g., after fixing a bad `wasmUrl`) skips
+ * addModule — the processor file's `registerProcessor("den-processor",
  * …)` would throw `NotSupportedError` on a duplicate name and Firefox /
  * Safari are not specified to short-circuit duplicate addModule calls
- * (Chrome happens to, but that's implementation-defined). Without this
- * flag, a fetch-fails-but-addModule-succeeds first attempt would brick
- * every subsequent retry on those browsers.
+ * (Chrome happens to, but that's implementation-defined).
+ *
+ * URL-aware (not just `true`) so that a retry with a DIFFERENT workletUrl
+ * correctly re-attempts addModule. Scenario: the caller first passed a
+ * loadable-but-wrong url (one that fetched OK but didn't register
+ * "den-processor", or registered a different implementation) — with a
+ * plain boolean flag the retry would silently skip addModule, trusting
+ * the wrong module that was loaded. With the url recorded, a mismatched
+ * retry runs addModule again (which will fail cleanly with
+ * `NotSupportedError` if the old url already latched some processor
+ * onto the ctx, surfacing the problem instead of hiding it — the only
+ * real recovery in that case is a fresh AudioContext).
  */
 const MODULE_KEY = Symbol.for("den.worklet.module-added");
+
+interface ModuleAdded {
+  url: string;
+}
 
 interface AugmentedContext extends BaseAudioContext {
   [CACHE_KEY]?: Cached;
   [INFLIGHT_KEY]?: Promise<void>;
-  [MODULE_KEY]?: true;
+  [MODULE_KEY]?: ModuleAdded;
 }
 
 interface Cached {
@@ -63,7 +76,7 @@ interface Cached {
 // GCed with the context.
 const FALLBACK_CACHE = new WeakMap<BaseAudioContext, Cached>();
 const FALLBACK_INFLIGHT = new WeakMap<BaseAudioContext, Promise<void>>();
-const FALLBACK_MODULE = new WeakMap<BaseAudioContext, true>();
+const FALLBACK_MODULE = new WeakMap<BaseAudioContext, ModuleAdded>();
 
 function readCached(ctx: BaseAudioContext): Cached | undefined {
   // Shape-validate: `Symbol.for("den.worklet.cache")` is global across
@@ -124,17 +137,26 @@ function clearInflight(ctx: BaseAudioContext): void {
   FALLBACK_INFLIGHT.delete(ctx);
 }
 
-function readModuleAdded(ctx: BaseAudioContext): boolean {
+/**
+ * URL-aware read: returns true only if `addModule(url)` was previously
+ * recorded for this ctx with the same `url`. Mismatched url → false
+ * (retry should attempt addModule, which will succeed if the ctx is
+ * still clean OR surface a clear `NotSupportedError` if some prior url
+ * latched a processor onto it).
+ */
+function readModuleAdded(ctx: BaseAudioContext, url: string): boolean {
   const aug = ctx as AugmentedContext;
-  return aug[MODULE_KEY] === true || FALLBACK_MODULE.get(ctx) === true;
+  const info = aug[MODULE_KEY] ?? FALLBACK_MODULE.get(ctx);
+  return info?.url === url;
 }
 
-function writeModuleAdded(ctx: BaseAudioContext): void {
+function writeModuleAdded(ctx: BaseAudioContext, url: string): void {
+  const info: ModuleAdded = { url };
   const aug = ctx as AugmentedContext;
   try {
-    aug[MODULE_KEY] = true;
+    aug[MODULE_KEY] = info;
   } catch {
-    FALLBACK_MODULE.set(ctx, true);
+    FALLBACK_MODULE.set(ctx, info);
   }
 }
 
@@ -176,13 +198,16 @@ export function registerDenWorklet(
   // throws `NotSupportedError`. Holding the lock until both legs
   // settle serializes any retry against the in-flight attempt.
   const fetchPromise = fetchWasmBytes(options.wasmUrl);
-  const modulePromise = readModuleAdded(ctx)
+  const modulePromise = readModuleAdded(ctx, workletUrl)
     ? Promise.resolve()
     : ctx.audioWorklet.addModule(workletUrl).then(() => {
         // Persist BEFORE the outer Promise.all settles so a
         // fetch-failure landing AFTER addModule resolved still
-        // records the partial progress for the retry path.
-        writeModuleAdded(ctx);
+        // records the partial progress for the retry path. Records
+        // the specific url so a retry with a CORRECTED url (after
+        // a typo / wrong path on the first attempt) still attempts
+        // addModule instead of trusting the wrong module.
+        writeModuleAdded(ctx, workletUrl);
       });
   const p = (async () => {
     try {
