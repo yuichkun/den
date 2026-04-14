@@ -288,12 +288,30 @@ export async function renderEffectPage<TNode extends AudioNode>(
   });
 
   // ---------- Transport ----------
+  // `starting` guards against concurrent Play clicks while `start()`
+  // is awaiting register. Without it, a quick double-click would
+  // spawn two `AudioContext`s in parallel — `live` is still null on
+  // the second click because we don't assign it until after the
+  // awaits — and only the last would be tracked, leaving the first
+  // playing in the background with no UI affordance to stop it.
+  let starting = false;
   playBtn.addEventListener("click", () => {
     if (live) stop();
-    else void start();
+    else if (!starting) void start();
   });
 
   async function start(): Promise<void> {
+    starting = true;
+    playBtn.disabled = true;
+    try {
+      await startInner();
+    } finally {
+      starting = false;
+      playBtn.disabled = false;
+    }
+  }
+
+  async function startInner(): Promise<void> {
     const ctx = new AudioContext();
     try {
       if (ctx.state === "suspended") await ctx.resume();

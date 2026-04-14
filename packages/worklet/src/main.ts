@@ -56,8 +56,6 @@ const FALLBACK_INFLIGHT = new WeakMap<BaseAudioContext, Promise<void>>();
 const FALLBACK_MODULE = new WeakMap<BaseAudioContext, true>();
 
 function readCached(ctx: BaseAudioContext): Cached | undefined {
-  const aug = ctx as AugmentedContext;
-  const raw = aug[CACHE_KEY] ?? FALLBACK_CACHE.get(ctx);
   // Shape-validate: `Symbol.for("den.worklet.cache")` is global across
   // bundled copies of `@denaudio/worklet`, and an older Sub B build
   // stored a `Promise<{ bytes, workletModuleAdded }>` under the same
@@ -68,7 +66,18 @@ function readCached(ctx: BaseAudioContext): Cached | undefined {
   // Require an actual `ArrayBuffer` in the `bytes` slot before trusting
   // the cache; anything else is treated as "not cached" and the
   // regular register path overwrites the slot with our shape.
-  if (raw && raw.bytes instanceof ArrayBuffer) return raw;
+  //
+  // Check the symbol slot AND the WeakMap fallback INDEPENDENTLY (not
+  // via `??`): if the symbol slot holds an incompatible value AND the
+  // ctx is frozen (so `writeCached` could only update the WeakMap
+  // fallback), `??` would short-circuit on the truthy-but-incompatible
+  // symbol value and never read the valid WeakMap entry — leaving the
+  // ctx permanently mis-detected as "not registered".
+  const aug = ctx as AugmentedContext;
+  const symVal = aug[CACHE_KEY];
+  if (symVal && symVal.bytes instanceof ArrayBuffer) return symVal;
+  const fallback = FALLBACK_CACHE.get(ctx);
+  if (fallback && fallback.bytes instanceof ArrayBuffer) return fallback;
   return undefined;
 }
 
