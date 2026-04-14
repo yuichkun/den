@@ -97,11 +97,18 @@ Install these before doing anything else.
 Before opening a PR, every agent must run and pass:
 
 ```bash
-vp check                  # fmt + lint + typecheck (oxfmt + oxlint + tsgo)
+# Rust gates — den-core is `#![no_std]` + wasm32-only, so it's checked
+# separately from the rest of the workspace (which includes the std-using
+# den-reference binary).
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo check --workspace
+cargo clippy --workspace --exclude den-core --all-targets -- -D warnings
+cargo clippy -p den-core --target wasm32-unknown-unknown -- -D warnings
+cargo check --workspace --exclude den-core --all-targets
+cargo check -p den-core --target wasm32-unknown-unknown
+
+# JS / TS gates
 vp run build              # builds WASM + all @denaudio/* packages
+vp check                  # fmt + lint (+ typecheck if enabled in lint.options)
 vp run smoke              # Node-side WASM smoke (see scripts/smoke.mjs)
 ```
 
