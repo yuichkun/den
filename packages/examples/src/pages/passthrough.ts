@@ -21,6 +21,11 @@ export async function render(root: HTMLElement): Promise<void> {
     <p>Identity: output == input. Used to validate the pipeline end-to-end.</p>
     <section id="status">loading…</section>
     <section id="ab"></section>
+    <p style="opacity:0.6;font-size:0.85em;margin:0.5rem 0;">
+      The Wet/Dry slider above only affects realtime playback. The
+      visualizers below always show the effect output (wet) — they
+      auto-refresh when you change the signal selector.
+    </p>
     <section id="wave"></section>
     <section id="spec"></section>
     <section id="render"><button class="re">Re-render wave + spec</button></section>
@@ -58,14 +63,20 @@ export async function render(root: HTMLElement): Promise<void> {
       if (ctx.state === "suspended") await ctx.resume();
       await Passthrough.register(ctx, { workletUrl });
       abContainer.innerHTML = "";
-      const player = mountABPlayer(abContainer, ctx, async (c) =>
-        Passthrough.create(c, { workletUrl }),
+      // Forward-declare so we can pass refreshViz to the player as
+      // its onSignalChange handler before defining it below.
+      let refreshViz: () => Promise<void>;
+      const player = mountABPlayer(
+        abContainer,
+        ctx,
+        async (c) => Passthrough.create(c, { workletUrl }),
+        () => refreshViz(),
       );
-      async function refreshViz(): Promise<void> {
+      refreshViz = async () => {
         const buf = await player.getLastRendered();
         mountWaveform(document.getElementById("wave")!, buf);
         mountSpectrogram(document.getElementById("spec")!, buf);
-      }
+      };
       await refreshViz();
       root
         .querySelector<HTMLButtonElement>(".re")

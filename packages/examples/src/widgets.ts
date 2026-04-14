@@ -37,6 +37,11 @@ export function mountABPlayer(
   container: HTMLElement,
   ctx: AudioContext,
   makeEffectNode: MakeEffectNode,
+  // Optional callback fired whenever the user picks a different
+  // signal. The catalog page wires this to refreshViz so the
+  // wave/spectrogram canvases re-render against the new signal
+  // without forcing the user to hit "Re-render wave + spec".
+  onSignalChange?: () => void | Promise<void>,
 ): ABPlayerHandle {
   container.innerHTML = `
     <h3>A / B player</h3>
@@ -116,6 +121,13 @@ export function mountABPlayer(
     void play();
   });
   stopBtn.addEventListener("click", stop);
+  sigSel.addEventListener("change", () => {
+    // If the player is currently playing, switch the source signal
+    // immediately so the user hears the new selection. The
+    // visualizer refresh runs regardless via onSignalChange.
+    if (current) void play();
+    void onSignalChange?.();
+  });
 
   return {
     async getLastRendered(): Promise<AudioBuffer> {
@@ -174,7 +186,7 @@ export function mountParamSlider(
 }
 
 export function mountWaveform(container: HTMLElement, buffer: AudioBuffer): void {
-  container.innerHTML = `<h3>Waveform (L top / R bottom)</h3><canvas></canvas>`;
+  container.innerHTML = `<h3>Waveform — effect output (L top / R bottom)</h3><canvas></canvas>`;
   const canvas = container.querySelector<HTMLCanvasElement>("canvas")!;
   const dpr = globalThis.devicePixelRatio ?? 1;
   const w = (canvas.width = canvas.clientWidth * dpr);
@@ -238,7 +250,7 @@ interface FftConstructor {
 }
 
 export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): void {
-  container.innerHTML = `<h3>Spectrogram (L, log-freq 20 Hz → Nyquist)</h3><canvas></canvas>`;
+  container.innerHTML = `<h3>Spectrogram — effect output (L top / R bottom, log-freq 20 Hz → Nyquist)</h3><canvas></canvas>`;
   const canvas = container.querySelector<HTMLCanvasElement>("canvas")!;
   const dpr = globalThis.devicePixelRatio ?? 1;
   const w = (canvas.width = canvas.clientWidth * dpr);
@@ -247,9 +259,10 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
   g.fillStyle = "#000";
   g.fillRect(0, 0, w, h);
 
-  const mono = buffer.getChannelData(0);
   const sr = buffer.sampleRate;
-  const frames = Math.max(1, Math.floor((mono.length - SPEC_FFT) / SPEC_HOP));
+  const numCh = Math.min(2, buffer.numberOfChannels);
+  const bandH = numCh === 1 ? h : Math.floor(h / 2);
+
   const fft = new (FFT as unknown as FftConstructor)(SPEC_FFT);
   const outSpec: number[] = Array.from({ length: SPEC_FFT * 2 }, () => 0);
   const window = new Float32Array(SPEC_FFT);
@@ -257,28 +270,16 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
     window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (SPEC_FFT - 1)));
   }
 
-  // Render the FFT result into a SEPARATE offscreen canvas at native
-  // (frames × h) resolution, then drawImage-scale onto the display
-  // canvas. Drawing canvas-to-itself with overlapping src/dest is
-  // undefined per the Canvas2D spec — the previous version fell into
-  // exactly that trap and produced a tiny bitmap stuck in the top-
-  // left corner.
-  const off = document.createElement("canvas");
-  off.width = frames;
-  off.height = h;
-  const og = off.getContext("2d")!;
-  const imageData = og.createImageData(frames, h);
-  const data = imageData.data;
-
   // Precompute display-row → FFT-bin lookup using a log-frequency axis
-  // (top of canvas = Nyquist, bottom = ~20 Hz). Without this remap a
-  // log chirp shows up as a near-vertical streak on the right; with
-  // it, the chirp draws as the expected diagonal sweep.
+  // (top of band = Nyquist, bottom = ~20 Hz). Without this remap a log
+  // chirp shows up as a near-vertical streak on the right; with it, the
+  // chirp draws as the expected diagonal sweep. Same lookup is reused
+  // for both L and R bands since each band has the same height.
   const F_MIN = 20;
   const F_MAX = sr / 2;
-  const binLookup = new Int16Array(h);
-  for (let row = 0; row < h; row++) {
-    const yNorm = row / Math.max(1, h - 1);
+  const binLookup = new Int16Array(bandH);
+  for (let row = 0; row < bandH; row++) {
+    const yNorm = row / Math.max(1, bandH - 1);
     const freq = F_MAX * Math.pow(F_MIN / F_MAX, yNorm);
     binLookup[row] = Math.min(SPEC_FFT / 2 - 1, Math.max(0, Math.round((freq * SPEC_FFT) / sr)));
   }
@@ -288,34 +289,69 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
   // so peak FFT magnitude for amplitude A is roughly A*N/4; dividing
   // by N/2 gets us close to A in linear scale.
   const NORM = SPEC_FFT / 2;
-  const mags = new Float32Array(SPEC_FFT / 2);
-  const input: number[] = Array.from({ length: SPEC_FFT }, () => 0);
-  for (let f = 0; f < frames; f++) {
-    const base = f * SPEC_HOP;
-    for (let i = 0; i < SPEC_FFT; i++) {
-      input[i] = (mono[base + i] ?? 0) * (window[i] ?? 0);
+
+  for (let ch = 0; ch < numCh; ch++) {
+    const samples = buffer.getChannelData(ch);
+    const frames = Math.max(1, Math.floor((samples.length - SPEC_FFT) / SPEC_HOP));
+
+    // Render this channel into its own offscreen canvas at native
+    // (frames × bandH) resolution, then drawImage-scale onto the
+    // display canvas. Drawing canvas-to-itself with overlapping
+    // src/dest is undefined per the Canvas2D spec.
+    const off = document.createElement("canvas");
+    off.width = frames;
+    off.height = bandH;
+    const og = off.getContext("2d")!;
+    const imageData = og.createImageData(frames, bandH);
+    const data = imageData.data;
+
+    const mags = new Float32Array(SPEC_FFT / 2);
+    const input: number[] = Array.from({ length: SPEC_FFT }, () => 0);
+    // L gets the existing blue tint, R gets a red tint so the two
+    // bands are visually distinguishable even when L == R.
+    const tint = ch === 0 ? "blue" : "red";
+
+    for (let f = 0; f < frames; f++) {
+      const base = f * SPEC_HOP;
+      for (let i = 0; i < SPEC_FFT; i++) {
+        input[i] = (samples[base + i] ?? 0) * (window[i] ?? 0);
+      }
+      fft.realTransform(outSpec, input);
+      fft.completeSpectrum(outSpec);
+      for (let k = 0; k < SPEC_FFT / 2; k++) {
+        const re = outSpec[2 * k] ?? 0;
+        const im = outSpec[2 * k + 1] ?? 0;
+        mags[k] = Math.sqrt(re * re + im * im) / NORM;
+      }
+      for (let row = 0; row < bandH; row++) {
+        const k = binLookup[row]!;
+        const mag = mags[k] ?? 0;
+        const db = 20 * Math.log10(mag + 1e-9);
+        const norm = Math.max(0, Math.min(1, (db + 96) / 96));
+        const pxIdx = (row * frames + f) * 4;
+        const c = Math.floor(norm * 255);
+        const accent = Math.floor(norm * 180 + 60);
+        if (tint === "blue") {
+          data[pxIdx] = c;
+          data[pxIdx + 1] = c;
+          data[pxIdx + 2] = accent;
+        } else {
+          data[pxIdx] = accent;
+          data[pxIdx + 1] = c;
+          data[pxIdx + 2] = c;
+        }
+        data[pxIdx + 3] = 255;
+      }
     }
-    fft.realTransform(outSpec, input);
-    fft.completeSpectrum(outSpec);
-    for (let k = 0; k < SPEC_FFT / 2; k++) {
-      const re = outSpec[2 * k] ?? 0;
-      const im = outSpec[2 * k + 1] ?? 0;
-      mags[k] = Math.sqrt(re * re + im * im) / NORM;
-    }
-    for (let row = 0; row < h; row++) {
-      const k = binLookup[row]!;
-      const mag = mags[k] ?? 0;
-      const db = 20 * Math.log10(mag + 1e-9);
-      const norm = Math.max(0, Math.min(1, (db + 96) / 96));
-      const pxIdx = (row * frames + f) * 4;
-      const c = Math.floor(norm * 255);
-      data[pxIdx] = c;
-      data[pxIdx + 1] = c;
-      data[pxIdx + 2] = Math.floor(norm * 180 + 60);
-      data[pxIdx + 3] = 255;
-    }
+    og.putImageData(imageData, 0, 0);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(off, 0, 0, frames, bandH, 0, ch * bandH, w, bandH);
   }
-  og.putImageData(imageData, 0, 0);
-  g.imageSmoothingEnabled = false;
-  g.drawImage(off, 0, 0, frames, h, 0, 0, w, h);
+
+  // Faint divider between the two bands (matches the waveform
+  // widget's visual style).
+  if (numCh === 2) {
+    g.fillStyle = "#222";
+    g.fillRect(0, bandH - 1, w, 1);
+  }
 }
