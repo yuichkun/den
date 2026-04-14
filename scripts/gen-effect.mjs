@@ -51,11 +51,103 @@ export function parseArgs(argv) {
   return args;
 }
 
-// Anchored + non-empty-segment pattern: the TLD between hyphens must contain
-// at least one [a-z0-9]. This forbids `foo--bar`, `foo-`, `-foo`, and other
-// empty-segment shapes that would otherwise slip past `[a-z][a-z0-9-]*` and
-// crash `deriveNames` when an empty segment's `s[0]` is undefined.
+// Anchored + non-empty-segment pattern: every hyphen-delimited segment must
+// contain at least one [a-z0-9]. Forbids `foo--bar`, `foo-`, `-foo`, and
+// other empty-segment shapes that would otherwise slip past `[a-z][a-z0-9-]*`
+// and crash `deriveNames` when an empty segment's `s[0]` is undefined.
 const EFFECT_NAME_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+// Reserved words whose lowercase identifier form `snake` is consumed
+// verbatim as a Rust `mod` ident and as a TS namespace-import binding
+// (`pub mod <snake>;`, `import * as <snake> ...`). Shipping `for` / `if` /
+// `fn` / similar would produce a syntactically broken tree and fail
+// `vp check` straight after scaffolding. Union of Rust keywords (incl.
+// reserved-for-future-use) and JS/TS reserved identifiers that are both
+// (a) all lowercase and (b) thereby reachable through the kebab regex.
+// Any reserved word containing an underscore cannot collide because
+// EFFECT_NAME_RE forbids underscores.
+const RESERVED_IDENTS = new Set([
+  // Rust — keywords + reserved
+  "as",
+  "async",
+  "await",
+  "break",
+  "const",
+  "continue",
+  "crate",
+  "do",
+  "dyn",
+  "else",
+  "enum",
+  "extern",
+  "false",
+  "final",
+  "fn",
+  "for",
+  "if",
+  "impl",
+  "in",
+  "let",
+  "loop",
+  "macro",
+  "match",
+  "mod",
+  "move",
+  "mut",
+  "override",
+  "priv",
+  "pub",
+  "ref",
+  "return",
+  "self",
+  "static",
+  "struct",
+  "super",
+  "trait",
+  "true",
+  "try",
+  "type",
+  "typeof",
+  "union",
+  "unsafe",
+  "unsized",
+  "use",
+  "virtual",
+  "where",
+  "while",
+  "yield",
+  "abstract",
+  "become",
+  "box",
+  // TS/JS additional reserved identifiers (lowercase, collide-able)
+  "case",
+  "catch",
+  "class",
+  "debugger",
+  "default",
+  "delete",
+  "export",
+  "extends",
+  "finally",
+  "function",
+  "implements",
+  "import",
+  "instanceof",
+  "interface",
+  "new",
+  "null",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "switch",
+  "this",
+  "throw",
+  "undefined",
+  "var",
+  "void",
+  "with",
+]);
 
 export function deriveNames({ name, classOverride }) {
   if (!EFFECT_NAME_RE.test(name)) fail(2, `name must match ${EFFECT_NAME_RE}, got "${name}"`);
@@ -63,6 +155,8 @@ export function deriveNames({ name, classOverride }) {
     fail(2, `--class must match /^[A-Z][A-Za-z0-9]*$/, got "${classOverride}"`);
   const kebab = name;
   const snake = kebab.replace(/-/g, "_");
+  if (RESERVED_IDENTS.has(snake))
+    fail(2, `name "${name}" collides with a Rust/TS reserved identifier; pick a different name`);
   const Pascal =
     classOverride ??
     kebab

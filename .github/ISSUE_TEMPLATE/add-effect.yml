@@ -14,7 +14,7 @@ body:
     id: name
     attributes:
       label: Effect name (kebab-case)
-      description: "Lowercase, letters/digits/hyphens only. Must match `/^[a-z][a-z0-9-]*$/`. Used verbatim for the Rust module (snake_case) and TS class (PascalCase)."
+      description: "Lowercase, letters/digits/hyphens only. Must match `/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/` (no leading/trailing/consecutive hyphens). The name must not collide with a Rust or TS reserved identifier (`for`, `if`, `fn`, `let`, `class`, etc.). Used verbatim for the Rust module (snake_case) and TS class (PascalCase)."
       placeholder: "soft-clip"
     validations:
       required: true

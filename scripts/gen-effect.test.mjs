@@ -83,6 +83,22 @@ test("deriveNames: rejects invalid kebab", () => {
   assert.throws(() => deriveNames({ name: "1bad", classOverride: null }), ScaffoldError);
 });
 
+test("deriveNames: rejects reserved Rust/TS identifiers", () => {
+  // Any reserved word whose snake form is produced verbatim inside
+  // `pub mod <snake>;` / `import * as <snake> ...` must be blocked up front.
+  for (const bad of ["for", "if", "fn", "let", "in", "do", "mod", "use", "new", "class"]) {
+    assert.throws(
+      () => deriveNames({ name: bad, classOverride: null }),
+      (err) => {
+        assert.ok(err instanceof ScaffoldError, `expected ScaffoldError for "${bad}"`);
+        assert.equal(err.code, 2);
+        assert.match(err.message, /reserved identifier/);
+        return true;
+      },
+    );
+  }
+});
+
 test("deriveNames: rejects empty-segment kebab (prevents TypeError crash)", () => {
   // Previous regex /^[a-z][a-z0-9-]*$/ accepted these and crashed at split().
   for (const bad of ["foo--bar", "foo-", "-foo", "a--", "a---b"]) {
