@@ -49,8 +49,13 @@ export interface DenCoreExports {
   ): void;
   /** Returns the byte size of `GainState` (caller allocates with `den_alloc`). */
   den_gain_size(): number;
-  /** Initializes a freshly allocated `GainState` for the given sample rate. */
-  den_gain_init(state_ptr: number, sample_rate: number): void;
+  /**
+   * Initializes a freshly allocated `GainState` for the given sample rate.
+   * `initial` seeds the per-channel smoothed gain — pass the AudioParam's
+   * starting target to skip the unity → target decay transient on the
+   * first quantum of audio.
+   */
+  den_gain_init(state_ptr: number, sample_rate: number, initial: number): void;
   /**
    * Per-channel multiply with 1-pole exponential smoothing.
    * `n_gain_values` is 1 (k-rate / no-events a-rate) or `n` (sample-accurate a-rate).

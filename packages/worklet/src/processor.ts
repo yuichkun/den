@@ -95,6 +95,14 @@ class DenProcessor extends AudioWorkletProcessor {
     const po = options.processorOptions as {
       __denWasmBytes: ArrayBuffer;
       __denKernelId: Kernel;
+      /**
+       * Seed value for any kernel-side smoother. Effects whose constructor
+       * accepts an initial-value option (e.g., `Gain`'s `gain` field)
+       * forward that value here so the worklet's first quantum starts
+       * AT the intended target rather than ramping from a hard-coded
+       * unity. Defaults to 1.0 when the effect class doesn't pass one.
+       */
+      __denInitialGain?: number;
     };
     this.instance = instantiateSync(po.__denWasmBytes);
     this.kernelId = po.__denKernelId;
@@ -103,7 +111,7 @@ class DenProcessor extends AudioWorkletProcessor {
       memory: WebAssembly.Memory;
       den_alloc(n: number): number;
       den_gain_size(): number;
-      den_gain_init(state: number, sr: number): void;
+      den_gain_init(state: number, sr: number, initial: number): void;
     };
     const bytes = DenProcessor.BYTES_PER_BUFFER;
     this.l_in_ptr = ex.den_alloc(bytes);
@@ -140,8 +148,12 @@ class DenProcessor extends AudioWorkletProcessor {
         return;
       }
       // `sampleRate` is a global injected into every AudioWorkletGlobalScope
-      // by the host (W3C Web Audio API §AudioWorkletGlobalScope).
-      ex.den_gain_init(this.stateHeapPtr, sampleRate);
+      // by the host (W3C Web Audio API §AudioWorkletGlobalScope). The
+      // `initial` argument seeds the smoother to the user's intended
+      // starting gain so the first quantum has no audible decay
+      // transient — see Gain.ts for the JS side that forwards
+      // `options.gain` into `__denInitialGain`.
+      ex.den_gain_init(this.stateHeapPtr, sampleRate, po.__denInitialGain ?? 1.0);
     }
 
     // Listen for the explicit dispose signal from the main-thread effect

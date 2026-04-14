@@ -121,10 +121,21 @@ export function mountABPlayer(
     src.loop = true;
     const dry = ctx.createGain();
     const wet = ctx.createGain();
-    applyMix(dry, wet, Number(mix.value));
+    const targetMix = Number(mix.value);
+    // 30 ms cosine-ish ramp on both wet and dry from 0 to their target
+    // mix levels. Masks every audible startup transient on the catalog
+    // page: chirp's 20 Hz boom at sample 0, the AudioBufferSourceNode
+    // start click, OS audio buffer warm-up. Imperceptible delay (well
+    // under the speech-perception threshold of ~80 ms).
+    const startTime = ctx.currentTime;
+    const RAMP = 0.03;
+    dry.gain.setValueAtTime(0, startTime);
+    wet.gain.setValueAtTime(0, startTime);
+    dry.gain.linearRampToValueAtTime(1 - targetMix, startTime + RAMP);
+    wet.gain.linearRampToValueAtTime(targetMix, startTime + RAMP);
     src.connect(dry).connect(ctx.destination);
     src.connect(effect).connect(wet).connect(ctx.destination);
-    src.start();
+    src.start(startTime);
     current = { src, dry, wet, effect };
   }
 

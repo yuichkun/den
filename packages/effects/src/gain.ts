@@ -25,18 +25,19 @@ export interface GainOptions {
  *
  * const ctx = new AudioContext();
  * await Gain.register(ctx);                  // once per context
- * const gain = new Gain(ctx, { gain: 0.5 }); // initial -6 dB
+ * const gain = new Gain(ctx, { gain: 0.5 }); // starts at -6 dB, no transient
  * source.connect(gain).connect(ctx.destination);
  *
- * // AudioParam automation works as-is.
+ * // AudioParam automation smooths via the kernel's 1-pole as expected:
  * gain.gain.setValueAtTime(1.0, ctx.currentTime);
  * gain.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 2.0);
  * ```
  *
- * Because the smoother is initialized to unity, constructing
- * `new Gain(ctx, { gain: 0.5 })` produces a 20 ms unity-to-half fade-in.
- * To skip the ramp, omit `gain` (defaults to 1.0) and call
- * `gain.gain.setValueAtTime(target, 0)` explicitly.
+ * The constructor seeds the kernel's smoothed state with `options.gain`
+ * (1.0 if omitted), so the FIRST quantum already plays at the
+ * user-requested gain — no audible "unity → target" decay on startup.
+ * Subsequent automation (`setValueAtTime`, `linearRampToValueAtTime`,
+ * etc.) still smooths via the per-sample 1-pole the same way.
  */
 export class Gain extends AudioWorkletNode {
   readonly gain: AudioParam;
@@ -52,16 +53,21 @@ export class Gain extends AudioWorkletNode {
    */
   constructor(ctx: BaseAudioContext, options: GainOptions = {}) {
     const bytes = getCachedWasmBytes(ctx);
-    // Conditional spread instead of `parameterData: ... | undefined`: with
-    // `exactOptionalPropertyTypes` the field type rejects an explicit
-    // `undefined`. Omitting the key entirely is the spec-correct way to
-    // "use the descriptor's defaultValue".
+    // Always set parameterData AND processorOptions.__denInitialGain to
+    // the same value so the AudioParam target and the kernel's smoother
+    // seed agree from sample 0 — no audible "unity → target" decay on
+    // startup. Default = 1.0 (matches the descriptor's defaultValue).
+    const initialGain = options.gain ?? 1.0;
     super(ctx, DEN_PROCESSOR_NAME, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [2],
-      ...(options.gain !== undefined ? { parameterData: { gain: options.gain } } : {}),
-      processorOptions: { __denKernelId: "gain", __denWasmBytes: bytes },
+      parameterData: { gain: initialGain },
+      processorOptions: {
+        __denKernelId: "gain",
+        __denWasmBytes: bytes,
+        __denInitialGain: initialGain,
+      },
     });
     const p = this.parameters.get("gain");
     if (!p) throw new Error("den: AudioParam 'gain' not registered");

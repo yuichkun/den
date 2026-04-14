@@ -42,17 +42,24 @@ pub extern "C" fn den_gain_size() -> usize {
 /// [`den_gain_size`] bytes). Pass a null pointer and the function
 /// returns a no-op (release-mode safety net for the worklet's
 /// allocate-then-init flow when [`crate::den_alloc`] returns null on OOM).
-/// After this call the state is initialized so that the smoothed value
-/// is 1.0 (unity) on both channels and the per-sample smoothing
-/// coefficient matches the given sample rate.
+///
+/// After this call the smoothed values on both channels equal `initial`
+/// (typically the same value as the AudioParam's initial target — see
+/// the worklet processor) and the per-sample smoothing coefficient
+/// matches the given sample rate. Setting `initial` to the user's
+/// intended starting gain prevents the audible "1.0 → target" decay
+/// transient that an always-unity initial state produces — the
+/// user-facing decision row "Initial smoothed state" in Issue #5
+/// documents the trade-off.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn den_gain_init(state: *mut GainState, sample_rate: f32) {
+pub unsafe extern "C" fn den_gain_init(state: *mut GainState, sample_rate: f32, initial: f32) {
     if state.is_null() {
         return;
     }
     let s = unsafe { &mut *state };
-    s.smoothed_l = 1.0;
-    s.smoothed_r = 1.0;
+    let init = f64::from(initial);
+    s.smoothed_l = init;
+    s.smoothed_r = init;
     // Compute the coef in f64 (libm::exp, not expf) — this is the
     // companion to the f64 smoothing state. The result naturally fits
     // f32 (~1e-3 at 48 kHz / 20 ms tau) but staying in f64 throughout
@@ -155,7 +162,10 @@ mod tests {
             smoothed_r: 0.0,
             smooth_coef: 0.0,
         };
-        unsafe { den_gain_init(&mut s as *mut _, sr) };
+        // Initial = 1.0 in tests so the existing analytic predictions
+        // (unity-identity, decay-from-1.0-to-0) still hold; the worklet
+        // path passes the user's intended starting gain instead.
+        unsafe { den_gain_init(&mut s as *mut _, sr, 1.0) };
         s
     }
 

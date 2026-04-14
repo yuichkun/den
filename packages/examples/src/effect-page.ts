@@ -7,6 +7,7 @@ import {
   mountParamSlider,
   mountSpectrogram,
   mountWaveform,
+  USER_FILE_OPTION,
 } from "./widgets.js";
 
 /** Spec for a single AudioParam slider. Mirrors `AudioParam` semantics. */
@@ -69,7 +70,6 @@ export async function mountEffectPage<TNode extends AudioNode>(
     <section id="status">loading…</section>
     <section id="ab"></section>
     <section id="params"></section>
-    <section id="file"></section>
     <p style="opacity:0.6;font-size:0.85em;margin:0.5rem 0;">
       The Wet/Dry slider in the A/B player only affects realtime playback.
       The visualizers below always show the effect output (wet); they
@@ -140,13 +140,17 @@ export async function mountEffectPage<TNode extends AudioNode>(
     let player: ABPlayerHandle | null = null;
     let refreshViz = async (): Promise<void> => {};
 
-    const fileContainer = root.querySelector<HTMLElement>("#file")!;
-    const filePicker = mountFilePicker(fileContainer, ctx);
-
     player = mountABPlayer(
       abContainer,
       ctx,
       async (c) => {
+        // `c` may be the realtime ctx (for play()) OR a fresh
+        // OfflineAudioContext that `getLastRendered()` just minted.
+        // Either way, the kernel needs the WASM bytes cached on it
+        // before the sync constructor reads them via `getCachedWasmBytes`.
+        // `register` is idempotent on the realtime ctx (cache hit) and
+        // does the real fetch + addModule on each fresh offline ctx.
+        await opts.register(c, { workletUrl: opts.workletUrl });
         currentNode = opts.makeNode(c, params);
         return currentNode;
       },
@@ -154,8 +158,22 @@ export async function mountEffectPage<TNode extends AudioNode>(
       () => filePicker.current(),
     );
 
+    // Visually integrate the file picker INSIDE the A/B player section so
+    // the relationship to the "user file" entry in the signal dropdown is
+    // obvious — earlier flat layout had the picker as a peer section
+    // which read as unrelated UI. Append after `mountABPlayer` so the
+    // player's `innerHTML` write doesn't clobber the picker container.
+    const fileContainer = document.createElement("div");
+    fileContainer.style.cssText =
+      "margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #333;";
+    abContainer.appendChild(fileContainer);
+    const filePicker = mountFilePicker(fileContainer, ctx);
+
     filePicker.onChange((_buf, label) => {
       player?.refreshUserFile(label);
+      // Auto-select the freshly loaded file so the user doesn't have
+      // to manually open the dropdown to discover the connection.
+      if (label) player?.setSignal(USER_FILE_OPTION);
       void refreshViz();
     });
 

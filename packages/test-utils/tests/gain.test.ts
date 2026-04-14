@@ -9,7 +9,7 @@ interface DenCoreExports {
   den_alloc(n_bytes: number): number;
   den_dealloc(ptr: number, n_bytes: number): void;
   den_gain_size(): number;
-  den_gain_init(state_ptr: number, sample_rate: number): void;
+  den_gain_init(state_ptr: number, sample_rate: number, initial: number): void;
   den_gain_process(
     state_ptr: number,
     l_in: number,
@@ -69,7 +69,12 @@ function runGain(stereoIn: Float32Array[], preset: string): Float32Array[] {
   heap.set(right, rp >> 2);
   heap[gp >> 2] = target;
 
-  ex.den_gain_init(sp, SR);
+  // initial = 1.0 to match the scipy reference (which fixes `init=1.0`
+  // in `gain_process`). The new `__denInitialGain` processorOption in
+  // the worklet path forwards the user-facing `gain` option, but the
+  // goldens themselves are generated with a unity initial state so we
+  // use 1.0 here too.
+  ex.den_gain_init(sp, SR, 1.0);
   ex.den_gain_process(sp, lp, rp, lo, ro, n, gp, 1);
 
   const L = heap.slice(lo >> 2, (lo >> 2) + n);
