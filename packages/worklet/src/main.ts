@@ -1,50 +1,85 @@
 import { fetchWasmBytes } from "@denaudio/core";
 
 /**
- * Cache key on BaseAudioContext: stores fetched WASM bytes + flag that
- * audioWorklet.addModule has been called. Sub D refactors this to a
- * cleaner public API (`registerDenWorklet → Promise<void>` + a separate
- * `getCachedWasmBytes(ctx)` synchronous accessor); this Sub B shape is
- * transitional. Symbol name is shared across both implementations.
+ * Cache key on `BaseAudioContext`: stores the realized WASM bytes once
+ * `registerDenWorklet` has resolved (module installed + bytes fetched).
+ *
+ * `Symbol.for(...)` keeps the key stable across multiple bundled copies of
+ * `@denaudio/worklet` — so two pinned versions still share the same cache
+ * per context. The slot itself is a hidden property on the context, which
+ * the W3C Web Audio spec does not mandate freezing (true in every 2026
+ * browser); see `FALLBACK_CACHE` below for the freeze-tolerant escape
+ * hatch.
  */
 const CACHE_KEY = Symbol.for("den.worklet.cache");
 
+/**
+ * In-flight slot — carries the `Promise<void>` while a `registerDenWorklet`
+ * call is mid-fetch. Concurrent callers (e.g., two effect classes both
+ * issuing `Effect.register(ctx)` in parallel before either resolves) await
+ * the same in-flight promise instead of duplicating the work. Cleared
+ * once the realized `Cached` is written. (Implements §8 Fallback #4 from
+ * the issue, eagerly rather than reactively.)
+ */
+const INFLIGHT_KEY = Symbol.for("den.worklet.inflight");
+
 interface AugmentedContext extends BaseAudioContext {
-  [CACHE_KEY]?: Promise<WasmReady>;
+  [CACHE_KEY]?: Cached;
+  [INFLIGHT_KEY]?: Promise<void>;
 }
 
-/**
- * Forward-compat fallback per issue #3 §3 Decision row 43: the W3C Web Audio
- * spec does not mandate freezing `BaseAudioContext`, so the `Symbol.for`
- * hidden-property write succeeds in every 2026 browser, but a host (or user
- * code) may `Object.preventExtensions(ctx)` / `Object.freeze(ctx)` and break
- * the property write. The WeakMap is module-private so its entries are GCed
- * with the context.
- */
-const FALLBACK_CACHE = new WeakMap<BaseAudioContext, Promise<WasmReady>>();
+interface Cached {
+  bytes: ArrayBuffer;
+}
 
-function readCache(ctx: BaseAudioContext): Promise<WasmReady> | undefined {
+// Freeze-tolerant fallback: if the host (or user code) called
+// `Object.preventExtensions(ctx)` / `Object.freeze(ctx)`, the symbol-keyed
+// hidden property write throws. We mirror both slots into a module-private
+// WeakMap so the cache still works. WeakMap entries are GCed with the
+// context.
+const FALLBACK_CACHE = new WeakMap<BaseAudioContext, Cached>();
+const FALLBACK_INFLIGHT = new WeakMap<BaseAudioContext, Promise<void>>();
+
+function readCached(ctx: BaseAudioContext): Cached | undefined {
   const aug = ctx as AugmentedContext;
   return aug[CACHE_KEY] ?? FALLBACK_CACHE.get(ctx);
 }
 
-function writeCache(ctx: BaseAudioContext, p: Promise<WasmReady>): void {
+function writeCached(ctx: BaseAudioContext, value: Cached): void {
   const aug = ctx as AugmentedContext;
   try {
-    aug[CACHE_KEY] = p;
+    aug[CACHE_KEY] = value;
   } catch {
-    // ctx is non-extensible / frozen — fall back to the module-private WeakMap.
-    FALLBACK_CACHE.set(ctx, p);
+    FALLBACK_CACHE.set(ctx, value);
   }
 }
 
-export interface WasmReady {
-  bytes: ArrayBuffer;
-  workletModuleAdded: true;
+function readInflight(ctx: BaseAudioContext): Promise<void> | undefined {
+  const aug = ctx as AugmentedContext;
+  return aug[INFLIGHT_KEY] ?? FALLBACK_INFLIGHT.get(ctx);
+}
+
+function writeInflight(ctx: BaseAudioContext, p: Promise<void>): void {
+  const aug = ctx as AugmentedContext;
+  try {
+    aug[INFLIGHT_KEY] = p;
+  } catch {
+    FALLBACK_INFLIGHT.set(ctx, p);
+  }
+}
+
+function clearInflight(ctx: BaseAudioContext): void {
+  const aug = ctx as AugmentedContext;
+  try {
+    delete aug[INFLIGHT_KEY];
+  } catch {
+    /* ignore */
+  }
+  FALLBACK_INFLIGHT.delete(ctx);
 }
 
 export interface RegisterOptions {
-  /** Override the default WASM URL (for CDN delivery). */
+  /** Override the default WASM URL (e.g., for CDN delivery). */
   wasmUrl?: string;
   /** Override the worklet script URL (advanced — default shipped by package). */
   workletUrl?: string;
@@ -52,52 +87,45 @@ export interface RegisterOptions {
 
 /**
  * Idempotently register the den AudioWorklet processor on the given context
- * and fetch the WASM bytes. Returns the shared promise.
+ * and fetch the WASM bytes. Subsequent calls (including concurrent ones
+ * before the first resolves) await the same work and resolve as soon as
+ * the bytes are cached.
  *
- * Every effect class in @denaudio/effects calls this in its own `register(ctx)`
- * static method.
+ * Effect classes in `@denaudio/effects` call this in their own
+ * `static async register(ctx)` and then construct the node synchronously
+ * via [`getCachedWasmBytes`].
  */
 export function registerDenWorklet(
   ctx: BaseAudioContext,
   options: RegisterOptions = {},
-): Promise<WasmReady> {
-  const cached = readCache(ctx);
-  if (cached) return cached;
+): Promise<void> {
+  if (readCached(ctx)) return Promise.resolve();
+  const inflight = readInflight(ctx);
+  if (inflight) return inflight;
   const workletUrl = options.workletUrl ?? new URL("./processor.js", import.meta.url).href;
   const p = (async () => {
     const [bytes] = await Promise.all([
       fetchWasmBytes(options.wasmUrl),
       ctx.audioWorklet.addModule(workletUrl),
     ]);
-    return { bytes, workletModuleAdded: true as const };
+    writeCached(ctx, { bytes });
+    clearInflight(ctx);
   })();
-  writeCache(ctx, p);
+  writeInflight(ctx, p);
   return p;
 }
 
-/** Processor name registered by ./processor.ts — keep in sync. */
-export const DEN_PROCESSOR_NAME = "den-processor" as const;
-
 /**
- * Construct an AudioWorkletNode backed by the den processor, passing the
- * WASM bytes through processorOptions so the worklet can instantiate sync.
- *
- * Used internally by @denaudio/effects. Exposed for advanced users.
+ * Synchronous accessor for the WASM bytes cached by [`registerDenWorklet`].
+ * Effect class constructors call this to pass the bytes to the processor
+ * via `processorOptions.__denWasmBytes`. Throws if `register` has not yet
+ * resolved on the given context.
  */
-export async function createDenNode(
-  ctx: BaseAudioContext,
-  kernelId: string,
-  nodeOptions: AudioWorkletNodeOptions,
-  registerOpts: RegisterOptions = {},
-): Promise<AudioWorkletNode> {
-  const { bytes } = await registerDenWorklet(ctx, registerOpts);
-  const processorOptions = {
-    ...nodeOptions.processorOptions,
-    __denKernelId: kernelId,
-    __denWasmBytes: bytes,
-  };
-  return new AudioWorkletNode(ctx, DEN_PROCESSOR_NAME, {
-    ...nodeOptions,
-    processorOptions,
-  });
+export function getCachedWasmBytes(ctx: BaseAudioContext): ArrayBuffer {
+  const cached = readCached(ctx);
+  if (!cached) throw new Error("den: call await Effect.register(ctx) first");
+  return cached.bytes;
 }
+
+/** Processor name registered by `./processor.ts` — keep in sync. */
+export const DEN_PROCESSOR_NAME = "den-processor" as const;

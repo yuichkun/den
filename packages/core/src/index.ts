@@ -47,7 +47,24 @@ export interface DenCoreExports {
     r_out: number,
     n_samples: number,
   ): void;
-  // Sub D adds: den_gain_process(...)
+  /** Returns the byte size of `GainState` (caller allocates with `den_alloc`). */
+  den_gain_size(): number;
+  /** Initializes a freshly allocated `GainState` for the given sample rate. */
+  den_gain_init(state_ptr: number, sample_rate: number): void;
+  /**
+   * Per-channel multiply with 1-pole exponential smoothing.
+   * `n_gain_values` is 1 (k-rate / no-events a-rate) or `n` (sample-accurate a-rate).
+   */
+  den_gain_process(
+    state_ptr: number,
+    l_in: number,
+    r_in: number,
+    l_out: number,
+    r_out: number,
+    n: number,
+    gain_values_ptr: number,
+    n_gain_values: number,
+  ): void;
 }
 
 /** Instantiate the WASM module with no imports (pure-compute kernel). */

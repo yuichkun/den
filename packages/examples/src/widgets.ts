@@ -5,10 +5,29 @@ type MakeEffectNode = (ctx: AudioContext) => Promise<AudioNode>;
 
 const BUFFER_SR = 48000;
 
+/** Sentinel `<select>` value used by the A/B player + file picker integration. */
+export const USER_FILE_OPTION = "__user_file__";
+
 function makeSourceBuffer(
   ctx: AudioContext | OfflineAudioContext,
   signalName: string,
+  getUserFile?: () => AudioBuffer | null,
 ): AudioBuffer {
+  if (signalName === USER_FILE_OPTION) {
+    const buf = getUserFile?.();
+    if (!buf) throw new Error("no user file loaded");
+    // For offline contexts the user buffer must be re-created against
+    // the offline ctx because each `AudioBuffer` is bound to a
+    // sample-rate; copy channel-by-channel into a fresh buffer.
+    if (ctx instanceof OfflineAudioContext && buf.sampleRate !== ctx.sampleRate) {
+      const out = ctx.createBuffer(buf.numberOfChannels, buf.length, ctx.sampleRate);
+      for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+        out.copyToChannel(buf.getChannelData(ch), ch);
+      }
+      return out;
+    }
+    return buf;
+  }
   const factory = CANONICAL[signalName];
   if (!factory) throw new Error(`unknown signal: ${signalName}`);
   // The CANONICAL factories return `Float32Array` (i.e.
@@ -31,6 +50,14 @@ export interface ABPlayerHandle {
   getLastRendered(): Promise<AudioBuffer>;
   setSignal(name: string): void;
   destroy(): void;
+  /**
+   * Update the "user file" `<option>` after the file picker emits a
+   * change. Pass `null` to disable the option (no file loaded), or a
+   * short label (typically the file name) to enable it. Only does
+   * anything when the player was constructed with a `getUserFile`
+   * callback; otherwise the option doesn't exist and the call no-ops.
+   */
+  refreshUserFile(label: string | null): void;
 }
 
 export function mountABPlayer(
@@ -42,7 +69,17 @@ export function mountABPlayer(
   // wave/spectrogram canvases re-render against the new signal
   // without forcing the user to hit "Re-render wave + spec".
   onSignalChange?: () => void | Promise<void>,
+  // Optional accessor for a user-loaded `AudioBuffer` (from
+  // `mountFilePicker`). When provided, the signal dropdown gains a
+  // "user file" entry; selecting it routes the player at the file
+  // instead of a CANONICAL signal. The dropdown entry is disabled
+  // when `getUserFile()` returns `null` so users can't accidentally
+  // select an empty source.
+  getUserFile?: () => AudioBuffer | null,
 ): ABPlayerHandle {
+  const userFileOptionHtml = getUserFile
+    ? `<option value="${USER_FILE_OPTION}" disabled>user file (none loaded)</option>`
+    : "";
   container.innerHTML = `
     <h3>A / B player</h3>
     <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
@@ -50,6 +87,7 @@ export function mountABPlayer(
         ${Object.keys(CANONICAL)
           .map((n) => `<option value="${n}">${n}</option>`)
           .join("")}
+        ${userFileOptionHtml}
       </select></label>
       <button class="play">Play</button>
       <button class="stop">Stop</button>
@@ -79,7 +117,7 @@ export function mountABPlayer(
     if (ctx.state === "suspended") await ctx.resume();
     const effect = await makeEffectNode(ctx);
     const src = ctx.createBufferSource();
-    src.buffer = makeSourceBuffer(ctx, sigSel.value);
+    src.buffer = makeSourceBuffer(ctx, sigSel.value, getUserFile);
     src.loop = true;
     const dry = ctx.createGain();
     const wet = ctx.createGain();
@@ -131,12 +169,16 @@ export function mountABPlayer(
 
   return {
     async getLastRendered(): Promise<AudioBuffer> {
-      const sigBuf = makeSourceBuffer(ctx, sigSel.value);
+      // Build the offline ctx FIRST so the user-file branch of
+      // `makeSourceBuffer` can reuse the offline ctx's sample rate
+      // when copying channels.
+      const probeBuf = makeSourceBuffer(ctx, sigSel.value, getUserFile);
       const off = new OfflineAudioContext({
         numberOfChannels: 2,
-        length: sigBuf.length,
+        length: probeBuf.length,
         sampleRate: BUFFER_SR,
       });
+      const sigBuf = makeSourceBuffer(off, sigSel.value, getUserFile);
       const effect = await makeEffectNode(off as unknown as AudioContext);
       const src = off.createBufferSource();
       src.buffer = sigBuf;
@@ -149,6 +191,23 @@ export function mountABPlayer(
     },
     destroy(): void {
       stop();
+    },
+    refreshUserFile(label: string | null): void {
+      const opt = sigSel.querySelector<HTMLOptionElement>(`option[value="${USER_FILE_OPTION}"]`);
+      if (!opt) return;
+      if (label) {
+        opt.disabled = false;
+        opt.textContent = `user file: ${label}`;
+      } else {
+        opt.disabled = true;
+        opt.textContent = "user file (none loaded)";
+        if (sigSel.value === USER_FILE_OPTION) {
+          // User file was cleared while selected — fall back to first
+          // canonical signal so play()/getLastRendered don't throw.
+          const first = Object.keys(CANONICAL)[0];
+          if (first) sigSel.value = first;
+        }
+      }
     },
   };
 }
@@ -354,4 +413,132 @@ export function mountSpectrogram(container: HTMLElement, buffer: AudioBuffer): v
     g.fillStyle = "#222";
     g.fillRect(0, bandH - 1, w, 1);
   }
+}
+
+export interface FilePickerHandle {
+  /** Currently loaded buffer, or `null` if no file is loaded. */
+  current(): AudioBuffer | null;
+  /** Subscribe to file-change events. The buffer is null on clear, AudioBuffer on load. */
+  onChange(cb: (buf: AudioBuffer | null, label: string | null) => void): void;
+}
+
+export interface FilePickerOptions {
+  /** Reject files longer than this many seconds. Default 30 s. */
+  maxDurationSec?: number;
+}
+
+/**
+ * Mount a file picker that decodes the chosen audio file into an
+ * `AudioBuffer` against the given `AudioContext`. Mono is up-mixed to
+ * stereo (L duplicated into R); ≥3-channel files are down-mixed to the
+ * first two channels. Files longer than `maxDurationSec` (default 30 s)
+ * are rejected — both to bound memory for offline rendering and because
+ * the catalog page is for testing effects, not playing albums.
+ *
+ * Requires an `AudioContext` (not `OfflineAudioContext`) because
+ * `decodeAudioData` is only universally implemented on realtime
+ * contexts. Catalog pages that only get a realtime ctx after the user
+ * gesture should mount the file picker after the gesture.
+ */
+export function mountFilePicker(
+  container: HTMLElement,
+  ctx: AudioContext,
+  options: FilePickerOptions = {},
+): FilePickerHandle {
+  const maxDur = options.maxDurationSec ?? 30;
+  container.innerHTML = `
+    <h3>User file</h3>
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+      <input type="file" accept="audio/*" class="file" />
+      <button class="clear" hidden>Clear</button>
+      <span class="status" style="opacity:0.85;">no file</span>
+    </div>
+    <p style="opacity:0.6;font-size:0.85em;margin:0.5rem 0;">
+      Pick a small audio file (max ${maxDur} s, any sample rate, mono auto-upmixed
+      to stereo). The file becomes a "user file" entry in the A/B player's
+      signal selector above.
+    </p>
+  `;
+
+  const fileInput = container.querySelector<HTMLInputElement>(".file")!;
+  const clearBtn = container.querySelector<HTMLButtonElement>(".clear")!;
+  const status = container.querySelector<HTMLSpanElement>(".status")!;
+
+  let buffer: AudioBuffer | null = null;
+  let label: string | null = null;
+  const subscribers = new Set<(b: AudioBuffer | null, l: string | null) => void>();
+
+  function notify(): void {
+    for (const cb of subscribers) cb(buffer, label);
+  }
+
+  function setStatus(text: string, isError = false): void {
+    status.textContent = text;
+    status.style.color = isError ? "#ff8080" : "";
+  }
+
+  fileInput.addEventListener("change", () => {
+    void (async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      setStatus(`decoding ${file.name}…`);
+      try {
+        const arrayBuf = await file.arrayBuffer();
+        // Some browsers (Safari historically) reject the same
+        // ArrayBuffer being passed to decodeAudioData twice; clone via
+        // `slice(0)` so a re-pick of the same file works.
+        const decoded = await ctx.decodeAudioData(arrayBuf.slice(0));
+        if (decoded.duration > maxDur) {
+          throw new Error(`file is ${decoded.duration.toFixed(1)} s, max is ${maxDur} s`);
+        }
+        const stereo = upmixToStereo(ctx, decoded);
+        buffer = stereo;
+        label = file.name;
+        clearBtn.hidden = false;
+        setStatus(
+          `loaded: ${file.name} (${stereo.duration.toFixed(2)}s, ${stereo.sampleRate} Hz, ${decoded.numberOfChannels}ch → 2ch)`,
+        );
+        notify();
+      } catch (err) {
+        buffer = null;
+        label = null;
+        clearBtn.hidden = true;
+        setStatus(`error: ${(err as Error).message}`, true);
+        notify();
+      }
+    })();
+  });
+
+  clearBtn.addEventListener("click", () => {
+    buffer = null;
+    label = null;
+    fileInput.value = "";
+    clearBtn.hidden = true;
+    setStatus("no file");
+    notify();
+  });
+
+  return {
+    current(): AudioBuffer | null {
+      return buffer;
+    },
+    onChange(cb): void {
+      subscribers.add(cb);
+    },
+  };
+}
+
+function upmixToStereo(ctx: AudioContext, src: AudioBuffer): AudioBuffer {
+  if (src.numberOfChannels === 2) return src;
+  const out = ctx.createBuffer(2, src.length, src.sampleRate);
+  const l = src.getChannelData(0);
+  if (src.numberOfChannels === 1) {
+    out.copyToChannel(l, 0);
+    out.copyToChannel(l, 1);
+    return out;
+  }
+  // ≥3 channels: take first 2.
+  out.copyToChannel(l, 0);
+  out.copyToChannel(src.getChannelData(1), 1);
+  return out;
 }

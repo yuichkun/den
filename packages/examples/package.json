@@ -10,9 +10,9 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 5273",
     "build": "vite build",
-    "preview": "vite preview --port 5173",
+    "preview": "vite preview --port 5273",
     "test:e2e": "playwright test",
     "playwright:install": "playwright install --with-deps chromium",
     "typecheck": "tsc --noEmit",
@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@denaudio/effects": "workspace:*",
-    "@denaudio/test-utils": "workspace:*"
+    "@denaudio/test-utils": "workspace:*",
+    "@denaudio/worklet": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

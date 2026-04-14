@@ -1,5 +1,6 @@
 import "./styles.css";
 
+import * as gain from "./pages/gain.js";
 import * as passthrough from "./pages/passthrough.js";
 
 interface Page {
@@ -7,7 +8,8 @@ interface Page {
   render: (root: HTMLElement) => void | Promise<void>;
 }
 
-const PAGES: Record<string, Page> = { passthrough };
+// Sidebar order is the iteration order of this object.
+const PAGES: Record<string, Page> = { passthrough, gain };
 
 function render(): void {
   const hash = location.hash.slice(2) || "passthrough";

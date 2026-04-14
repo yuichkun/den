@@ -12,3 +12,6 @@ crate-type = ["cdylib", "rlib"]
 # alloc-only, no std — `alloc` on wasm32 requires a `#[global_allocator]`; rustc's
 # default for this target is the same dlmalloc family as below.
 dlmalloc = { version = "0.2.8", features = ["global"] }
+# `no_std`-compatible math (`expf` for the 1-pole smoothing coefficient in
+# Gain). Pulled in once; future kernels reuse.
+libm = "0.2"
