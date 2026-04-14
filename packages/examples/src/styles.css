@@ -1,0 +1,125 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fafafa;
+  --fg: #111;
+  --accent: #5b6cff;
+  --border: #e2e2e2;
+  --muted: #666;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --fg: #eee;
+    --border: #2a2a2a;
+    --muted: #888;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+}
+
+#sidebar {
+  border-right: 1px solid var(--border);
+  padding: 1rem;
+}
+
+#sidebar h1 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+}
+
+#sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#sidebar li {
+  margin-bottom: 0.25rem;
+}
+
+#sidebar a {
+  color: var(--fg);
+  text-decoration: none;
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+#sidebar a:hover {
+  background: var(--border);
+}
+
+#stage {
+  padding: 1.5rem 2rem;
+  overflow: auto;
+}
+
+#stage section {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+  background: #000;
+}
+
+button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--border);
+}
+
+label.slider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+label.slider input[type="range"] {
+  flex: 1;
+}
+
+label.slider .value {
+  min-width: 4rem;
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+  text-align: right;
+}
+
+select {
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+}

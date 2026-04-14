@@ -58,8 +58,17 @@ cargo check --workspace --exclude den-core --all-targets
 cargo check -p den-core --target wasm32-unknown-unknown
 
 # TypeScript / JS
-vp check        # fmt + lint (+ typecheck if enabled in lint.options)
-vp run smoke    # Node-side WASM smoke test (scripts/smoke.mjs)
+vp check         # fmt + lint (+ typecheck if enabled in lint.options)
+vp run smoke     # Node-side WASM smoke test (scripts/smoke.mjs)
+
+# DSP harness (Sub C)
+vp run gen-golden    # regenerate Python scipy golden WAVs (requires `uv` from
+                     # https://docs.astral.sh/uv/getting-started/installation/)
+vp run test:tier2    # Node WASM null tests against committed goldens
+vp run test:tier3a   # Playwright + OfflineAudioContext null tests
+vp run test          # tier2 + tier3a chained (`vp run test`, NOT `vp test` —
+                     # `vp test` would invoke Vitest directly and bypass the
+                     # chain script in package.json)
 ```
 
 ## License
