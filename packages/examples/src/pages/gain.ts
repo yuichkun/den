@@ -25,7 +25,7 @@ export const name = "Gain";
  * `requestAnimationFrame`. No offline rendering, no per-slider WASM
  * instances, no debounced refresh dance.
  */
-export async function render(root: HTMLElement): Promise<void> {
+export async function render(root: HTMLElement, signal: AbortSignal): Promise<void> {
   // ---------- HTML skeleton ----------
   root.innerHTML = `
     <h2>Gain</h2>
@@ -86,6 +86,29 @@ export async function render(root: HTMLElement): Promise<void> {
   let bypass = false;
   let rafHandle = 0;
 
+  // ---------- Teardown on navigation ----------
+  // `main.ts` aborts the previous page's signal before mounting the
+  // new one. Register cleanup HERE (synchronously, before the first
+  // await) so even if `Gain.register` is mid-fetch when the user
+  // navigates, the eventual abort still tears down our audio + RAF.
+  signal.addEventListener("abort", () => {
+    if (rafHandle) cancelAnimationFrame(rafHandle);
+    rafHandle = 0;
+    try {
+      source?.stop();
+    } catch {
+      /* already stopped */
+    }
+    source?.disconnect();
+    effect?.dispose();
+    analyser?.disconnect();
+    if (ctx) {
+      void ctx.close().catch(() => {
+        /* close() rejects on already-closed; ignore */
+      });
+    }
+  });
+
   // ---------- Pipeline probe ----------
   // Runs on a throw-away OfflineAudioContext so we can validate the
   // WASM build / worklet bridge before any user gesture (the realtime
@@ -98,15 +121,20 @@ export async function render(root: HTMLElement): Promise<void> {
       sampleRate: CANONICAL_SR,
     });
     await Gain.register(probeCtx, { workletUrl });
+    if (signal.aborted) return;
     status.textContent = "pipeline ready ✓ — click Play to start";
   } catch (err) {
+    if (signal.aborted) return;
     status.textContent = "pipeline failed — see console";
     throw err;
   }
 
   // ---------- Tier3a bridge ----------
   // Set BEFORE flipping `__denReady` so the Playwright spec sees both
-  // `Gain` and `CANONICAL` the moment it observes ready=true.
+  // `Gain` and `CANONICAL` the moment it observes ready=true. Bail if
+  // the user navigated away mid-probe — main.ts has already cleared
+  // the bridge for the new page and we must not clobber it.
+  if (signal.aborted) return;
   window.__denTier3a = { ...window.__denTier3a, Gain, CANONICAL, workletUrl };
   window.__denReady = true;
 

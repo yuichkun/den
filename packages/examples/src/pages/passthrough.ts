@@ -18,7 +18,7 @@ export const name = "Passthrough";
  * slider; Bypass toggle is kept so reviewers can flip it on/off and
  * confirm output IS bit-identical to input either way.
  */
-export async function render(root: HTMLElement): Promise<void> {
+export async function render(root: HTMLElement, signal: AbortSignal): Promise<void> {
   root.innerHTML = `
     <h2>Passthrough (Sub B stub)</h2>
     <p>Identity: output equals input. Used to validate the pipeline end-to-end.</p>
@@ -69,6 +69,26 @@ export async function render(root: HTMLElement): Promise<void> {
   let bypass = false;
   let rafHandle = 0;
 
+  // Same teardown-on-navigation + bail-on-aborted pattern as
+  // `pages/gain.ts` — see that file's expanded comment block.
+  signal.addEventListener("abort", () => {
+    if (rafHandle) cancelAnimationFrame(rafHandle);
+    rafHandle = 0;
+    try {
+      source?.stop();
+    } catch {
+      /* already stopped */
+    }
+    source?.disconnect();
+    effect?.dispose();
+    analyser?.disconnect();
+    if (ctx) {
+      void ctx.close().catch(() => {
+        /* close() rejects on already-closed; ignore */
+      });
+    }
+  });
+
   try {
     const probeCtx = new OfflineAudioContext({
       numberOfChannels: 2,
@@ -76,12 +96,15 @@ export async function render(root: HTMLElement): Promise<void> {
       sampleRate: CANONICAL_SR,
     });
     await Passthrough.register(probeCtx, { workletUrl });
+    if (signal.aborted) return;
     status.textContent = "pipeline ready ✓ — click Play to start";
   } catch (err) {
+    if (signal.aborted) return;
     status.textContent = "pipeline failed — see console";
     throw err;
   }
 
+  if (signal.aborted) return;
   window.__denTier3a = { ...window.__denTier3a, Passthrough, CANONICAL, workletUrl };
   window.__denReady = true;
 

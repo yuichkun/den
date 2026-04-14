@@ -118,17 +118,28 @@ class DenProcessor extends AudioWorkletProcessor {
     this.r_in_ptr = ex.den_alloc(bytes);
     this.l_out_ptr = ex.den_alloc(bytes);
     this.r_out_ptr = ex.den_alloc(bytes);
-    // `den_alloc` returns 0 (null) on OOM; without this guard a
+    // `den_alloc` returns 0 (null) on OOM; without these guards a
     // subsequent kernel call would scribble at WASM linear-memory
     // offset 0. Dead processors return false from process() so the
     // host can GC us; the main thread sees a silenced node, which is
     // the closest approximation to "OOM" Web Audio gives us.
+    //
+    // Free any partially-successful allocations BEFORE the early
+    // return. Without this, a constructor that allocs l_in_ptr +
+    // r_in_ptr fine but fails on l_out_ptr would leak the first
+    // two buffers — and since `port.onmessage` (the only later
+    // dealloc path) hasn't been wired yet, those bytes stay leaked
+    // for the lifetime of the AudioContext. Repeated OOM under low
+    // memory would make every subsequent `new Gain(ctx)` more likely
+    // to fail. `freeAllAllocations()` is null-safe per pointer so it
+    // works even mid-allocation.
     if (
       this.l_in_ptr === 0 ||
       this.r_in_ptr === 0 ||
       this.l_out_ptr === 0 ||
       this.r_out_ptr === 0
     ) {
+      this.freeAllAllocations();
       this.alive = false;
       return;
     }
@@ -144,6 +155,7 @@ class DenProcessor extends AudioWorkletProcessor {
       this.stateHeapSize = ex.den_gain_size();
       this.stateHeapPtr = ex.den_alloc(this.stateHeapSize);
       if (this.paramScratchPtr === 0 || this.stateHeapPtr === 0) {
+        this.freeAllAllocations();
         this.alive = false;
         return;
       }
@@ -170,27 +182,7 @@ class DenProcessor extends AudioWorkletProcessor {
         // `alive = false` so at least the next `process()` returns
         // false and the host can GC.
         try {
-          const dex = this.instance.exports as unknown as {
-            den_dealloc(ptr: number, n: number): void;
-          };
-          // Free in reverse alloc order: param scratch → state → I/O.
-          // Sizes MUST match the alloc sizes exactly (Layout mismatch is a
-          // silent no-op in Rust's allocator, leaving the bytes leaked).
-          // Calls go through `dex.den_dealloc(...)` (method form) rather
-          // than via an extracted reference so the `unbound-method` lint
-          // stays quiet — WASM exports aren't class methods, but the
-          // linter can't know that.
-          if (this.paramScratchPtr) {
-            dex.den_dealloc(this.paramScratchPtr, this.paramScratchSize);
-            this.paramScratchPtr = 0;
-            this.paramScratchSize = 0;
-          }
-          if (this.stateHeapPtr) {
-            dex.den_dealloc(this.stateHeapPtr, this.stateHeapSize);
-            this.stateHeapPtr = 0;
-            this.stateHeapSize = 0;
-          }
-          this.disposeIoBuffers();
+          this.freeAllAllocations();
         } catch (err) {
           console.error("[den-processor] destroy failed:", err);
         } finally {
@@ -204,6 +196,36 @@ class DenProcessor extends AudioWorkletProcessor {
         console.warn("[den-processor] unknown __denCmd:", ev.data.__denCmd);
       }
     };
+  }
+
+  /**
+   * Free every WASM-side allocation owned by this processor. Null-safe
+   * per pointer (each `if` guard skips already-freed slots), so this is
+   * also the right thing to call from the constructor's OOM bail paths
+   * — partial allocations get cleaned up before the early `return`.
+   *
+   * Free order: param scratch → state → I/O. Sizes MUST match the alloc
+   * sizes exactly (Layout mismatch is a silent no-op in Rust's
+   * allocator, leaving the bytes leaked). Calls go through
+   * `dex.den_dealloc(...)` (method form) rather than via an extracted
+   * reference so the `unbound-method` lint stays quiet — WASM exports
+   * aren't class methods, but the linter can't know that.
+   */
+  private freeAllAllocations(): void {
+    const dex = this.instance.exports as unknown as {
+      den_dealloc(ptr: number, n: number): void;
+    };
+    if (this.paramScratchPtr) {
+      dex.den_dealloc(this.paramScratchPtr, this.paramScratchSize);
+      this.paramScratchPtr = 0;
+      this.paramScratchSize = 0;
+    }
+    if (this.stateHeapPtr) {
+      dex.den_dealloc(this.stateHeapPtr, this.stateHeapSize);
+      this.stateHeapPtr = 0;
+      this.stateHeapSize = 0;
+    }
+    this.disposeIoBuffers();
   }
 
   /**
