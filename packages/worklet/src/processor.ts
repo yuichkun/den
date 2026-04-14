@@ -353,6 +353,7 @@ class DenProcessor extends AudioWorkletProcessor {
         );
         break;
       }
+      // SCAFFOLDER:INSERT_DISPATCH
     }
 
     output[0].set(this.l_out_view);

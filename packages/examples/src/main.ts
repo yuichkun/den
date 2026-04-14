@@ -20,7 +20,11 @@ interface Page {
 }
 
 // Sidebar order is the iteration order of this object.
-const PAGES: Record<string, Page> = { passthrough, gain };
+const PAGES: Record<string, Page> = {
+  passthrough,
+  gain,
+  // SCAFFOLDER:INSERT_PAGE
+};
 
 let currentRender: AbortController | null = null;
 

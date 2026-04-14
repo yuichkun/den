@@ -3,3 +3,4 @@
 
 pub mod gain;
 pub mod passthrough;
+// SCAFFOLDER:INSERT_MOD

@@ -69,3 +69,5 @@ REGISTRY: dict[str, Effect] = {
         },
     ),
 }
+
+# SCAFFOLDER:INSERT_REGISTRY
