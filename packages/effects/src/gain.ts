@@ -67,9 +67,7 @@ export class Gain extends AudioWorkletNode {
     // pin the smoother at NaN forever (NaN × anything = NaN). Match the
     // descriptor's [0, 10] range and fall back to 1.0 on non-finite.
     const requested = options.gain ?? 1.0;
-    const initialGain = Number.isFinite(requested)
-      ? Math.max(0, Math.min(10, requested))
-      : 1.0;
+    const initialGain = Number.isFinite(requested) ? Math.max(0, Math.min(10, requested)) : 1.0;
     super(ctx, DEN_PROCESSOR_NAME, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
