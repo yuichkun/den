@@ -132,30 +132,38 @@ export function registerDenWorklet(
   const inflight = readInflight(ctx);
   if (inflight) return inflight;
   const workletUrl = options.workletUrl ?? new URL("./processor.js", import.meta.url).href;
+  // Capture each leg as its own promise so we can:
+  // (a) await both via `Promise.all` to fail-fast on either rejection, AND
+  // (b) await both via `Promise.allSettled` in `finally` so the
+  //     in-flight lock isn't released while one leg is still pending.
+  // Without (b), a fast `fetch` rejection while `addModule` is still
+  // running would unlock the retry path immediately; the next register
+  // call would start a SECOND concurrent `addModule` against the same
+  // URL — Chrome short-circuits duplicate URLs but Firefox / Safari
+  // are not specified to, and on those browsers the second worklet
+  // evaluation re-runs `registerProcessor("den-processor", …)` which
+  // throws `NotSupportedError`. Holding the lock until both legs
+  // settle serializes any retry against the in-flight attempt.
+  const fetchPromise = fetchWasmBytes(options.wasmUrl);
+  const modulePromise = readModuleAdded(ctx)
+    ? Promise.resolve()
+    : ctx.audioWorklet.addModule(workletUrl).then(() => {
+        // Persist BEFORE the outer Promise.all settles so a
+        // fetch-failure landing AFTER addModule resolved still
+        // records the partial progress for the retry path.
+        writeModuleAdded(ctx);
+      });
   const p = (async () => {
     try {
-      // Skip `addModule` if a previous (partial) attempt already
-      // succeeded on this ctx — re-running it would call
-      // `registerProcessor("den-processor", …)` a second time inside
-      // the worklet IIFE and throw `NotSupportedError` (Firefox /
-      // Safari behavior; Chrome short-circuits but that's
-      // implementation-defined). `writeModuleAdded` runs inside
-      // the addModule promise's then, BEFORE Promise.all settles,
-      // so partial-failure recovery sees the persisted flag.
-      const [bytes] = await Promise.all([
-        fetchWasmBytes(options.wasmUrl),
-        readModuleAdded(ctx)
-          ? Promise.resolve()
-          : ctx.audioWorklet.addModule(workletUrl).then(() => {
-              writeModuleAdded(ctx);
-            }),
-      ]);
+      const [bytes] = await Promise.all([fetchPromise, modulePromise]);
       writeCached(ctx, { bytes });
     } finally {
-      // Always clear the in-flight slot — on success the cache is the
-      // source of truth from now on; on failure subsequent retries with
-      // a corrected URL must not see the stale rejected promise. Without
-      // this, a single failed register() poisons the context forever.
+      // Wait for any still-pending leg to settle before clearing the
+      // lock. `allSettled` is a no-op when both already settled (the
+      // happy path) and avoids the concurrent-addModule race when one
+      // rejected fast. The original error is preserved by the
+      // try/finally semantics — `await` here doesn't swallow it.
+      await Promise.allSettled([fetchPromise, modulePromise]);
       clearInflight(ctx);
     }
   })();
