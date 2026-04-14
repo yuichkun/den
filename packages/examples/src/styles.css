@@ -98,22 +98,41 @@ button:hover {
   background: var(--border);
 }
 
-label.slider {
+.row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   margin: 0.5rem 0;
 }
 
-label.slider input[type="range"] {
+.row > label {
+  min-width: 4rem;
+  color: var(--fg);
+}
+
+.row > input[type="range"] {
   flex: 1;
 }
 
-label.slider .value {
-  min-width: 4rem;
+.muted {
   font-family: ui-monospace, monospace;
   color: var(--muted);
+  font-size: 0.9em;
+}
+
+.status {
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.row .muted {
+  min-width: 4rem;
   text-align: right;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
 }
 
 select {

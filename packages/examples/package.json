@@ -26,7 +26,6 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "^22.0.0",
-    "fft.js": "^4.0.4",
     "vite": "^6.0.0"
   }
 }
