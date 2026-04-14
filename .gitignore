@@ -13,10 +13,6 @@ dist/
 .vite/
 .turbo/
 
-# Playwright
-test-results/
-playwright-report/
-
 # Editor
 .DS_Store
 .idea/
