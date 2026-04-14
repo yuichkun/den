@@ -1,0 +1,167 @@
+name: Add effect
+description: Propose a new audio effect for @denaudio/effects
+title: "[effect] <kebab-case-name>: <one-line summary>"
+labels: ["effect", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to add a new audio effect. A maintainer (or worker AI) will pick this up and implement it following [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
+
+        **Every field below except "Class name override" is required** — effects with under-specified reference material cannot be implemented as zero-ambiguity tickets.
+
+  - type: input
+    id: name
+    attributes:
+      label: Effect name (kebab-case)
+      description: "Lowercase, letters/digits/hyphens only. Must match `/^[a-z][a-z0-9-]*$/`. Used verbatim for the Rust module (snake_case) and TS class (PascalCase)."
+      placeholder: "soft-clip"
+    validations:
+      required: true
+
+  - type: input
+    id: class_name_override
+    attributes:
+      label: Class name override (optional)
+      description: |
+        Override the PascalCase TS class name. Only needed when the effect name contains a common audio acronym — the scaffolder's naive split would otherwise produce `Eq3Band` / `FftWindow` / `Lfo`. Pass e.g. `EQ3Band`, `FFTWindow`, `LFO` via `vp run gen:effect <name> --class <ClassName>`.
+      placeholder: "EQ3Band"
+    validations:
+      required: false
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: One-line summary
+      placeholder: "Wave-shaping soft clipper using tanh saturation with drive control"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - filter
+        - dynamics
+        - saturation
+        - modulation
+        - reverb
+        - delay
+        - pitch
+        - spatial
+        - utility
+        - analysis
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference source
+      description: |
+        Exact source to implement FROM. Until Sub F lands the reference allow-list and `LICENSE-THIRDPARTY`, any source outside already-vendored references (FunDSP, Airwindows, JOS/CCRMA formulas, DAFX) must be confirmed with a maintainer before implementation starts.
+      placeholder: |
+        Primary: Airwindows / TanhSaturator.cpp (MIT) — lines 40-110
+        URL: https://github.com/airwindows/airwindows/blob/master/plugins/...
+
+        Secondary (if needed): DAFX p.118 (textbook formula)
+    validations:
+      required: true
+
+  - type: textarea
+    id: license_check
+    attributes:
+      label: License compatibility check
+      description: "Paste the license of the primary reference. Must be MIT / Apache-2.0 / BSD-compatible (GPL-only is out)."
+      placeholder: |
+        Primary license: MIT (Copyright © 2018 Chris Johnson)
+        Attribution target: LICENSE-THIRDPARTY, section "soft-clip" (added by Sub F)
+    validations:
+      required: true
+
+  - type: textarea
+    id: parameters
+    attributes:
+      label: Parameter list
+      description: |
+        For each param: name, unit, default, min, max, rate (a-rate | k-rate).
+      placeholder: |
+        - drive: linear, default 1.0, min 1.0, max 10.0, a-rate
+        - mix: linear [0..1], default 1.0, min 0.0, max 1.0, a-rate
+    validations:
+      required: true
+
+  - type: textarea
+    id: presets
+    attributes:
+      label: Preset list (for golden generation)
+      description: |
+        Named parameter snapshots, one per line. At least 3 presets. Each preset generates goldens for every canonical test signal.
+      placeholder: |
+        - default: drive=1.0, mix=1.0
+        - gentle: drive=1.5, mix=0.5
+        - crushed: drive=8.0, mix=1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: channel_model
+    attributes:
+      label: Channel model
+      description: "v1 only allows stereo in / stereo out (Parent decision D10). Other models require a template extension before they can be used — do NOT pick them without a maintainer approving a template-extension issue first."
+      options:
+        - stereo
+        - mono (requires template extension)
+        - multichannel (requires template extension)
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: tolerance
+    attributes:
+      label: Null test tolerance (dBFS)
+      description: |
+        Default: -96. Justify if different. Feedback-y or chaotic effects may need looser; linear-algebra effects tighter.
+      value: "-96 (default per Parent D19)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: edge_cases
+    attributes:
+      label: Known edge cases / nonlinearities to exercise
+      description: |
+        Signals or states that may stress the effect beyond the canonical test set. The worker AI will add targeted tests for each.
+      placeholder: |
+        - DC offset: should not produce offset growth over long inputs
+        - Silence in: silence out (identity on zero signal)
+        - Impulse: finite output (no infinite feedback)
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ### Implementation workflow (worker AI follows these steps literally)
+
+        1. Confirm the reference is acceptable (see CONTRIBUTING.md §2).
+        2. Run `vp run gen:effect <effect-name>` (or `vp run gen:effect <name> --class <ClassName>` for acronyms).
+        3. Fill every `TODO(effect):` marker; the Rust kernel's math must come from the cited reference.
+        4. Add the scipy reference implementation to `scripts/gen-golden/effects.py` (same math, textbook-clear).
+        5. Run `vp run gen-golden <effect-name>` and commit the output WAVs.
+        6. Replace the Tier3a `test.fixme` stub with a real spec modeled after `packages/examples/tests/gain.spec.ts`.
+        7. Verify each tier locally:
+           - Tier1: `cargo test -p den-core effects::<snake_name>`
+           - Tier2: `vp run test:tier2`
+           - Tier3a: `vp run test:tier3a`
+           - Tier3b: open the Vercel preview, load `#/<kebab-name>`, sanity-check
+        8. Open PR linked to this issue. Reviewer listens via Vercel preview and approves.
+
+        Default definition of done (do NOT alter without justification):
+        - [ ] All 4 tiers green
+        - [ ] Null test at ≤ -96 dBFS (or declared justified tolerance)
+        - [ ] Vercel preview page works: A/B, waveform, spectrogram, every parameter slider
+        - [ ] `LICENSE-THIRDPARTY` lists the reference source (once Sub F lands the file)
