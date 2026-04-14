@@ -57,7 +57,19 @@ const FALLBACK_MODULE = new WeakMap<BaseAudioContext, true>();
 
 function readCached(ctx: BaseAudioContext): Cached | undefined {
   const aug = ctx as AugmentedContext;
-  return aug[CACHE_KEY] ?? FALLBACK_CACHE.get(ctx);
+  const raw = aug[CACHE_KEY] ?? FALLBACK_CACHE.get(ctx);
+  // Shape-validate: `Symbol.for("den.worklet.cache")` is global across
+  // bundled copies of `@denaudio/worklet`, and an older Sub B build
+  // stored a `Promise<{ bytes, workletModuleAdded }>` under the same
+  // key. If we ever load alongside such a build, treating the Promise
+  // as truthy would short-circuit `registerDenWorklet` here, and
+  // `getCachedWasmBytes` would later read `cached.bytes` as undefined,
+  // making `instantiateSync(undefined)` throw inside the worklet.
+  // Require an actual `ArrayBuffer` in the `bytes` slot before trusting
+  // the cache; anything else is treated as "not cached" and the
+  // regular register path overwrites the slot with our shape.
+  if (raw && raw.bytes instanceof ArrayBuffer) return raw;
+  return undefined;
 }
 
 function writeCached(ctx: BaseAudioContext, value: Cached): void {
@@ -178,6 +190,10 @@ export function registerDenWorklet(
  * resolved on the given context.
  */
 export function getCachedWasmBytes(ctx: BaseAudioContext): ArrayBuffer {
+  // `readCached` now shape-validates (returns `undefined` for any value
+  // that isn't `{ bytes: ArrayBuffer }`), so a stale Sub B-style
+  // `Promise` in the slot triggers the same "call register first" error
+  // a fresh ctx would, instead of silently returning `undefined`.
   const cached = readCached(ctx);
   if (!cached) throw new Error("den: call await Effect.register(ctx) first");
   return cached.bytes;
