@@ -30,3 +30,24 @@ jobs:
           cache: true
           run-install: true # auto-runs `vp install --frozen-lockfile`
       - run: vp check
+
+  wasm-build:
+    runs-on: ubuntu-latest
+    needs: [rust-check, js-check]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y binaryen
+      - uses: voidzero-dev/setup-vp@v1.6.0
+        with:
+          node-version-file: ./.node-version
+          cache: true
+          run-install: true
+      - run: vp run build
+      - run: node scripts/smoke.mjs
+      - run: pnpm exec playwright install chromium --with-deps
+      - run: vp exec playwright test

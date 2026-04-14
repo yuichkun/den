@@ -18,6 +18,10 @@ curl -fsSL https://vite.plus | bash
 # Install deps (Vite+ reads pnpm-workspace.yaml + .node-version automatically)
 vp install
 
+# WASM build (`packages/core/scripts/build-wasm.mjs`) needs `wasm-opt` in PATH:
+#   macOS: brew install binaryen
+#   Ubuntu/Debian: sudo apt-get install binaryen
+
 # Rust-side check
 cargo check --workspace
 

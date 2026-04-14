@@ -17,12 +17,20 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./den_core.wasm": {
+      "default": "./dist/den_core.wasm"
     }
   },
   "scripts": {
-    "build": "echo 'build added in Sub B'",
+    "prebuild": "node scripts/build-wasm.mjs",
+    "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'lint runs via vp check at workspace root'",
     "test": "echo 'no test yet'"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vite": "^6.0.0"
   }
 }
