@@ -59,6 +59,14 @@ class DenProcessor extends AudioWorkletProcessor {
   private l_out_ptr = 0;
   private r_out_ptr = 0;
   private heap_f32!: Float32Array;
+  // Cached views onto the WASM heap at the L/R output pointers. Computed
+  // once via `subarray()` after `den_alloc` (and re-taken whenever the heap
+  // grows and detaches the underlying ArrayBuffer). `process()` reuses these
+  // for `output[ch].set(this.X_out_view)` so the audio render loop never
+  // allocates a `Float32Array` view per render quantum (parent epic #1 §2:
+  // "no heap allocation" on the audio thread).
+  private l_out_view!: Float32Array;
+  private r_out_view!: Float32Array;
   protected alive = true;
 
   // Render quantum (always 128 in Web Audio).
@@ -94,7 +102,24 @@ class DenProcessor extends AudioWorkletProcessor {
     this.r_in_ptr = ex.den_alloc(bytes);
     this.l_out_ptr = ex.den_alloc(bytes);
     this.r_out_ptr = ex.den_alloc(bytes);
-    this.heap_f32 = new Float32Array((ex.memory as WebAssembly.Memory).buffer);
+    this.refreshHeapViews(ex.memory as WebAssembly.Memory);
+  }
+
+  /**
+   * (Re-)take the `Float32Array` view onto the WASM linear memory and the
+   * cached subarray views onto the L/R output buffers. Called once from the
+   * constructor and whenever `process()` detects that `memory.grow()` has
+   * detached the previous backing `ArrayBuffer`. Subarray creation happens
+   * here — NOT inside the render loop — so the audio thread stays
+   * allocation-free during normal operation.
+   */
+  private refreshHeapViews(memory: WebAssembly.Memory): void {
+    this.heap_f32 = new Float32Array(memory.buffer);
+    const n = DenProcessor.QUANTUM;
+    const l_out_f32 = this.l_out_ptr >> 2;
+    const r_out_f32 = this.r_out_ptr >> 2;
+    this.l_out_view = this.heap_f32.subarray(l_out_f32, l_out_f32 + n);
+    this.r_out_view = this.heap_f32.subarray(r_out_f32, r_out_f32 + n);
   }
 
   /**
@@ -148,12 +173,13 @@ class DenProcessor extends AudioWorkletProcessor {
     const n = DenProcessor.QUANTUM;
     const l_in_f32 = this.l_in_ptr >> 2;
     const r_in_f32 = this.r_in_ptr >> 2;
-    const l_out_f32 = this.l_out_ptr >> 2;
-    const r_out_f32 = this.r_out_ptr >> 2;
 
-    // Re-take a view in case memory grew (grow() invalidates the old view).
-    if (this.heap_f32.buffer !== (this.instance.exports.memory as WebAssembly.Memory).buffer) {
-      this.heap_f32 = new Float32Array((this.instance.exports.memory as WebAssembly.Memory).buffer);
+    // Re-take views in case memory grew (grow() invalidates prior buffers).
+    // In normal steady-state operation this branch is NOT taken and no
+    // allocation happens on the audio thread.
+    const memory = this.instance.exports.memory as WebAssembly.Memory;
+    if (this.heap_f32.buffer !== memory.buffer) {
+      this.refreshHeapViews(memory);
     }
 
     this.heap_f32.set(l_src, l_in_f32);
@@ -169,8 +195,8 @@ class DenProcessor extends AudioWorkletProcessor {
       n,
     );
 
-    output[0].set(this.heap_f32.subarray(l_out_f32, l_out_f32 + n));
-    if (output[1]) output[1].set(this.heap_f32.subarray(r_out_f32, r_out_f32 + n));
+    output[0].set(this.l_out_view);
+    if (output[1]) output[1].set(this.r_out_view);
 
     return true;
   }
