@@ -26,6 +26,16 @@ if [ -f "$HOME/.cargo/env" ]; then
 fi
 export PATH="$HOME/.cargo/bin:$PATH"
 
+# Ensure the wasm32 target exists every run, not just when rustup
+# bootstraps cargo. Vercel's build cache may persist `~/.cargo/bin` (so
+# the rustup branch above is skipped on warm builds) without persisting
+# `~/.rustup/toolchains/.../wasm32-unknown-unknown/`, and a system-
+# preinstalled cargo would never have it. `rustup target add` is
+# idempotent — does nothing when the target is already installed.
+if command -v rustup >/dev/null; then
+  rustup target add wasm32-unknown-unknown
+fi
+
 # --- binaryen (wasm-opt) --------------------------------------------------
 # Build from source via cmake when available (~30s, deterministic, no
 # glibc surprises on whichever Vercel build image we land on). Fall back

@@ -17,6 +17,9 @@ dist/
 test-results/
 playwright-report/
 
+# Claude Code session state
+.claude/
+
 # uv (gen-golden Python env)
 scripts/gen-golden/.venv/
 __pycache__/

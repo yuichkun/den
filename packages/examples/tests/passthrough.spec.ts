@@ -11,6 +11,11 @@ test.describe("Tier3a: Passthrough through AudioWorklet", () => {
       page.on("pageerror", (err) => console.log("pageerror:", err.message));
       await page.goto("/#/passthrough");
       await page.waitForFunction(() => Boolean(window.__denReady));
+      // Render and return BOTH stereo channels so the null test
+      // exercises L and R independently (Tier2 does the same via the
+      // runner's `golden.samples` pair). Returning only ch 0 would let
+      // a future stereo-asymmetric regression in the worklet path
+      // slip through CI — flagged by codex review on PR #12.
       const result = await page.evaluate(async (signalName) => {
         const api = window.__denTier3a;
         if (!api) throw new Error("__denTier3a missing — page not ready");
@@ -35,15 +40,19 @@ test.describe("Tier3a: Passthrough through AudioWorklet", () => {
         src.connect(node).connect(ctx.destination);
         src.start();
         const rendered = await ctx.startRendering();
-        return Array.from(rendered.getChannelData(0));
+        return [Array.from(rendered.getChannelData(0)), Array.from(rendered.getChannelData(1))];
       }, sig);
 
-      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]!.length).toBeGreaterThan(0);
+      expect(result[1]!.length).toBeGreaterThan(0);
       const { readWavF32, rmsDiffDbFs } = await import("@denaudio/test-utils/node");
       const golden = readWavF32(
         resolve(import.meta.dirname, `../../test-utils/golden/passthrough/default__${sig}.wav`),
       );
-      const db = rmsDiffDbFs([new Float32Array(result)], [golden.samples[0]!]);
+      const db = rmsDiffDbFs(
+        [new Float32Array(result[0]!), new Float32Array(result[1]!)],
+        [golden.samples[0]!, golden.samples[1]!],
+      );
       expect(db).toBeLessThan(-96);
     });
   }
