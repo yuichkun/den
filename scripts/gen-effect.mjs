@@ -51,9 +51,14 @@ export function parseArgs(argv) {
   return args;
 }
 
+// Anchored + non-empty-segment pattern: the TLD between hyphens must contain
+// at least one [a-z0-9]. This forbids `foo--bar`, `foo-`, `-foo`, and other
+// empty-segment shapes that would otherwise slip past `[a-z][a-z0-9-]*` and
+// crash `deriveNames` when an empty segment's `s[0]` is undefined.
+const EFFECT_NAME_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
 export function deriveNames({ name, classOverride }) {
-  if (!/^[a-z][a-z0-9-]*$/.test(name))
-    fail(2, `name must match /^[a-z][a-z0-9-]*$/, got "${name}"`);
+  if (!EFFECT_NAME_RE.test(name)) fail(2, `name must match ${EFFECT_NAME_RE}, got "${name}"`);
   if (classOverride != null && !/^[A-Z][A-Za-z0-9]*$/.test(classOverride))
     fail(2, `--class must match /^[A-Z][A-Za-z0-9]*$/, got "${classOverride}"`);
   const kebab = name;

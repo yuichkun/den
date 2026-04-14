@@ -83,6 +83,20 @@ test("deriveNames: rejects invalid kebab", () => {
   assert.throws(() => deriveNames({ name: "1bad", classOverride: null }), ScaffoldError);
 });
 
+test("deriveNames: rejects empty-segment kebab (prevents TypeError crash)", () => {
+  // Previous regex /^[a-z][a-z0-9-]*$/ accepted these and crashed at split().
+  for (const bad of ["foo--bar", "foo-", "-foo", "a--", "a---b"]) {
+    assert.throws(
+      () => deriveNames({ name: bad, classOverride: null }),
+      (err) => {
+        assert.ok(err instanceof ScaffoldError, `expected ScaffoldError for "${bad}"`);
+        assert.equal(err.code, 2);
+        return true;
+      },
+    );
+  }
+});
+
 test("deriveNames: rejects invalid --class", () => {
   assert.throws(() => deriveNames({ name: "ok", classOverride: "lowercase" }), ScaffoldError);
 });
