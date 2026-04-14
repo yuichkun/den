@@ -47,6 +47,7 @@ jobs:
       - run: vp check
       - run: vp run -r typecheck # full tsc --noEmit per package (cross-package types via dist/*.d.ts)
       - run: vp run smoke
+      - run: vp run test:scaffolder
       - uses: actions/upload-artifact@v5
         with:
           name: den_core.wasm
