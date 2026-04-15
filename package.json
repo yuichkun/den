@@ -6,6 +6,8 @@
     "smoke": "node scripts/smoke.mjs",
     "typecheck": "vp check",
     "gen-golden": "uv run --project scripts/gen-golden scripts/gen-golden/gen.py",
+    "gen:effect": "node scripts/gen-effect.mjs",
+    "test:scaffolder": "node --test scripts/gen-effect.test.mjs",
     "test:tier2": "node --experimental-strip-types --test 'packages/test-utils/tests/**/*.test.ts'",
     "test:tier3a": "vp run -F @denaudio/examples test:e2e",
     "test": "vp run test:tier2 && vp run test:tier3a"
