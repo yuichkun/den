@@ -3,15 +3,16 @@ import {preview} from 'vite';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 export async function captureRealtime(output, artifacts) {
-const server=await preview({configFile:false,build:{outDir:output},preview:{host:'127.0.0.1',port:0}});
-const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});
-const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-await page.addInitScript(()=>{
- const AC=AudioContext;window.AudioContext=class extends AC {constructor(...a){super(...a);window.probeContext=this;}};
- const AN=AnalyserNode;window.AnalyserNode=class extends AN {constructor(...a){super(...a);window.probeAnalyser=this;}};
- const raf=requestAnimationFrame;window.requestAnimationFrame=cb=>window.probeNoUi?0:raf(cb);
-});
+let server,browser;
 try{
+ server=await preview({configFile:false,build:{outDir:output},preview:{host:'127.0.0.1',port:0}});
+ browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ await page.addInitScript(()=>{
+  const AC=AudioContext;window.AudioContext=class extends AC {constructor(...a){super(...a);window.probeContext=this;}};
+  const AN=AnalyserNode;window.AnalyserNode=class extends AN {constructor(...a){super(...a);window.probeAnalyser=this;}};
+  const raf=requestAnimationFrame;window.requestAnimationFrame=cb=>window.probeNoUi?0:raf(cb);
+ });
  await page.goto(server.resolvedUrls.local[0]+'audition.html');await page.locator('#start').tap();await page.waitForFunction(()=>window.denAudition.state().peak>0.01);
  const results=[];mkdirSync(artifacts,{recursive:true});
  for(const mode of ['native-sine','full','lfo','controls','no-ui']){
@@ -54,6 +55,9 @@ try{
  }
  writeFileSync(join(artifacts,'probe.json'),JSON.stringify(results,null,2));
  return results;
-}finally{await browser.close();await new Promise(r=>server.httpServer.close(r));}
+}finally{
+ try{await browser?.close();}
+ finally{if(server)await new Promise(r=>server.httpServer.close(r));}
+}
 
 }

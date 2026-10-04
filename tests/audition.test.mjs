@@ -12,27 +12,28 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
   const {consumer,output}=buildConsumer({stageSite:false});
   console.log(execFileSync('node',['audition-render.mjs'],{cwd:consumer,encoding:'utf8'}).trim());
   const {preview}=await import(pathToFileURL(join(consumer,'node_modules/vite/dist/node/index.js')).href);
-  const server=await preview({root:consumer,configFile:false,build:{outDir:output},preview:{host:'127.0.0.1',port:0}});
-  // Deliberately no autoplay bypass: Start and touch must unlock audio themselves.
-  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});
-  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
-  const page=await context.newPage(), errors=[];
-  page.on('pageerror',e=>errors.push(e.message));
-  // Observe actual native output nodes and context closure independently of UI status.
-  await page.addInitScript(()=>{
-    window.__contexts=[];const Original=window.AudioContext;
-    window.AudioContext=class extends Original {constructor(...args){if(window.__failContext)throw new DOMException('48 kHz unavailable','NotSupportedError');super(...args);window.__contexts.push(this);}};
-    window.__analysers=[];const Analyser=window.AnalyserNode;
-    window.AnalyserNode=class extends Analyser {constructor(...args){super(...args);window.__analysers.push(this);}};
-  });
-  const state=()=>page.evaluate(()=>window.denAudition.state());
-  const peak=()=>page.evaluate(()=>{const a=window.__analysers.at(-1),v=new Float32Array(a.fftSize);a.getFloatTimeDomainData(v);return Math.max(...v.map(Math.abs));});
-  const set=async(id,value)=>page.locator('#'+id).evaluate((el,value)=>{el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
-  const advance=async(seconds)=>{
-    const until=await page.evaluate(seconds=>window.__contexts.at(-1).currentTime+seconds,seconds);
-    await page.waitForFunction(until=>window.__contexts.at(-1).currentTime>=until,until);
-  };
+  let server, browser;
   try {
+    server=await preview({root:consumer,configFile:false,build:{outDir:output},preview:{host:'127.0.0.1',port:0}});
+    // Deliberately no autoplay bypass: Start and touch must unlock audio themselves.
+    browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});
+    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+    const page=await context.newPage(), errors=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    // Observe actual native output nodes and context closure independently of UI status.
+    await page.addInitScript(()=>{
+      window.__contexts=[];const Original=window.AudioContext;
+      window.AudioContext=class extends Original {constructor(...args){if(window.__failContext)throw new DOMException('48 kHz unavailable','NotSupportedError');super(...args);window.__contexts.push(this);}};
+      window.__analysers=[];const Analyser=window.AnalyserNode;
+      window.AnalyserNode=class extends Analyser {constructor(...args){super(...args);window.__analysers.push(this);}};
+    });
+    const state=()=>page.evaluate(()=>window.denAudition.state());
+    const peak=()=>page.evaluate(()=>{const a=window.__analysers.at(-1),v=new Float32Array(a.fftSize);a.getFloatTimeDomainData(v);return Math.max(...v.map(Math.abs));});
+    const set=async(id,value)=>page.locator('#'+id).evaluate((el,value)=>{el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
+    const advance=async(seconds)=>{
+      const until=await page.evaluate(seconds=>window.__contexts.at(-1).currentTime+seconds,seconds);
+      await page.waitForFunction(until=>window.__contexts.at(-1).currentTime>=until,until);
+    };
     await page.goto(server.resolvedUrls.local[0]+'audition.html');
     await page.waitForFunction(()=>window.denAudition);
     assert.equal(await page.evaluate(()=>window.__contexts.length),0,'no context or autoplay on load');
@@ -119,5 +120,8 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
     const manifest={status:'CANDIDATE',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:Object.fromEntries(['src/envelope.ts','src/lfo.ts','src/oscillator.ts','tests/consumer/audition-processor.js','tests/consumer/audition.js','tests/consumer/audition-render.mjs','package-lock.json'].map(file=>[file,createHash('sha256').update(readFileSync(join(root,file))).digest('hex')])),audio:JSON.parse(readFileSync(join(consumer,'candidate-audition.json'),'utf8'))};
     writeFileSync(join(artifacts,'manifest.json'),JSON.stringify(manifest,null,2));
     writeFileSync(join(artifacts,'browser.json'),JSON.stringify({status:'CANDIDATE',browser:'Chromium touch emulation; not physical iOS/Android',sampleRate:48000,checks:['constructor failure and retry','no autoplay','gesture start','bounded output','zero gain silence','release silence','repeat start/stop','touch release','cancel startup','renewed hold during delayed startup'],state:await state()},null,2));
-  } finally {await browser.close();await new Promise(resolve=>server.httpServer.close(resolve));}
+  } finally {
+    try { await browser?.close(); }
+    finally { if(server) await new Promise(resolve=>server.httpServer.close(resolve)); }
+  }
 });
