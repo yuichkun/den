@@ -1,4 +1,4 @@
-import { audioOutput, bool, defineProcessor, forSample, instantiate, param } from '@unworklet/core';
+import { audioOutput, bool, defineProcessor, forSample, instantiate, param, state } from '@unworklet/core';
 import { envelope } from '@denaudio/den/envelope';
 import { lfo, modulatePitch } from '@denaudio/den/lfo';
 import { oscillator } from '@denaudio/den/oscillator';
@@ -12,11 +12,19 @@ export const audition = defineProcessor(() => {
   const mod = instantiate(lfo,{sampleRate:48000},{name:'lfo'});
   const osc = instantiate(oscillator,{sampleRate:48000,waveform:'sine'},{name:'oscillator'});
   const output = audioOutput({name:'main',channels:1});
+  // Materialize composition boundaries: 0.4.1 recursively expands reused
+  // expression trees. These same-sample transient values add no delay.
+  const modulation=state.f32(0).expose({name:'modulation',snapshot:'transient'});
+  const pitch=state.f32(0).expose({name:'pitch',snapshot:'transient'});
+  const level=state.f32(0).expose({name:'level',snapshot:'transient'});
   return {process(){forSample(i => {
     const c = Object.fromEntries(Object.entries(controls).map(([name,p]) => [name,p.at(i)]));
     const e = env.tick({gate:c.gate.gt(0.5),retrigger:bool(false),reset:bool(false),attack:c.attack,decay:c.decay,sustain:c.sustain,release:c.release});
-    const vibrato = mod.tick(c.rate,bool(false),c.depth.mul(0));
-    const hz = modulatePitch(c.frequency,vibrato,c.depth,21600);
-    output.ch(0).at(i).write(osc.tick(hz,bool(false)).mul(e.level));
+    level.write(e.level);
+    modulation.write(mod.tick(c.rate,bool(false),c.depth.mul(0)));
+    const vibrato=modulation.read();
+    pitch.write(modulatePitch(c.frequency,vibrato,c.depth,21600));
+    const hz=pitch.read();
+    output.ch(0).at(i).write(osc.tick(hz,bool(false)).mul(level.read()));
   });}};
 }, {id:'den.audition.envelope-lfo-oscillator.v1'});
