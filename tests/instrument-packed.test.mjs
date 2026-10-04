@@ -83,6 +83,7 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     writeFileSync(join(measurementDir,'sustained-timing.json'),JSON.stringify({realtimeStatus,...timing},null,2));
     assert.equal(sustained.sampleRate,48000);
     assert.equal(sustained.audio.length,12*48000);
+    console.log('Sustained observer frame gaps:',JSON.stringify(sustained.gaps));
     assert.deepEqual(sustained.gaps,[]);
     assert.deepEqual(sustained.errors.filter(e=>JSON.parse(e).code!=='sab-unavailable'),[]);
     assert(sustained.audio.every(Number.isFinite));

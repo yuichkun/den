@@ -55,6 +55,7 @@ export function createInstrument(config: InstrumentConfig) {
     const panic = state.bool(false).expose({ name: 'panic', snapshot: 'transient' });
     const voiceControls = state.buffer.bool({ size: 3 * policy.capacity }).expose({ name: 'voiceControls', snapshot: 'transient' });
     const audioSignals = state.buffer.f32({ size: 2 * policy.capacity }).expose({ name: 'audioSignals', snapshot: 'transient' });
+    const deferredRetrigger = state.buffer.bool({ size: policy.capacity }).expose({ name: 'deferredRetrigger', snapshot: 'transient' });
     const completed = state.buffer.bool({ size: policy.capacity }).expose({ name: 'completed', snapshot: 'transient' });
     const cleared = state.buffer.bool({ size: policy.capacity }).expose({ name: 'cleared', snapshot: 'transient' });
     const tuning = state.buffer.f32({ size: 128 }).expose({ name: 'tuning', snapshot: 'transient' });
@@ -116,8 +117,11 @@ export function createInstrument(config: InstrumentConfig) {
           const v = voice.read();
           voiceControls.write(n * 3, reset.or(v.active.not()).or(cleared.read(n)));
           voiceControls.write(n * 3 + 1, v.gate.and(voiceControls.read(n * 3).not()));
-          voiceControls.write(n * 3 + 2, voice.takeRetrigger());
+          voiceControls.write(n * 3 + 2, voice.takeRetrigger().or(deferredRetrigger.read(n)));
           const clear = voiceControls.read(n * 3), gate = voiceControls.read(n * 3 + 1), trigger = voiceControls.read(n * 3 + 2);
+          // CC120 can suppress the note's first sample. Keep its reset pulse
+          // until the first audible sample, so oscillator phase starts at zero.
+          deferredRetrigger.write(n, clear.and(trigger).and(v.active).and(v.gate));
           const p = parts[n];
           const common = { gate, retrigger: trigger, reset: clear };
           const amp = p.amp.tick({ ...common, attack: ampAttack.at(i), decay: ampDecay.at(i), sustain: ampSustain.at(i), release: ampRelease.at(i) });

@@ -86,6 +86,15 @@ test('CC120 isolation, CC123 release, same-quantum panic/reallocation and on/off
   close(r.outputs.main[0],Array.from({length:768},(_,n)=>n<128?1+64/127:n===128?64/127:n<256?1+64/127:n<384?64/127:0));
 });
 
+test('CC120 replacement begins at phase zero after the clearing sample',async()=>{
+  for(const rate of [44100,48000,96000]) {
+    const result=await render({...setup,capacity:1,filter:wire},[[on(69)],[cc(120),on(81)],[],[off(81)]],rate);
+    const expected=Array.from({length:512},(_,n)=>n<128?Math.sin(2*Math.PI*440*n/rate):
+      n===128||n>=384?0:Math.sin(2*Math.PI*880*(n-129)/rate));
+    close(result.outputs.main[0],expected);
+  }
+});
+
 test('replacement oscillator/filter example has independently defined response',async()=>{
   const rate=48000,n=512;
   const result=await renderOffline(replacementInstrument,{sampleRate:rate,duration:n/rate,events:events([[on(69)]]),params});
