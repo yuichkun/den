@@ -1,0 +1,86 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { mkdirSync, writeFileSync, copyFileSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { chromium } from 'playwright';
+import { buildConsumer } from '../scripts/build-consumer.mjs';
+
+test('packed mobile audition: gesture playback, controls, release, repeated stop and startup cancellation', {timeout:180000}, async()=>{
+  const {consumer,output}=buildConsumer({stageSite:false});
+  console.log(execFileSync('node',['audition-render.mjs'],{cwd:consumer,encoding:'utf8'}).trim());
+  const {preview}=await import(pathToFileURL(join(consumer,'node_modules/vite/dist/node/index.js')).href);
+  const server=await preview({root:consumer,configFile:false,build:{outDir:output},preview:{host:'127.0.0.1',port:0}});
+  // Deliberately no autoplay bypass: Start and touch must unlock audio themselves.
+  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});
+  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+  const page=await context.newPage(), errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  // Observe actual native output nodes and context closure independently of UI status.
+  await page.addInitScript(()=>{
+    window.__contexts=[];const Original=window.AudioContext;
+    window.AudioContext=class extends Original {constructor(...args){super(...args);window.__contexts.push(this);}};
+    window.__analysers=[];const Analyser=window.AnalyserNode;
+    window.AnalyserNode=class extends Analyser {constructor(...args){super(...args);window.__analysers.push(this);}};
+  });
+  const state=()=>page.evaluate(()=>window.denAudition.state());
+  const peak=()=>page.evaluate(()=>{const a=window.__analysers.at(-1),v=new Float32Array(a.fftSize);a.getFloatTimeDomainData(v);return Math.max(...v.map(Math.abs));});
+  const set=async(id,value)=>page.locator('#'+id).evaluate((el,value)=>{el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
+  try {
+    await page.goto(server.resolvedUrls.local[0]+'audition.html');
+    await page.waitForFunction(()=>window.denAudition);
+    assert.equal(await page.evaluate(()=>window.__contexts.length),0,'no context or autoplay on load');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile layout overflows');
+    await page.getByRole('button',{name:'Start tone',exact:true}).tap();
+    await page.waitForFunction(()=>window.denAudition.state().peak>0.015);
+    assert.equal((await state()).sampleRate,48000);
+    assert((await peak())<=0.036,'default output exceeds 3.5%');
+    const artifacts=join(import.meta.dirname,'../artifacts/audition');mkdirSync(artifacts,{recursive:true});
+    await page.screenshot({path:join(artifacts,'mobile-playing.png'),fullPage:true});
+    await set('volume',0.1);await set('sustain',1);await set('depth',2);await set('rate',12);
+    await page.waitForTimeout(250);
+    assert((await peak())>0.08);assert((await peak())<=0.10001,'output cap exceeded');
+    await set('volume',0);await page.waitForTimeout(350);assert((await peak())<1e-6,'zero volume is not silent');
+    await set('volume',0.035);await set('release-time',0.1);
+    // Let the smoothed release control settle before the envelope latches it.
+    await page.waitForTimeout(200);
+    await page.getByRole('button',{name:'Release',exact:true}).tap();
+    await page.waitForTimeout(250);assert((await peak())<1e-6,'release did not reach silence');
+    await page.getByRole('button',{name:'Stop audio',exact:true}).tap();
+    await page.waitForFunction(()=>window.denAudition.state().contextState==='closed');
+    for(let n=0;n<3;n++){
+      await page.getByRole('button',{name:'Start tone',exact:true}).tap();
+      await page.waitForFunction(()=>window.denAudition.state().peak>0.01);
+      await page.getByRole('button',{name:'Stop audio',exact:true}).tap();
+      await page.waitForFunction(()=>window.denAudition.state().contextState==='closed');
+    }
+    assert.equal(await page.evaluate(()=>window.__contexts.every(c=>c.state==='closed')),true,'Stop leaked contexts');
+    // Real touch events, including finger release outside the pad through pointer capture.
+    const client=await context.newCDPSession(page);
+    await page.locator('#pad').scrollIntoViewIfNeeded();const box=await page.locator('#pad').boundingBox();
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+80,y:box.y+40}]});
+    await page.waitForFunction(()=>window.denAudition.state().peak>0.01);
+    await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+    await page.waitForTimeout(250);assert((await peak())<1e-6,'touch release stuck a note');
+    await page.getByRole('button',{name:'Stop audio',exact:true}).tap();
+    await page.waitForFunction(()=>window.denAudition.state().contextState==='closed');
+    // Cancel while worklet setup is delayed; completion must not reconnect audio.
+    await page.route('**/*',async route=>{
+      if(route.request().url().includes('worklet'))await new Promise(r=>setTimeout(r,100));
+      await route.continue();
+    });
+    await page.evaluate(()=>{document.querySelector('#start').click();document.querySelector('#stop').click();});
+    await page.waitForTimeout(400);
+    assert.equal((await state()).contextState,'closed');
+    assert.equal(await page.evaluate(()=>window.__contexts.every(c=>c.state==='closed')),true);
+    assert.deepEqual(errors,[]);
+    await page.screenshot({path:join(artifacts,'mobile.png'),fullPage:true});
+    for(const file of ['candidate-audition.wav','candidate-audition.json'])copyFileSync(join(consumer,file),join(artifacts,file));
+    const root=join(import.meta.dirname,'..');
+    const manifest={status:'CANDIDATE',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:Object.fromEntries(['src/envelope.ts','src/lfo.ts','src/oscillator.ts','tests/consumer/audition-processor.js','tests/consumer/audition.js','tests/consumer/audition-render.mjs','package-lock.json'].map(file=>[file,createHash('sha256').update(readFileSync(join(root,file))).digest('hex')])),audio:JSON.parse(readFileSync(join(consumer,'candidate-audition.json'),'utf8'))};
+    writeFileSync(join(artifacts,'manifest.json'),JSON.stringify(manifest,null,2));
+    writeFileSync(join(artifacts,'browser.json'),JSON.stringify({status:'CANDIDATE',browser:'Chromium touch emulation; not physical iOS/Android',sampleRate:48000,checks:['no autoplay','gesture start','bounded output','zero gain silence','release silence','repeat start/stop','touch release','cancel startup'],state:await state()},null,2));
+  } finally {await browser.close();await new Promise(resolve=>server.httpServer.close(resolve));}
+});

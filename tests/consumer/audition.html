@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102622"><title>den · listening room</title></head>
+<body><main>
+<header><a class="brand" href="/">den<span> / listening room</span></a><span class="badge">CANDIDATE 01</span></header>
+<section class="intro"><p class="eyebrow">A small sound, up close.</p><h1>Shape it.<br>Hold it. Hear it.</h1><p>A sine oscillator through a linear envelope, with a little pitch motion. These sounds are ready to audition—not listening-approved goldens.</p></section>
+<section class="instrument" aria-label="Audition controls"><div class="topline"><h2>Envelope × motion</h2><span>MONO · SINE · 48 kHz</span></div>
+<p class="hint">Start with your device volume low. Output starts at 3.5% and is capped at 10%; actual loudness depends on your device.</p>
+<div class="transport"><button id="start">Start tone</button><button id="release">Release</button><button id="stop" class="stop">Stop audio</button></div>
+<p id="status" role="status" aria-live="polite">Ready. Audio starts only when you play.</p>
+<button id="pad" class="pad">Hold to play<span>Release to hear the tail · keyboard Space / Enter</span></button>
+<canvas id="waveform" width="960" height="220" aria-label="Live output waveform, displayed at four-times scale"></canvas><p id="peak" class="meter">Output stopped</p>
+<div class="controls">
+<label for="frequency">Pitch <output id="frequency-value"></output><input id="frequency" data-param="frequency" data-unit=" Hz" type="range" min="110" max="880" step="1" value="220"></label>
+<label for="volume">Output <output id="volume-value"></output><input id="volume" data-param="volume" type="range" min="0" max="0.1" step="0.005" value="0.035"></label>
+<label for="attack">Attack <output id="attack-value"></output><input id="attack" data-param="attack" data-unit=" s" type="range" min="0.005" max="2" step="0.005" value="0.04"></label>
+<label for="decay">Decay <output id="decay-value"></output><input id="decay" data-param="decay" data-unit=" s" type="range" min="0.005" max="2" step="0.005" value="0.2"></label>
+<label for="sustain">Sustain <output id="sustain-value"></output><input id="sustain" data-param="sustain" type="range" min="0" max="1" step="0.01" value="0.65"></label>
+<label for="release-time">Release <output id="release-time-value"></output><input id="release-time" data-param="release" data-unit=" s" type="range" min="0.01" max="3" step="0.01" value="0.4"></label>
+<label for="rate">LFO rate <output id="rate-value"></output><input id="rate" data-param="rate" data-unit=" Hz" type="range" min="0" max="12" step="0.1" value="4"></label>
+<label for="depth">Pitch depth <output id="depth-value"></output><input id="depth" data-param="depth" data-unit=" semitones" type="range" min="0" max="2" step="0.05" value="0"></label>
+</div></section>
+<section class="listen"><p class="eyebrow">THREE LISTENING CHECKPOINTS</p><div class="checkpoints"><article><b>01 / The edge</b><p>Keep depth at zero. Raise attack, then hold the pad. Does the sound rise smoothly?</p></article><article><b>02 / The tail</b><p>Release the pad. Compare a short and long release. Stop audio should always silence the output.</p></article><article><b>03 / The motion</b><p>Add 0.5 semitones of depth. Move LFO rate slowly. Listen for a steady pitch wobble without a phase jump.</p></article></div></section>
+<section class="details"><details><summary>Current settings</summary><pre id="settings"></pre></details><details><summary>Audition source code</summary><p>This is the composition used to build this page's audio processor.</p><pre id="source"></pre></details><details><summary>Build and listening notes</summary><p id="provenance">Draft integration: envelope/LFO from merged PR #17; oscillator from unmerged PR #18 at a8c73ac. This is a module audition, not yet the configurable MIDI instrument or delay FX. This local integration verifies public package subpaths; publication is pending.</p><p>48 kHz browser audio. The waveform shows output after the volume control, enlarged four times. Settings describe the current controls; attack, decay and release latch when their segment begins. Changing tabs stops audio. No microphone access or recording.</p><p>For feedback, note your device, settings, checkpoint and anything you hear. Listening here does not automatically approve a golden.</p></details></section>
+<footer>den · DSP building blocks, made audible. <a href="/">Silent entry check</a></footer>
+</main><script type="module" src="/audition.js"></script></body></html>

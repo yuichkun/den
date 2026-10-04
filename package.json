@@ -23,6 +23,18 @@
     "./gate": {
       "types": "./dist/gate.d.ts",
       "import": "./dist/gate.js"
+    },
+    "./envelope": {
+      "types": "./dist/envelope.d.ts",
+      "import": "./dist/envelope.js"
+    },
+    "./lfo": {
+      "types": "./dist/lfo.d.ts",
+      "import": "./dist/lfo.js"
+    },
+    "./oscillator": {
+      "types": "./dist/oscillator.d.ts",
+      "import": "./dist/oscillator.js"
     }
   },
   "engines": {
