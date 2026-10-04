@@ -29,7 +29,9 @@ own locked dependencies. It checks a strict TypeScript consumer, performs a Vite
 production build using unworklet's plugin, renders offline, and exercises real
 Chromium AudioParams and snapshots. The browser is silent (a zero-gain sink).
 The temporary consumer is retained for diagnosis. Test output goes to ignored
-`artifacts/`; CI uploads it. No command publishes to a registry.
+`artifacts/`; CI uploads it. No command publishes to a registry. The existing Vercel deployment integration
+is tracked separately in [deployment status](docs/deployment-status.md); it is not
+the package verification path.
 
 ## Package boundary
 
