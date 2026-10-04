@@ -53,6 +53,8 @@ export const delayFx = defineSubgraph((config: DelayFxConfig) => {
   const timeRight = state.f32(0).expose({ name: 'timeRight', snapshot: 'transient' });
   const wetLeft = state.f32(0).expose({ name: 'wetLeft', snapshot: 'transient' });
   const wetRight = state.f32(0).expose({ name: 'wetRight', snapshot: 'transient' });
+  const timingValid = state.bool(false).expose({ name: 'timingValid', snapshot: 'transient' });
+  const toneCutoff = state.f32(0).expose({ name: 'toneCutoff', snapshot: 'transient' });
   const first = state.bool(true).named('first');
   const minimum = Math.fround(1 / sampleRate), maximum = Math.fround(maxDelaySeconds);
   const acceptedLeft = state.f32(minimum).named('acceptedLeft');
@@ -64,13 +66,14 @@ export const delayFx = defineSubgraph((config: DelayFxConfig) => {
       const requestedRight = select(c.sync, seconds(c.beatsRight), c.timeRightSeconds);
       const within = (time: Node<'f32'>) => time.gte(minimum).and(time.lte(maximum));
       const tempoValid = c.bpm.gte(30).and(c.bpm.lte(300));
-      const valid = within(requestedLeft).and(within(requestedRight)).and(c.sync.not().or(tempoValid));
+      timingValid.write(within(requestedLeft).and(within(requestedRight)).and(c.sync.not().or(tempoValid)));
+      const valid = timingValid.read();
       // Reject the entire stereo request: keep the previous rhythm internally,
       // stop new input and emit dry. Never present clamped time as an exact rhythm.
-      const baseLeft = select(valid, requestedLeft, select(c.reset, f32(minimum), acceptedLeft.read()));
-      const baseRight = select(valid, requestedRight, select(c.reset, f32(minimum), acceptedRight.read()));
-      acceptedLeft.write(baseLeft);
-      acceptedRight.write(baseRight);
+      acceptedLeft.write(select(valid, requestedLeft, select(c.reset, f32(minimum), acceptedLeft.read())));
+      acceptedRight.write(select(valid, requestedRight, select(c.reset, f32(minimum), acceptedRight.read())));
+      // Reuse this sample's accepted state instead of expanding its selection again.
+      const baseLeft = acceptedLeft.read(), baseRight = acceptedRight.read();
       const phaseReset = c.reset.or(first.read());
       signalLeft.write(lfoLeft.tick(c.rateHz, phaseReset, f32(0)));
       signalRight.write(lfoRight.tick(c.rateHz, phaseReset, f32(stereoPhaseCycles - Math.floor(stereoPhaseCycles))));
@@ -86,7 +89,8 @@ export const delayFx = defineSubgraph((config: DelayFxConfig) => {
       wetLeft.write(tapLeft.output); wetRight.write(tapRight.output);
       // Q=0.5 and g=tan(pi*fc/fs)<1 admit a positive two-stage realization.
       // The 0.24*fs ceiling keeps a margin below g=1, even with coefficient error.
-      const cutoff = c.cutoffHz.clamp(20, Math.min(20000, 0.24 * sampleRate));
+      toneCutoff.write(c.cutoffHz.clamp(20, Math.min(20000, 0.24 * sampleRate)));
+      const cutoff = toneCutoff.read();
       const filteredLeft = toneLeft.tick(wetLeft.read(), cutoff, f32(0.5), c.reset);
       const filteredRight = toneRight.tick(wetRight.read(), cutoff, f32(0.5), c.reset);
       const gain = c.feedback.clamp(0, 0.95);

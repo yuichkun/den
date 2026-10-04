@@ -96,8 +96,10 @@ slots are inherited readhead/filter/LFO state plus `first`, `acceptedLeft` and
 `acceptedRight`. Restore is supported only for the same schema, configuration and
 rate, using unworklet's existing snapshot path after parameters have rendered.
 
-Six transient f32 scalar slots materialize LFO outputs, final times and wet reads
-within each sample. They are overwritten before use and add no sample latency.
+Seven transient f32 scalar slots and one transient boolean materialize LFO
+outputs, final times, wet reads, cutoff and timing validity within each sample.
+The accepted-time state is read after its current-sample write, avoiding repeated
+expansion of the same selection. They are overwritten before use and add no sample latency.
 They prevent recursive expansion of the composite expression graph in pinned
 unworklet 0.4.1; no compiler/runtime replacement or upstream edit is introduced.
 
@@ -152,8 +154,14 @@ Raw PCM and residual positions are retained without loosening the threshold.
 packed browser WASM. It records size/hash, controls, warm-up, mean/p99/max block
 time and total wall time for 12 seconds of audio. This host-dependent direct-WASM
 diagnostic excludes browser scheduling/copy overhead and does not replace the
-real-time gate. Initial local measurement: 62,653 bytes, mean 0.366 ms, p99 0.943 ms,
-maximum 2.844 ms per 128 frames versus a 2.667 ms budget. Shared modules and
+real-time gate. After the composition audit, WASM decreased from 62,653 to 45,935 bytes. Local
+direct-driver mean decreased from 0.366 to 0.071 ms per 128 frames. The latter run
+still had a 4.677 ms maximum versus a 2.667 ms budget; average cost alone does not
+establish real-time readiness. Against commit 6cf15d1, all four output/status
+channels were bit-identical over 18 cases: 44.1/48/96 kHz, flat/lowpass, and LFO
+rate/depth pairs 0/0, 4 Hz/2 ms, 12 Hz/20 ms. Each case rendered 16384 samples with
+sample-varying time, cutoff, gain, mix, sync, bypass and reset. This equivalence
+check supplements the independent numerical references; it is not a golden. Shared modules and
 unworklet remain unchanged; no general real-time performance guarantee is made.
 
 `artifacts/delay-fx/` contains CANDIDATE WAVs/raw browser PCM, static plots and a
