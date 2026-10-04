@@ -1,0 +1,71 @@
+{
+  "baseCommit": "e12adc5019307183a68e7f8ff08aaa5a33562033",
+  "delayFixtureCommit": "7ef7ce670531b1230111f1d2c89302bfe44935b2",
+  "runtime": "unworklet 0.4.1; Node v24.19.0; Chromium 151.0.7922.173; Linux x64",
+  "sampleRate": 48000,
+  "framesPerQuantum": 128,
+  "secondsPerTrial": 12,
+  "compatibility": {
+    "filterRates": [
+      8000,
+      44100,
+      48000,
+      96000,
+      192000
+    ],
+    "inputLevels": [
+      1,
+      1e-20,
+      1e-28,
+      1e-29,
+      1e-30,
+      1e-31,
+      1e-38,
+      1e-44
+    ],
+    "delayCases": 18,
+    "delayPCMAndSnapshotBytes": "identical",
+    "schema": "unchanged"
+  },
+  "limitations": [
+    "Host-specific measurements with trace overhead, no CPU profiling.",
+    "All eight completed trials retained; no warmup exclusion from cold reporting.",
+    "No hardware-output deadline or sound approval."
+  ],
+  "filterSourceSHA256": "61d49d6b1e52b17791237e00dec5c5089e594ee0030ecaa37f2c632ecb441278",
+  "settings": {
+    "timeLeft": 0.075,
+    "timeRight": 0.1,
+    "feedback": 0.95,
+    "mix": 1,
+    "cutoff": 1000,
+    "sync": 0,
+    "bpm": 120,
+    "beatsLeft": 1,
+    "beatsRight": 1.5,
+    "rate": 2,
+    "depth": 0.001,
+    "bypass": 0,
+    "reset": 0
+  },
+  "wasm": {
+    "baseline": {
+      "bytes": 45935,
+      "sha256": "25202e821cecfc39de34a7c6e153d89091ff5b29db893856d22861370c21b6f1"
+    },
+    "candidate": {
+      "bytes": 24707,
+      "sha256": "74ab305c15c932d3d7bc32e7d4a0499439adfdfb107355f329e46d1ffea9fdb0"
+    }
+  },
+  "browserTrials": [
+    {"label":"baseline","trial":0,"audioSeconds":12.016,"quanta":4506,"firstWallMs":3.071,"firstCpuMs":2.849,"hotWall":{"meanMs":0.09881576026637134,"p99Ms":0.217,"maxMs":2.166},"hotCpu":{"meanMs":0.09697758046614784,"p99Ms":0.215,"maxMs":2.164},"overBudget":[{"quantum":0,"wallMs":3.071,"cpuMs":2.849,"clockAnomaly":false}],"lazyCompile":[{"name":"wasm.CompileLazy","dur":1115,"tdur":1114,"withinFirst":true}],"trace":"baseline-0-trace.json","traceSha256":"ff79728834d1426b8570072aecdc8f1f9a9cef35e55968e3764bcc5b05e7dde7"},
+    {"label":"candidate","trial":0,"audioSeconds":12.016,"quanta":4506,"firstWallMs":1.9,"firstCpuMs":1.897,"hotWall":{"meanMs":0.09993407325194262,"p99Ms":0.194,"maxMs":1.863},"hotCpu":{"meanMs":0.09836825749167738,"p99Ms":0.189,"maxMs":2.435},"overBudget":[],"lazyCompile":[{"name":"wasm.CompileLazy","dur":609,"tdur":608,"withinFirst":true}],"trace":"candidate-0-trace.json","traceSha256":"536c163ec4ed26943707605efe036a3c2b6f2e40172d9ca6f452714fa6e2cd8e"},
+    {"label":"candidate","trial":1,"audioSeconds":12.016,"quanta":4506,"firstWallMs":1.857,"firstCpuMs":1.855,"hotWall":{"meanMs":0.09728479467258735,"p99Ms":0.176,"maxMs":0.719},"hotCpu":{"meanMs":0.09542264150943501,"p99Ms":0.174,"maxMs":0.53},"overBudget":[],"lazyCompile":[{"name":"wasm.CompileLazy","dur":599,"tdur":598,"withinFirst":true}],"trace":"candidate-1-trace.json","traceSha256":"898b0abe99a1cdf4dc17199ba3f3d0da2387cb7ca1ff622b156efd838a18af9c"},
+    {"label":"baseline","trial":1,"audioSeconds":12.016,"quanta":4506,"firstWallMs":2.815,"firstCpuMs":2.743,"hotWall":{"meanMs":0.09903240843507195,"p99Ms":0.227,"maxMs":2.553},"hotCpu":{"meanMs":0.09767635960044414,"p99Ms":0.223,"maxMs":2.552},"overBudget":[{"quantum":0,"wallMs":2.815,"cpuMs":2.743,"clockAnomaly":false}],"lazyCompile":[{"name":"wasm.CompileLazy","dur":1120,"tdur":1119,"withinFirst":true}],"trace":"baseline-1-trace.json","traceSha256":"df0af807969fad55a30f796c8204cdbeb566eb41fa7c41af23fa9d1a86e5d939"},
+    {"label":"baseline","trial":2,"audioSeconds":12.016,"quanta":4506,"firstWallMs":2.959,"firstCpuMs":2.948,"hotWall":{"meanMs":0.09628768035516228,"p99Ms":0.172,"maxMs":1.476},"hotCpu":{"meanMs":0.09439134295227555,"p99Ms":0.171,"maxMs":1.41},"overBudget":[{"quantum":0,"wallMs":2.959,"cpuMs":2.948,"clockAnomaly":false}],"lazyCompile":[{"name":"wasm.CompileLazy","dur":1221,"tdur":1212,"withinFirst":true}],"trace":"baseline-2-trace.json","traceSha256":"37ac48f5dfc304181c61935f8a23734b1331358ad69264223dcf3c0c1efea6b5"},
+    {"label":"candidate","trial":2,"audioSeconds":12.016,"quanta":4506,"firstWallMs":1.68,"firstCpuMs":1.678,"hotWall":{"meanMs":0.09407169811320897,"p99Ms":0.183,"maxMs":1.043},"hotCpu":{"meanMs":0.09290166481687012,"p99Ms":0.183,"maxMs":2.289},"overBudget":[],"lazyCompile":[{"name":"wasm.CompileLazy","dur":604,"tdur":603,"withinFirst":true}],"trace":"candidate-2-trace.json","traceSha256":"7de84358f73ff46cd6d3cac5f524d1e4e7e0270749c31711cc29dcb77b5a2e3f"},
+    {"label":"candidate","trial":3,"audioSeconds":12.016,"quanta":4506,"firstWallMs":1.659,"firstCpuMs":1.656,"hotWall":{"meanMs":0.09528990011098971,"p99Ms":0.19,"maxMs":1.942},"hotCpu":{"meanMs":0.09338046614872407,"p99Ms":0.189,"maxMs":1.941},"overBudget":[],"lazyCompile":[{"name":"wasm.CompileLazy","dur":553,"tdur":551,"withinFirst":true}],"trace":"candidate-3-trace.json","traceSha256":"a530dfa4dc293a431f7f4011bbb2ae7341d63776d7949ac28d4b8f765c6fd786"},
+    {"label":"baseline","trial":3,"audioSeconds":12.016,"quanta":4506,"firstWallMs":6.584,"firstCpuMs":2.92,"hotWall":{"meanMs":0.09562841287458462,"p99Ms":0.184,"maxMs":1.514},"hotCpu":{"meanMs":0.09368967813540517,"p99Ms":0.178,"maxMs":1.512},"overBudget":[{"quantum":0,"wallMs":6.584,"cpuMs":2.92,"clockAnomaly":false}],"lazyCompile":[{"name":"wasm.CompileLazy","dur":1180,"tdur":1180,"withinFirst":true}],"trace":"baseline-3-trace.json","traceSha256":"b32ca895b5844f0e73e2c4b112f07800a08931c2a3ce04389db631d0187deb59"}
+  ]
+}
