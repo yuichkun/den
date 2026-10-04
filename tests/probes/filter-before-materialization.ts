@@ -1,3 +1,5 @@
+// Compatibility fixture frozen from e12adc5 src/filter.ts. Numerical correctness
+// remains covered by the independent biquad oracle in filter-oscillator.spec.ts.
 import { defineSubgraph, f32, f64, select, state, type Node } from '@unworklet/core';
 
 export interface FilterConfig { sampleRate: number }
@@ -13,20 +15,15 @@ export const filter = defineSubgraph((config: FilterConfig) => {
   return {
     /** Call exactly once per sample. Reset clears history before processing this input. */
     tick(input: Node<'f32'>, cutoff: Node<'f32'>, resonance: Node<'f32'>, reset: Node<'bool'>) {
-      // read() captures a WASM local in 0.4.1: preserve both histories before
-      // staging g in band. The final writes below retain the original histories.
-      const s1 = select(reset, f64(0), band.read());
-      const s2 = select(reset, f64(0), low.read());
       // Bounded-angle Taylor coefficients avoid the f32 transcendental lowering in 0.4.1.
       const angle = f64(cutoff).clamp(20, maximum).mul(Math.PI / config.sampleRate);
       const z = angle.mul(angle);
       const sine = angle.mul(f64(-1 / 6227020800).mul(z).add(1 / 39916800).mul(z).sub(1 / 362880).mul(z).add(1 / 5040).mul(z).sub(1 / 120).mul(z).add(1 / 6).mul(z).neg().add(1));
       const cosine = f64(-1 / 87178291200).mul(z).add(1 / 479001600).mul(z).sub(1 / 3628800).mul(z).add(1 / 40320).mul(z).sub(1 / 720).mul(z).add(1 / 24).mul(z).sub(1 / 2).mul(z).add(1);
-      // Materialize only this bounded coefficient (g > 3e-4 over the configured range).
-      // No new snapshot slot, and no extra <1e-30 flush of audio intermediates.
-      band.write(sine.div(cosine));
-      const g = band.read();
+      const g = sine.div(cosine);
       const k = f64(1).div(f64(resonance).clamp(0.5, 10));
+      const s1 = select(reset, f64(0), band.read());
+      const s2 = select(reset, f64(0), low.read());
       const v1 = s1.add(g.mul(f64(input).sub(s2))).div(g.mul(g.add(k)).add(1));
       const v2 = s2.add(g.mul(v1));
       band.write(v1.mul(2).sub(s1));
