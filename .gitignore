@@ -1,32 +1,5 @@
-# Rust
-target/
-
-# Node
 node_modules/
-.pnpm-store/
-
-# Build artifacts
 dist/
-*.wasm
-
-# Vite / tooling
-.vite/
-.turbo/
-
-# Playwright
-test-results/
-playwright-report/
-
-# Claude Code session state
-.claude/
-
-# uv (gen-golden Python env)
-scripts/gen-golden/.venv/
-__pycache__/
-*.pyc
-
-# Editor
-.DS_Store
-.idea/
-.vscode/
-!.vscode/extensions.json
+artifacts/
+*.tgz
+site-dist/

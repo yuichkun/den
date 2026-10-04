@@ -1,76 +1,80 @@
 # den
 
-High-quality audio effects for the Web Audio API, compiled from Rust to WebAssembly.
+Composable DSP modules and instrument/effect engines built on unworklet. This
+branch establishes the package entry gate; the MIDI instrument and delay FX are
+not implemented yet.
 
-## Status
+## Setup and verification
 
-Early foundation — see the [Foundation epic](https://github.com/yuichkun/den/issues/1).
+Use Node **24.19.0** (npm **11.9.0**). No Rust, Cargo, wasm-pack, Vite+, or external
+WASM compiler installation is required. Binaryen comes from unworklet.
 
-## Quickstart (contributors)
-
-```bash
-# One-time: install Vite+ (CLI wrapping pnpm + Vite + Vitest + oxlint/oxfmt)
-# macOS / Linux:
-curl -fsSL https://vite.plus | bash
-# Windows (PowerShell):
-#   irm https://viteplus.dev/install.ps1 | iex
-
-# Install deps (Vite+ reads pnpm-workspace.yaml + .node-version automatically)
-vp install
+```sh
+npm ci
+npm exec -- playwright install --with-deps chromium
+npm run check
+npm test
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full workflow.
+In a restricted environment with an existing Chromium installation:
 
-## Build
-
-`den-core` is a `#![no_std]` Rust crate that compiles to `wasm32-unknown-unknown` and is post-processed with `wasm-opt` (binaryen). The rest of the workspace is std Rust + TypeScript packages built with Vite+.
-
-### Prerequisites
-
-- Rust stable (managed by `rust-toolchain.toml`; the `wasm32-unknown-unknown` target installs automatically)
-- `wasm-opt` from the `binaryen` package — must be on `PATH`:
-  - macOS: `brew install binaryen`
-  - Ubuntu/Debian: `sudo apt-get install -y binaryen`
-- Vite+ (`vp` CLI) and Node 22 — installed via the Quickstart above
-
-### Build everything
-
-```bash
-vp run build
+```sh
+npm ci --cache /tmp/den-npm-cache
+CHROMIUM_PATH=/usr/bin/chromium npm test
 ```
 
-This runs (in topological order across the workspace):
+`npm test` builds the declarations/ESM, runs numerical and dependency probes, packs
+the package, and installs that tarball in a fresh OS temporary directory with its
+own locked dependencies. It checks a strict TypeScript consumer, performs a Vite
+production build using unworklet's plugin, renders offline, and exercises real
+Chromium AudioParams and snapshots. The browser is silent (a zero-gain sink).
+The temporary consumer is retained for diagnosis. Test output goes to ignored
+`artifacts/`; CI uploads it. No command publishes to a registry. `npm run build:consumer` produces `site-dist/`
+from this same packed consumer for Vercel; its page offers a silent 48-kHz browser
+check. See [deployment setup](docs/deployment-status.md).
 
-1. `packages/core/scripts/build-wasm.mjs` — `cargo build --target wasm32-unknown-unknown --profile wasm-release -p den-core`, then `wasm-opt -O3 ...` into `packages/core/dist/den_core.wasm`.
-2. `packages/core` library bundle (TS loader + the WASM artifact placed beside it).
-3. `packages/worklet` two-bundle build — main-thread ESM + classic IIFE worklet processor.
-4. `packages/effects` library bundle.
-5. `packages/test-utils` library bundle.
+## Package boundary
 
-### Validate
+The ESM-only `@denaudio/den` package exposes `gateCell`, a representative editable
+TypeScript subgraph. `@denaudio/den/gate` exposes `gate`, a mono one-sample memory
+and gain fixture. Neither is a production oscillator, envelope, or delay engine.
+The package requires **@unworklet/core 0.4.1** as a peer. The checked-in lockfiles
+pin the exercised compiler, renderer, plugin, and test dependencies.
 
-```bash
-# Rust — den-core is checked separately for its wasm32 target.
-cargo fmt --all -- --check
-cargo clippy --workspace --exclude den-core --all-targets -- -D warnings
-cargo clippy -p den-core --target wasm32-unknown-unknown -- -D warnings
-cargo check --workspace --exclude den-core --all-targets
-cargo check -p den-core --target wasm32-unknown-unknown
-
-# TypeScript / JS
-vp check         # fmt + lint (+ typecheck if enabled in lint.options)
-vp run smoke     # Node-side WASM smoke test (scripts/smoke.mjs)
-
-# DSP harness (Sub C)
-vp run gen-golden    # regenerate Python scipy golden WAVs (requires `uv` from
-                     # https://docs.astral.sh/uv/getting-started/installation/)
-vp run test:tier2    # Node WASM null tests against committed goldens
-vp run test:tier3a   # Playwright + OfflineAudioContext null tests
-vp run test          # tier2 + tier3a chained (`vp run test`, NOT `vp test` —
-                     # `vp test` would invoke Vitest directly and bypass the
-                     # chain script in package.json)
+```ts
+import { gateCell } from '@denaudio/den';
+import { instantiate } from '@unworklet/core';
+// Within a defineProcessor declaration body:
+const cell = instantiate(gateCell, { scale: 1 }, { name: 'cell' });
+// Within forSample: cell.tick(inputSample, gainSample)
 ```
 
-## License
+For the browser, re-export `gate` from a consumer processor module and import
+that module with `?worklet`; use the existing `@unworklet/unplugin` Vite plugin and
+`createNode`. The repository includes the clean consumer under `tests/consumer`;
+the published package includes the usage constraints in `docs/`. No den loader
+is needed.
+The supported plugin path is currently **48 kHz browser only**: real 44.1/96 kHz
+contexts are tested and rejected by unworklet 0.4.1. Three-rate success applies
+to **offline** rendering only; see the known limitation in the findings.
+This gate exercises explicit TS subgraphs, not `.uwk` sugar or browser HMR.
 
-Dual-licensed under MIT or Apache-2.0.
+Read [lane contracts](docs/contracts.md) before starting dependent DSP work, and
+[dependency findings](docs/dependency-findings.md) before relying on snapshots or
+helpers. The contract requires independent review before parallel DSP integration.
+
+## Audio evidence
+
+The gate produces float WAV candidates, static waveform plots, snapshots, and a
+manifest linking source commit/hashes, package and lockfile hashes, settings,
+input, rates, and verification. These are **CANDIDATE**, not human-approved audio
+or golden baselines. This fixture has no musical quality claim. Golden promotion
+requires hearing approval tied to exact source/audio hashes in a separate change.
+
+## Repository transition
+
+This is a fresh TS/unworklet foundation. The retired Rust/WASM implementation,
+legacy packages, documentation, scripts, and configuration are removed in this
+branch's diff; their history remains in Git. Existing MIT/Apache-2.0 legal texts
+and contributor attribution are retained as license notices, not implementation.
+The public package is currently version `0.0.0`; no registry release is intended.
