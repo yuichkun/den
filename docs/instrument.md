@@ -176,9 +176,17 @@ overruns. Sixteen voices had median 1.447 ms, p99 4.583 ms and 221 overruns.
 These are host-specific observations, not portable capacity guarantees. The
 raw trace and each run's exact figures are preserved with the candidate WAV.
 
-Intermediate musical signals and control predicates are explicitly stored
-using existing transient unworklet state, because expression reuse alone can
-expand the generated graph. Voice completion is committed once per block after
+Bounded pitch/cutoff modulation signals and control predicates use existing
+transient unworklet state, because expression reuse alone can expand the graph.
+Oscillator output, filter output and amplitude-envelope level stay expressions:
+native floating-point state writes flush magnitudes below 1e-30, which would
+destroy finite tiny values recoverable by a later custom filter or gain.
+No private memoization API, altered flush threshold or custom-value restriction
+is used. Regression cases include subnormal input, large oscillator/tiny amp,
+tiny filter output and signed zero observed by a replacement filter.
+Transient layout changes are not a migration for snapshots from older revisions;
+the snapshot contract remains identical processor/schema/rate only.
+Voice completion is committed once per block after
 sample processing; this avoids running allocator rank maintenance at audio rate
 while preserving exact sample silence and availability at the next MIDI drain.
 Shared DSP modules remain unchanged; the common expression-expansion/runtime

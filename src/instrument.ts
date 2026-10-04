@@ -58,7 +58,6 @@ export function createInstrument(config: InstrumentConfig) {
     const live = state.bool(false).expose({ name: 'live', snapshot: 'transient' });
     const panic = state.bool(false).expose({ name: 'panic', snapshot: 'transient' });
     const voiceControls = state.buffer.bool({ size: 3 * policy.capacity }).expose({ name: 'voiceControls', snapshot: 'transient' });
-    const audioSignals = state.buffer.f32({ size: 2 * policy.capacity }).expose({ name: 'audioSignals', snapshot: 'transient' });
     const deferredRetrigger = state.buffer.bool({ size: policy.capacity }).expose({ name: 'deferredRetrigger', snapshot: 'transient' });
     const completed = state.buffer.bool({ size: policy.capacity }).expose({ name: 'completed', snapshot: 'transient' });
     const cleared = state.buffer.bool({ size: policy.capacity }).expose({ name: 'cleared', snapshot: 'transient' });
@@ -69,7 +68,7 @@ export function createInstrument(config: InstrumentConfig) {
     // their octave ratio already rounds to exactly 1. Do not cache final audio,
     // where a finite sub-threshold result must survive downstream gain.
     const depths = state.buffer.f32({ size: 2 * policy.capacity }).expose({ name: 'depths', snapshot: 'transient' });
-    const signals = state.buffer.f32({ size: 5 * policy.capacity + 1 }).expose({ name: 'signals', snapshot: 'transient' });
+    const signals = state.buffer.f32({ size: 4 * policy.capacity + 1 }).expose({ name: 'signals', snapshot: 'transient' });
     const gain = param.f32({ default: diagnosticInstrumentParameters.gain, min: 0, max: 1, automationRate: 'a-rate' }).named('gain');
     const ampAttack = param.f32({ default: diagnosticInstrumentParameters.ampAttack, min: 0, max: 30, automationRate: 'a-rate' }).named('ampAttack');
     const ampDecay = param.f32({ default: diagnosticInstrumentParameters.ampDecay, min: 0, max: 30, automationRate: 'a-rate' }).named('ampDecay');
@@ -119,7 +118,7 @@ export function createInstrument(config: InstrumentConfig) {
       for (let note = 0; note < 128; note++) tuning.write(note, 440 * 2 ** ((note - 69) / 12));
       forSample(i => {
         const reset = panic.read();
-        signals.write(5 * policy.capacity, modulation.tick(lfoRate.at(i), reset, f32(0)));
+        signals.write(4 * policy.capacity, modulation.tick(lfoRate.at(i), reset, f32(0)));
         let sum = f32(0);
         policy.voices.forEach((voice, n) => {
           const v = voice.read();
@@ -135,23 +134,23 @@ export function createInstrument(config: InstrumentConfig) {
           const amp = p.amp.tick({ ...common, attack: ampAttack.at(i), decay: ampDecay.at(i), sustain: ampSustain.at(i), release: ampRelease.at(i) });
           const pitch = p.pitch.tick({ ...common, attack: pitchAttack.at(i), decay: pitchDecay.at(i), sustain: pitchSustain.at(i), release: pitchRelease.at(i) });
           const tone = p.tone.tick({ ...common, attack: filterAttack.at(i), decay: filterDecay.at(i), sustain: filterSustain.at(i), release: filterRelease.at(i) });
-          signals.write(n * 5, amp.level);
-          signals.write(n * 5 + 1, pitch.level);
-          signals.write(n * 5 + 2, tone.level);
-          const wave = signals.read(5 * policy.capacity);
+          signals.write(n * 4, pitch.level);
+          signals.write(n * 4 + 1, tone.level);
+          const wave = signals.read(4 * policy.capacity);
           // Combine depths in musical units before the single destination clamp.
-          const semitones = signals.read(n * 5 + 1).mul(pitchEnvelopeDepth.at(i)).add(wave.mul(lfoPitchDepth.at(i)));
-          const octaves = signals.read(n * 5 + 2).mul(filterEnvelopeDepth.at(i)).add(wave.mul(lfoFilterDepth.at(i)));
+          const semitones = signals.read(n * 4).mul(pitchEnvelopeDepth.at(i)).add(wave.mul(lfoPitchDepth.at(i)));
+          const octaves = signals.read(n * 4 + 1).mul(filterEnvelopeDepth.at(i)).add(wave.mul(lfoFilterDepth.at(i)));
           depths.write(n * 2, semitones);
           depths.write(n * 2 + 1, octaves);
-          signals.write(n * 5 + 3, modulatePitch(tuning.read(v.note.max(0)), f32(1), depths.read(n * 2), 0.45 * sampleRate));
-          signals.write(n * 5 + 4, modulateCutoff(cutoff.at(i), f32(1), depths.read(n * 2 + 1), Math.min(20000, 0.45 * sampleRate)));
-          audioSignals.write(n * 2, p.oscillator.tick(signals.read(n * 5 + 3), clear.or(trigger)));
-          audioSignals.write(n * 2 + 1, p.filter.tick(select(clear, f32(0), audioSignals.read(n * 2)), signals.read(n * 5 + 4), resonance.at(i), clear.or(trigger)));
-          const filtered = audioSignals.read(n * 2 + 1);
+          signals.write(n * 4 + 2, modulatePitch(tuning.read(v.note.max(0)), f32(1), depths.read(n * 2), 0.45 * sampleRate));
+          signals.write(n * 4 + 3, modulateCutoff(cutoff.at(i), f32(1), depths.read(n * 2 + 1), Math.min(20000, 0.45 * sampleRate)));
+          // Preserve recoverable finite values across custom parts and amp gain.
+          // Native state writes flush tiny values, so these paths stay expressions.
+          const oscillation = p.oscillator.tick(signals.read(n * 4 + 2), clear.or(trigger));
+          const filtered = p.filter.tick(select(clear, f32(0), oscillation), signals.read(n * 4 + 3), resonance.at(i), clear.or(trigger));
           // Unipolar tremolo: depth 0 is unity; depth 1 spans 0..1.
           const tremolo = f32(1).sub(lfoAmpDepth.at(i).mul(f32(1).sub(wave)).mul(0.5));
-          const sample = select(v.active.and(clear.not()), filtered.mul(signals.read(n * 5)).mul(v.velocity).mul(tremolo), f32(0));
+          const sample = select(v.active.and(clear.not()), filtered.mul(amp.level).mul(v.velocity).mul(tremolo), f32(0));
           sum = sum.add(sample);
           completed.write(n, amp.done);
           cleared.write(n, 0);

@@ -178,3 +178,23 @@ test('tiny combined depths remain unity ratios through replacement parts', async
     expect(cutoff.outputs.main[0].every(x=>x===Math.fround(1000/20000))).toBe(true);
   }
 },30000);
+
+test('finite tiny custom signals remain recoverable across every composition boundary', async()=>{
+  const constant=(value:number)=>defineSubgraph((_config:OscillatorConfig)=>({tick:(_frequency:Node<'f32'>,_reset:Node<'bool'>)=>f32(value)}));
+  const amplify=defineSubgraph((_config:FilterConfig)=>({tick:(input:Node<'f32'>,_cutoff:Node<'f32'>,_q:Node<'f32'>,_reset:Node<'bool'>)=>input.mul(1e35)}));
+  const tinyOutput=defineSubgraph((_config:FilterConfig)=>({tick:(_input:Node<'f32'>,_cutoff:Node<'f32'>,_q:Node<'f32'>,_reset:Node<'bool'>)=>f32(1e-35)}));
+  const signProbe=defineSubgraph((_config:FilterConfig)=>({tick:(input:Node<'f32'>,_cutoff:Node<'f32'>,_q:Node<'f32'>,_reset:Node<'bool'>)=>f32(1).div(input).clamp(-1,1)}));
+  const cases=[
+    {oscillator:constant(1e-35),filter:amplify,sustain:1,expected:Math.fround(Math.fround(1e-35)*Math.fround(1e35))},
+    {oscillator:constant(1e35),filter:wire,sustain:1e-35,expected:Math.fround(Math.fround(1e35)*Math.fround(1e-35))},
+    {oscillator:dc,filter:tinyOutput,sustain:1,expected:Math.fround(1e-35)},
+    {oscillator:constant(-0),filter:signProbe,sustain:1,expected:-1},
+    {oscillator:constant(2**-149),filter:amplify,sustain:1,expected:Math.fround(2**-149*Math.fround(1e35))},
+    {oscillator:constant(-1e-35),filter:amplify,sustain:1,expected:Math.fround(Math.fround(-1e-35)*Math.fround(1e35))},
+    {oscillator:constant(3e38),filter:wire,sustain:1e-38,expected:Math.fround(Math.fround(3e38)*Math.fround(1e-38))},
+  ];
+  for(const c of cases){
+    const result=await render({...setup,capacity:1,heldCapacity:1,oscillator:c.oscillator,filter:c.filter},[[on(69)]],48000,{params:{ampSustain:[c.sustain]}});
+    expect(result.outputs.main[0].every(x=>Object.is(x,c.expected)),`expected ${c.expected}`).toBe(true);
+  }
+},30000);

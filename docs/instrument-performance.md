@@ -1,5 +1,22 @@
 # Instrument performance investigation
 
+Correctness follow-up: the former oscillator/filter and amplitude caches also
+flushed recoverable tiny values, independently of the depth-only optimization.
+Those three paths now compose returned Nodes directly. A failing-before/passing-
+after regression checks tiny oscillator → large custom-filter gain, large
+oscillator → tiny amplitude envelope, tiny custom-filter output, smallest f32
+subnormal and negative-zero sign recovery. Private DSL internals are not used.
+Compilation remains possible at 1/4 voices; WASM changes from 804852/1050090 to
+818400/1104282 bytes. Measurements below predate this correctness correction
+unless explicitly labeled otherwise, and are retained as historical evidence.
+The corrected composition passes 124 numerical/state tests and five packed
+consumers. Its local packed four-voice capture has hot wall/CPU medians 445/436
+µs, 26 wall and 32 CPU threshold exceedances, zero frame gaps and raw/release
+residuals 6.140e-9/8.892e-9. This is a correctness fix with observed performance
+cost, not an optimization or a portable real-time guarantee. Underrun/overrun
+counts require separating CPU from non-CPU intervals and observer/host effects;
+they do not alone identify a product defect.
+
 Status: incomplete. Numerical continuity is not a real-time readiness verdict.
 Baseline source is `9a75f9c07e89d0dd77d598bf3e35ee51af1eb26e`, unworklet
 0.4.1, Chromium 151.0.7922.173, 48000 Hz and 128-frame quanta. All audio is
