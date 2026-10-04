@@ -86,7 +86,7 @@ export type { DelaySettings, DelaySettingsValues } from './delay-settings.js';
 ```
 
 The checked-in `delay-settings-candidate.json` is the small provenance manifest
-for source commit `d542ebe3b4bfd7fc51222519be810819cf47cac9`. Audio and images are
+for source commit `ace4deafaf41f8c4336df7fdb532bbac10a6be42`. Audio and images are
 excluded from Git. Regenerate them with the command above into `artifacts/`, the
 repository's existing CI artifact-upload path. The recorded audio remains
 CANDIDATE, even when the mechanical checks pass. A documentation-only commit does
@@ -106,3 +106,10 @@ also written under `artifacts/delay-settings/`. Candidate audio generation is an
 explicit local step; the current workflow does not automatically run the plotting
 script. Publishing the listening packet through CI requires the integration
 owner's existing artifact workflow; no preview/deployment settings are changed here.
+
+After integrating main `91c45c5c58ea4c2cb0a30bcbdf84dc56097ed0cd`, both settings
+and their numerical tests remain unchanged. The shared filter update is inherited
+from main. All four regenerated input WAVs, raw output WAVs and static waveform
+images match the previous candidate hashes exactly; this is reproducibility
+evidence, not listening approval. The manifest records the new source commit and
+filter source hash.
