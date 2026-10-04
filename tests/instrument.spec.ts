@@ -158,3 +158,23 @@ test('musical depths combine before frequency clamping, including opposite-sign 
     return Math.min(0.45*rate,base*2**(semitones/12))/1000;
   }),1e-5);
 });
+
+test('tiny final gain survives composition and downstream amplification', async()=>{
+  // Native state writes flush |x| < 1e-30, but audio output writes do not.
+  // A new final-mix state would turn this valid output into zero.
+  const gain=Math.fround(1e-35);
+  const result=await render({...setup,capacity:1,oscillator:dc,filter:wire},[[on(69)]],48000,{params:{gain:[gain]}});
+  expect(result.outputs.main[0].every(x=>x===gain)).toBe(true);
+  expect(result.outputs.main[0][0]*1e30).toBeGreaterThan(0.000009);
+});
+
+test('tiny combined depths remain unity ratios through replacement parts', async()=>{
+  for(const depth of [-1e-29,-1e-30,-1e-35,0,1e-35,1e-30,1e-29]) {
+    const result=await render({...setup,capacity:1,oscillator:frequencyProbe,filter:wire},[[on(69)]],48000,
+      {params:{pitchAttack:[0],pitchDecay:[0],pitchSustain:[1],pitchEnvelopeDepth:[depth]}});
+    expect(result.outputs.main[0].every(x=>x===Math.fround(Math.fround(440)/1000))).toBe(true);
+    const cutoff=await render({...setup,capacity:1,oscillator:dc,filter:cutoffProbe},[[on(69)]],48000,
+      {params:{filterAttack:[0],filterDecay:[0],filterSustain:[1],filterEnvelopeDepth:[depth]}});
+    expect(cutoff.outputs.main[0].every(x=>x===Math.fround(1000/20000))).toBe(true);
+  }
+},30000);

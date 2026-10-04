@@ -90,7 +90,6 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     assert.equal(sustained.sampleRate,48000);
     assert.equal(sustained.audio.length,12*48000);
     console.log('Sustained observer frame gaps:',JSON.stringify(sustained.gaps));
-    assert.deepEqual(sustained.gaps,[]);
     assert.deepEqual(sustained.errors.filter(e=>JSON.parse(e).code!=='sab-unavailable'),[]);
     assert(sustained.audio.every(Number.isFinite));
     // Fit only the initial steady window; predict all later samples from the
@@ -122,6 +121,7 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
       tailResidual=Math.max(tailResidual,Math.abs(sustained.audio[n]-(cosine*Math.cos(omega*n)+sine*Math.sin(omega*n))*level));
     }
     assert(tailResidual<2e-5,`release continuity residual ${tailResidual}`);
+    console.log('Sustained raw signal:',JSON.stringify({maxResidual,tailResidual,amplitude,maxStep,frameGaps:sustained.gaps}));
     const artifacts = join(root, 'artifacts/instrument'); mkdirSync(artifacts, { recursive: true });
     const files = {};
     for (const file of ['den.tgz', 'package-lock.json', 'instrument-evidence.json', ...[44100, 48000, 96000].flatMap(rate => [`instrument-${rate}.wav`, `instrument-${rate}.svg`])]) {
@@ -148,6 +148,9 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
       verification:'Independent DSP and voice tests; packed TypeScript/build/offline render; browser MIDI, polyphony, release, gain/cutoff edits, bypass, reset',
       limitations:['Not human approved','Physical packed module import; public export pending integration','MIDI dispatch is quantum-boundary'],files,
     },null,2));
+    // Preserve all raw evidence and independent continuity metrics before the
+    // frame-clock gate fails; a timestamp anomaly is not automatically PCM loss.
+    assert.deepEqual(sustained.gaps,[]);
   } finally {
     await browser?.close();
     await new Promise((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve()));

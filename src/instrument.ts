@@ -65,6 +65,10 @@ export function createInstrument(config: InstrumentConfig) {
     const tuning = state.buffer.f32({ size: 128 }).expose({ name: 'tuning', snapshot: 'transient' });
     const modulation = instantiate(lfo, { sampleRate }, { name: 'lfo' });
     // Materialize intermediate signals: 0.4.1 analysis recursively expands DAGs.
+    // Only cache musical exponents: below the state flush threshold (1e-30),
+    // their octave ratio already rounds to exactly 1. Do not cache final audio,
+    // where a finite sub-threshold result must survive downstream gain.
+    const depths = state.buffer.f32({ size: 2 * policy.capacity }).expose({ name: 'depths', snapshot: 'transient' });
     const signals = state.buffer.f32({ size: 5 * policy.capacity + 1 }).expose({ name: 'signals', snapshot: 'transient' });
     const gain = param.f32({ default: diagnosticInstrumentParameters.gain, min: 0, max: 1, automationRate: 'a-rate' }).named('gain');
     const ampAttack = param.f32({ default: diagnosticInstrumentParameters.ampAttack, min: 0, max: 30, automationRate: 'a-rate' }).named('ampAttack');
@@ -138,8 +142,10 @@ export function createInstrument(config: InstrumentConfig) {
           // Combine depths in musical units before the single destination clamp.
           const semitones = signals.read(n * 5 + 1).mul(pitchEnvelopeDepth.at(i)).add(wave.mul(lfoPitchDepth.at(i)));
           const octaves = signals.read(n * 5 + 2).mul(filterEnvelopeDepth.at(i)).add(wave.mul(lfoFilterDepth.at(i)));
-          signals.write(n * 5 + 3, modulatePitch(tuning.read(v.note.max(0)), f32(1), semitones, 0.45 * sampleRate));
-          signals.write(n * 5 + 4, modulateCutoff(cutoff.at(i), f32(1), octaves, Math.min(20000, 0.45 * sampleRate)));
+          depths.write(n * 2, semitones);
+          depths.write(n * 2 + 1, octaves);
+          signals.write(n * 5 + 3, modulatePitch(tuning.read(v.note.max(0)), f32(1), depths.read(n * 2), 0.45 * sampleRate));
+          signals.write(n * 5 + 4, modulateCutoff(cutoff.at(i), f32(1), depths.read(n * 2 + 1), Math.min(20000, 0.45 * sampleRate)));
           audioSignals.write(n * 2, p.oscillator.tick(signals.read(n * 5 + 3), clear.or(trigger)));
           audioSignals.write(n * 2 + 1, p.filter.tick(select(clear, f32(0), audioSignals.read(n * 2)), signals.read(n * 5 + 4), resonance.at(i), clear.or(trigger)));
           const filtered = audioSignals.read(n * 2 + 1);
