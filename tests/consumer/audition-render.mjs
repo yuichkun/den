@@ -20,3 +20,13 @@ const audible=Float32Array.from(raw,x=>x*.035);
 const wav=encodeWav([audible],sampleRate);writeFileSync('candidate-audition.wav',wav);
 writeFileSync('candidate-audition.json',JSON.stringify({status:'CANDIDATE — not listening-approved',sampleRate,samples:length,settings:{...params,gate:{onSamples},outputGain:.035},maxError:error,sha256:createHash('sha256').update(wav).digest('hex')},null,2));
 console.log(`Packed audition sine × envelope max error ${error}; release silence verified`);
+
+// The same independent pitch oracle must distinguish real depth from a disconnected LFO.
+const {assertPitchModulation}=await import('./pitch-oracle.mjs');
+const heldParams={gate:[1],frequency:[220],attack:[.005],decay:[.005],sustain:[.65],rate:[4]};
+const modulated=await renderOffline(audition,{sampleRate,duration:2.048,params:{...heldParams,depth:[.5]}});
+const unmodulated=await renderOffline(audition,{sampleRate,duration:2.048,params:{...heldParams,depth:[0]}});
+const pitchModulation=assertPitchModulation(modulated.outputs.main[0].slice(48000));
+assert.throws(()=>assertPitchModulation(unmodulated.outputs.main[0].slice(48000)),/pitch modulation depth/);
+writeFileSync('candidate-pitch.json',JSON.stringify({pitchModulation,zeroDepthRejected:true},null,2));
+console.log('Nonzero LFO depth/rate verified; zero-depth counterexample rejected',pitchModulation);

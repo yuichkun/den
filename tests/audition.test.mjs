@@ -115,9 +115,9 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
     assert.equal(await page.evaluate(()=>window.__contexts.every(c=>c.state==='closed')),true);
     assert.deepEqual(errors,[]);
     await page.screenshot({path:join(artifacts,'mobile.png'),fullPage:true});
-    for(const file of ['candidate-audition.wav','candidate-audition.json'])copyFileSync(join(consumer,file),join(artifacts,file));
+    for(const file of ['candidate-audition.wav','candidate-audition.json','candidate-pitch.json'])copyFileSync(join(consumer,file),join(artifacts,file));
     const root=join(import.meta.dirname,'..');
-    const manifest={status:'CANDIDATE',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:Object.fromEntries(['src/envelope.ts','src/lfo.ts','src/oscillator.ts','tests/consumer/audition-processor.js','tests/consumer/audition.js','tests/consumer/audition-render.mjs','package-lock.json'].map(file=>[file,createHash('sha256').update(readFileSync(join(root,file))).digest('hex')])),audio:JSON.parse(readFileSync(join(consumer,'candidate-audition.json'),'utf8'))};
+    const manifest={status:'CANDIDATE',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:Object.fromEntries(['src/envelope.ts','src/lfo.ts','src/oscillator.ts','tests/consumer/audition-processor.js','tests/consumer/audition.js','tests/consumer/audition-render.mjs','tests/consumer/pitch-oracle.mjs','package-lock.json'].map(file=>[file,createHash('sha256').update(readFileSync(join(root,file))).digest('hex')])),audio:JSON.parse(readFileSync(join(consumer,'candidate-audition.json'),'utf8'))};
     writeFileSync(join(artifacts,'manifest.json'),JSON.stringify(manifest,null,2));
     writeFileSync(join(artifacts,'browser.json'),JSON.stringify({status:'CANDIDATE',browser:'Chromium touch emulation; not physical iOS/Android',sampleRate:48000,checks:['constructor failure and retry','no autoplay','gesture start','bounded output','zero gain silence','release silence','repeat start/stop','touch release','cancel startup','renewed hold during delayed startup'],state:await state()},null,2));
   } finally {
