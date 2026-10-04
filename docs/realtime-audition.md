@@ -1,0 +1,27 @@
+# Sustained audition deadline regression
+
+The first browser tests proved sample values and lifecycle behavior, but did not prove that an AudioWorklet could produce those samples on time. In particular, waiting only for AudioContext time lets an overloaded renderer eventually finish and hides wall-clock drift. This gap allowed a numerically correct sustained sine to crackle during real playback.
+
+## Reproduction and isolation
+
+At reviewed frontend head `5d42072`, the audition compiled to 1,122,834 bytes of WASM. In this execution environment, warmed native WASM calls over 128-frame blocks measured a median 2.82 ms and p95 8.90 ms, exceeding the 48 kHz budget of 2.667 ms. A real Chromium capture took about 8.09 wall-clock seconds for five seconds of graph output and reported 839 playback underrun events. The raw graph samples remained continuous. Disabling waveform drawing did not remove the problem; a separate native sine context could render without underruns. The independent reviewer also reproduced excessive AudioWorklet process cost and phase-dependent stalls with depth zero.
+
+This isolates a deadline failure in the composed DSP, rather than a phase reset in its sample sequence. The published 0.4.1 arithmetic emitter recursively emits child expressions; retaining a Node in a JavaScript variable does not materialize its computed value. The repeated polynomial/squaring expressions used by pitch modulation amplify the composed expression tree. Explicitly materializing the subgraph boundaries reduces emitted size and processing cost while preserving samples. This is a den composition fix, not an upstream patch or a claim that every compiler path has been audited.
+
+The fix stores envelope level, LFO output and final pitch in three existing unworklet f32 transient state slots, then reads each later in the same sample. It adds no sample delay, custom state mechanism, preset or routing system. Each subgraph still ticks once per sample. The independent sine-times-envelope error remains 8.15e-8. WASM becomes 34,679 bytes; a warmed run measured p50 0.109 ms and p95 0.199 ms. These are measurements on this runner, not guarantees for every physical device or the future polyphonic instrument.
+
+The final regression harness was also run against the unchanged `5d42072` audition source: its native control recorded zero underruns, while den windows recorded 589/588/594/592 events and took 6.1–6.4 seconds for five seconds of samples. It exited with `full: real-time underrun events` (589 != 0). Restoring the materialized source passed the same checks.
+
+## Regression check
+
+`tests/realtime/audition.test.mjs` builds an isolated packed production consumer and runs after the existing numerical and packed/browser tests, rather than competing with them for CPU. It uses a test-only native AudioWorklet recorder with preallocated storage and no per-quantum allocations. The recorder does not replace the production DSP or transport.
+
+Each capture warms the recorder for one audio-clock second, then collects 240,000 real-time samples (five seconds at 48 kHz). Conditions are: native sine reference, den held tone with UI, LFO modulation, repeated parameter changes, and UI drawing disabled. Existing audition tests separately cover touch release/cancel, repeated Start/Stop, unavailable contexts and asynchronous startup.
+
+For every den window, the test requires zero new playback underrun events and zero underrun duration, five seconds of output within 5.5 wall-clock seconds, no consecutive zero samples, bounded adjacent/quantum-boundary steps, and a fitted 220 Hz sine residual below 1e-6 for unmodulated windows. Native oscillator results are recorded as an environment control; its implementation is not den's numerical contract. A warmed 1,000-block native WASM cost probe additionally requires p95 below half the quantum budget. Unsupported playback statistics fail the test instead of silently substituting offline evidence.
+
+Raw capture precedes device fallback, so continuous samples alone cannot rule out crackling. `AudioContext.playbackStats` checks that separate playback layer. Recorder allocations initially caused small measurement artifacts, and native controls sometimes exposed host scheduling noise; the committed recorder avoids per-block array views. Neither existing sample tolerances nor expected audio have been relaxed.
+
+`artifacts/realtime` holds raw f32 files, playback statistics, wall/audio timing, continuity results and source/audio hashes. It is CANDIDATE evidence, never an approved golden. The unchanged production transport remains unworklet's postMessage fallback where cross-origin isolation is absent; no headers, protection settings, permissions or credentials change. Stop still closes the context, consistent with the risk described in upstream #81; each build runs in a fresh process, avoiding the repeated-build cache scenario in #101. Those reports are not being claimed as newly reproduced here.
+
+Physical iOS/Android playback and human listening still require verification. This regression covers Chromium's actual 48 kHz real-time path and does not establish 44.1 kHz browser support or full-instrument CPU capacity.

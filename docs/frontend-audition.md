@@ -15,3 +15,5 @@ Output gain defaults to 0.035 and the control caps it at 0.1. This limits digita
 Candidate WAV, source/audio hashes, settings, browser results and mobile screenshots are written under `artifacts/audition`. Existing browser validation remains 48 kHz; known 44.1/96 kHz baked-rate rejections remain expected entry-gate checks. No expected audio is changed and no approved golden is introduced.
 
 The combined numerical suite runs with one worker to avoid CPU contention while compiling/rendering WASM. Default and two-worker runs intermittently exceeded the unchanged LFO test’s five-second timeout; sample assertions and timeout values are unchanged.
+
+The initial audible preview exposed a sustained playback deadline failure that numerical and lifecycle checks missed. See [the real-time investigation and regression](realtime-audition.md). The audition now materializes three subgraph boundaries using transient unworklet state; the test command includes a separate real-time capture/deadline stage.
