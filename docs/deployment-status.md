@@ -1,33 +1,39 @@
-# Existing deployment integration
+# Consumer deployment
 
-The entry deliverable is an ESM package and a temporary clean consumer exercised
-by CI. `dist/` is library output, not a deployable website. GEN-610 does not require
-hosting a website, so a Vercel build/output configuration is not required to prove
-its package/export/consumer acceptance path.
+The failure on `3ea862b1cb7b9fa37afa892e51606ea0556a35ae` is confirmed by the
+[deployment log](https://vercel.com/escentier/den/7XCUWxMzapFEBzsQhipQ7UhakxXd):
 
-The existing Vercel integration nevertheless posted a failed deployment for
-`d20c75757bc4c3f4a1877fede5daed7a77aa6b75`:
-[deployment details](https://vercel.com/escentier/den/7K3oMqw9aikJJw8Qb2V3SbCQEc3v).
-The GitHub status only says deployment failed; it contains no build error/log.
+```text
+Running install command './scripts/vercel-install.sh'
+sh: line 1: ./scripts/vercel-install.sh: No such file or directory
+```
 
-Historical repository evidence: the removed `vercel.ts` at base commit `d69ee666`
-said it mirrored dashboard settings and selected `scripts/vercel-install.sh`,
-`scripts/vercel-build.sh`, and `packages/examples/dist`. Those scripts installed
-Rust/WASM/Vite+ and built the retired examples. All of these paths were removed
-as part of the complete legacy replacement. Stale dashboard commands are a
-plausible cause, **not a verified diagnosis of the current deployment**.
+That command belonged to the retired Rust/Vite+ stack. Repository-local
+`vercel.json` now explicitly overrides install, build, framework detection, and
+output using the fresh TypeScript project:
 
-Read-only investigation using Vercel CLI 62.2.0 `inspect <deployment> --logs` was
-blocked by absent credentials. Direct Vercel access returned HTTP 403. No login,
-credential, project setting, permission, check-disabling, or hosting change was
-performed. GitHub branch-protection reads also returned integration-access 403;
-therefore the Vercel status cannot be presumed optional for merge.
+- Install: `npm ci --include=dev` (the static build requires TypeScript/Vite).
+- Build: `npm run build:consumer`.
+- Static output: `site-dist` (not library `dist`).
+- Framework: none; the build invokes Vite explicitly for the real consumer.
 
-Disposition: keep this failure visible. An authorized maintainer needs to inspect
-the actual current build log/settings and explicitly decide how the legacy site
-integration should relate to the new package repository. If a new hosted consumer
-is wanted, scope its real build/output and verification rather than point Vercel
-at library `dist/` or disable deployment to manufacture a passing check. The entry
-CI can pass independently, but merge readiness must separately account for this
-external status. No repository-local deployment workaround is justified by the
-available evidence.
+The build uses `scripts/build-consumer.mjs` to pack den, install the artifact in
+an isolated temporary consumer with locked dependencies, check its public types,
+and build its actual HTML/JavaScript/AudioWorklet/WASM assets. Only that consumer's
+production output is copied into `site-dist`. The entry integration test calls the
+same build function and serves `site-dist` before asserting real browser results.
+Failures from packing, installation, checking, or bundling fail the build; this is
+not a placeholder success page or a disabled deployment.
+
+The page provides a user-triggered silent 48-kHz check of gain changes and snapshot
+restoration, displaying success only when measured samples and restore status
+match. The production browser test clicks the button and verifies its result.
+There is no new runtime/loader and no Rust setup. Browser 44.1/96-kHz support is
+not claimed; offline coverage is separate. No COOP/COEP header override is added:
+the existing unworklet postMessage transport is the path exercised here.
+
+Build configuration is versioned in the repository; no dashboard, security,
+credential, permission, or check-disabling change is required. See Vercel's
+[file-based configuration](https://vercel.com/docs/project-configuration) for
+install/build/output overrides. The deployment must pass on the final reviewed
+commit; a previous failed status is not waived by a local build.

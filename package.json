@@ -32,7 +32,8 @@
     "build": "tsc",
     "check": "tsc --noEmit",
     "test": "npm run build && vitest run && node --test tests/*.test.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "build:consumer": "node scripts/build-consumer.mjs"
   },
   "peerDependencies": {
     "@unworklet/core": "0.4.1"

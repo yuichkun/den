@@ -1,1 +1,21 @@
-<!doctype html><html><head><meta charset="utf-8"><title>den entry gate</title></head><body><script type="module" src="/main.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>den entry gate</title>
+  <style>
+    body { font: 18px/1.6 system-ui, sans-serif; max-width: 42rem; margin: 4rem auto; padding: 0 1.5rem; color: #172132; background: #f6f8fb; }
+    button { font: inherit; padding: .6rem 1rem; cursor: pointer; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <h1>den entry gate</h1>
+  <p>A silent, 48 kHz browser check of the packed den package: audio processing, gain changes, and snapshot restoration.</p>
+  <p>This is a technical fixture, not the finished instrument or delay. Audio remains CANDIDATE, not listening-approved.</p>
+  <button id="run" type="button">Run silent check</button>
+  <pre id="result" role="status" aria-live="polite">Ready.</pre>
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
