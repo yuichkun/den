@@ -15,7 +15,7 @@ const depths=baseline.replace('    const signals =', "    const depths = state.b
  .replace('f32(1), semitones,','f32(1), depths.read(n*2),').replace('f32(1), octaves,','f32(1), depths.read(n*2+1),');
 const mixed=depths.replace('    const signals =', "    const mix = state.f32(0).expose({name:'mix',snapshot:'transient'});\n    const signals =")
  .replace('        output.ch(0).at(i).write(result);\n        output.ch(1).at(i).write(result);','        mix.write(result);\n        output.ch(0).at(i).write(mix.read());\n        output.ch(1).at(i).write(mix.read());');
-const manifest={baselineCommit,sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),node:process.version,variants:[],comparisons:[],status:'CANDIDATE',limitations:['Process CPU includes compilation and all threads','Offline timing is not browser timing']};
+const manifest={timingParameterInitialization:'Zero-filled native driver buffers; timing loop does not call writeParam',baselineCommit,sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),node:process.version,variants:[],comparisons:[],status:'CANDIDATE',limitations:['Process CPU includes compilation and all threads','Offline timing is not browser timing']};
 const modules={};
 for(const [name,instrument] of [['baseline',baseline],['depths',depths],['mixed',mixed]]){
  const dir=join(out,name);mkdirSync(join(dir,'src'),{recursive:true});mkdirSync(join(dir,'dist'),{recursive:true});symlinkSync(join(root,'node_modules'),join(dir,'node_modules'));writeFileSync(join(dir,'package.json'),'{"type":"module"}');const sourceHashes={};

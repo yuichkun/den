@@ -4,7 +4,7 @@ import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
 const source=resolve(process.env.PROPOSALS_DIR),out=resolve('artifacts/instrument-investigation',new Date().toISOString().replaceAll(':','-')+'-owned-timing');mkdirSync(out,{recursive:true});
 const hash=b=>createHash('sha256').update(b).digest('hex');
-const manifest={source,sourceManifestHash:hash(readFileSync(join(source,'manifest.json'))),node:process.version,activeVoices:0,heldCapacity:128,sampleRate:48000,blocks:2500,warmupBlocks:500,results:[],limitation:'Inactive-voice Node cost. Process CPU includes all threads. This is not a browser latency measurement.'};
+const manifest={timingParameterInitialization:'Zero-filled native driver buffers; timing loop does not call writeParam',source,sourceManifestHash:hash(readFileSync(join(source,'manifest.json'))),node:process.version,activeVoices:0,heldCapacity:128,sampleRate:48000,blocks:2500,warmupBlocks:500,results:[],limitation:'Inactive-voice Node cost. Process CPU includes all threads. This is not a browser latency measurement.'};
 writeFileSync(join(out,'benchmark-owned.mjs'),readFileSync(import.meta.filename));
 for(const capacity of [1,4])for(const name of ['baseline','depths']){
  const module=await import(join(source,name,'dist/instrument.js')),start=performance.now(),compiled=await compile(module.createInstrument({mode:'poly',capacity,heldCapacity:128}),{sampleRate:48000}),compileMs=performance.now()-start,init=performance.now(),instance=await compiled.driver.instantiate(),instantiateMs=performance.now()-init;

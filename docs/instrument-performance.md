@@ -118,7 +118,7 @@ source copies are preserved for each variant, not just passing cases.
 | 4 | depth cache | 1050090 | 124.10 | 676.40 |
 
 These are single Node timing trials (2500 quanta, hot after 500), with inactive
-voices, held capacity 128 and default parameters. Every block's wall/process
+voices, held capacity 128 and zero-filled native driver parameter buffers. Every block's wall/process
 CPU is retained. Compile times are 860/858 ms for 1 voice and 962/1012 ms for
 4 voices; instantiate times are 4.21/3.24 and 5.89/5.56 ms. The first process
 includes lazy compilation. No uniform cold-time improvement is established.
