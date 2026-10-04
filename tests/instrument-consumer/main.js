@@ -3,7 +3,7 @@ import processor from './processor.ts?worklet';
 window.runInstrument = async () => {
   const context = new AudioContext({ sampleRate: 48000 });
   await context.suspend();
-  const node = await createNode(context, processor, { initial: {
+  let node = await createNode(context, processor, { initial: {
     gain: 0.2, ampAttack: 0, ampDecay: 0, ampSustain: 1, ampRelease: 0.05,
     pitchEnvelopeDepth: 0, filterEnvelopeDepth: 0, cutoff: 1000, resonance: 0.707,
   } });
@@ -38,9 +38,17 @@ window.runInstrument = async () => {
     node.params.ampAttack.value = 1;
     on(); const freshAttack = await capture();
     const saved = await node.snapshot();
+    const restoredInPlace = await node.restore(saved);
+    // Native in-place restore overlays persistent slots; transient live voices
+    // remain live. Use the instrument's existing panic before starting afresh.
+    node.events.reset.emit({value:1}); const clearedAfterRestore = await capture();
+    on(); const inPlaceAttack = await capture();
+    node.dispose();
+    node = await createNode(context, processor);
+    node.outputs.main.connect(analyser);
     const restored = await node.restore(saved);
     on(); const restoredAttack = await capture();
-    return {sampleRate:context.sampleRate,silent,single,changed,filtered,bypassed,resumed,reset,chord,oneRelease,ended,restarted,endedWhileBypassed,freshAttack,restoredAttack,restored};
+    return {sampleRate:context.sampleRate,silent,single,changed,filtered,bypassed,resumed,reset,chord,oneRelease,ended,restarted,endedWhileBypassed,freshAttack,restoredAttack,restored,restoredInPlace,clearedAfterRestore,inPlaceAttack};
   } finally { node.dispose(); await context.close(); }
 };
 

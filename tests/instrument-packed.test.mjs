@@ -52,6 +52,9 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     assert(Math.abs(result.chord.rms / result.single.rms - 2) < 0.1);
     assert(Math.abs(result.oneRelease.rms / result.single.rms - 1) < 0.05);
     assert.equal(result.restored.ok,true);
+    assert.equal(result.restoredInPlace.ok,true);
+    assert.equal(result.clearedAfterRestore.peak,0);
+    assert(Math.abs(result.inPlaceAttack.rms/result.freshAttack.rms-1)<0.15);
     assert(result.freshAttack.finite&&result.restoredAttack.finite&&result.freshAttack.rms>0);
     assert(Math.abs(result.restoredAttack.rms/result.freshAttack.rms-1)<0.15,'Restored first note inherited the previous attack level');
     const traceSession=await browser.newBrowserCDPSession();

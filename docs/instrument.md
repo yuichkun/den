@@ -114,11 +114,17 @@ last-held-note priority follow `voice-policy.ts`; CC64 is not implemented.
   held note reappears when unbypassed, while an ended release remains silent.
 - Inactive slots clear their DSP histories. A new note cannot inherit a completed
   or panicked voice's tail. Live held-note state is transient: same-schema
-  snapshots restore parameters/shared LFO but do not revive held voices. Inactive
+  snapshots restored into a new node restore parameters/shared LFO but do not
+  revive held voices. Inactive
   histories are cleared on the first rendered sample, including when a new note
   arrives in the first quantum after restore. That clearing sample is silent;
   the new note begins at phase zero on the next sample. A pristine instance
-  needs no extra clearing sample. Follow the existing
+  needs no extra clearing sample. Native 0.4.1 **in-place** restore only overlays
+  persistent slots: it does not initialize transient live voices. For a cold
+  in-place restore, send the existing `reset` after restoring, render at least
+  one quantum, then send fresh notes. Sending reset and fresh notes in the same
+  quantum follows the documented reset-wins policy. No restore wrapper is added.
+  Follow the existing
   rendered-parameter snapshot constraint; schema migration is not added.
 
 ## Verification and integration
