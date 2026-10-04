@@ -14,7 +14,7 @@ The final regression harness was also run against the unchanged `5d42072` auditi
 
 ## Regression check
 
-`tests/realtime/audition.test.mjs` builds an isolated packed production consumer and runs after the existing numerical and packed/browser tests, rather than competing with them for CPU. It uses a test-only native AudioWorklet recorder with preallocated storage and no per-quantum allocations. The recorder does not replace the production DSP or transport.
+`tests/realtime/audition.test.mjs` builds an isolated packed production consumer and runs after the existing numerical and packed/browser tests, rather than competing with them for CPU. The packed test files run serially because each invokes the shared package prepack build; concurrent TypeScript writes can otherwise race tarball reads. It uses a test-only native AudioWorklet recorder with preallocated storage and no per-quantum allocations. The recorder does not replace the production DSP or transport.
 
 Each capture warms the recorder for one audio-clock second, then collects 240,000 real-time samples (five seconds at 48 kHz). Conditions are: native sine reference, den held tone with UI, LFO modulation, repeated parameter changes, and UI drawing disabled. Existing audition tests separately cover touch release/cancel, repeated Start/Stop, unavailable contexts and asynchronous startup.
 

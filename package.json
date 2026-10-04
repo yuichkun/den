@@ -43,7 +43,7 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
-    "test": "npm run build && vitest run && node --test tests/*.test.mjs && node --test tests/realtime/*.test.mjs",
+    "test": "npm run build && vitest run && node --test --test-concurrency=1 tests/*.test.mjs && node --test tests/realtime/*.test.mjs",
     "prepack": "npm run build",
     "build:consumer": "node scripts/build-consumer.mjs"
   },
