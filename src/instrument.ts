@@ -52,6 +52,10 @@ export function createInstrument(config: InstrumentConfig) {
     const policy = instantiate(voicePolicy, { ...config, capacity: config.capacity ?? (config.mode === 'mono' ? 1 : 4) }, { name: 'voices' });
     const output = audioOutput({ channels: 2, name: 'main' });
     const midi = event.midi({ from: 'main', name: 'midi' });
+    // A persisted marker paired with a transient marker distinguishes restore
+    // from a pristine instance even when MIDI already reactivated a voice.
+    const rendered = state.bool(false).named('rendered');
+    const live = state.bool(false).expose({ name: 'live', snapshot: 'transient' });
     const panic = state.bool(false).expose({ name: 'panic', snapshot: 'transient' });
     const voiceControls = state.buffer.bool({ size: 3 * policy.capacity }).expose({ name: 'voiceControls', snapshot: 'transient' });
     const audioSignals = state.buffer.f32({ size: 2 * policy.capacity }).expose({ name: 'audioSignals', snapshot: 'transient' });
@@ -115,7 +119,7 @@ export function createInstrument(config: InstrumentConfig) {
         let sum = f32(0);
         policy.voices.forEach((voice, n) => {
           const v = voice.read();
-          voiceControls.write(n * 3, reset.or(v.active.not()).or(cleared.read(n)));
+          voiceControls.write(n * 3, reset.or(rendered.read().and(live.read().not())).or(v.active.not()).or(cleared.read(n)));
           voiceControls.write(n * 3 + 1, v.gate.and(voiceControls.read(n * 3).not()));
           voiceControls.write(n * 3 + 2, voice.takeRetrigger().or(deferredRetrigger.read(n)));
           const clear = voiceControls.read(n * 3), gate = voiceControls.read(n * 3 + 1), trigger = voiceControls.read(n * 3 + 2);
@@ -150,6 +154,8 @@ export function createInstrument(config: InstrumentConfig) {
         output.ch(0).at(i).write(result);
         output.ch(1).at(i).write(result);
         panic.write(false);
+        rendered.write(true);
+        live.write(true);
       });
       // MIDI is drained only before process(). Once the amp reaches zero it
       // stays done for the rest of this block. Free completed allocations here,

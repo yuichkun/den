@@ -35,7 +35,12 @@ window.runInstrument = async () => {
     on(); const restarted = await capture();
     node.params.bypass.value = 1; await capture(); off(); await capture();
     node.params.bypass.value = 0; const endedWhileBypassed = await capture();
-    return {sampleRate:context.sampleRate,silent,single,changed,filtered,bypassed,resumed,reset,chord,oneRelease,ended,restarted,endedWhileBypassed};
+    node.params.ampAttack.value = 1;
+    on(); const freshAttack = await capture();
+    const saved = await node.snapshot();
+    const restored = await node.restore(saved);
+    on(); const restoredAttack = await capture();
+    return {sampleRate:context.sampleRate,silent,single,changed,filtered,bypassed,resumed,reset,chord,oneRelease,ended,restarted,endedWhileBypassed,freshAttack,restoredAttack,restored};
   } finally { node.dispose(); await context.close(); }
 };
 

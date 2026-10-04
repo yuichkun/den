@@ -115,7 +115,10 @@ last-held-note priority follow `voice-policy.ts`; CC64 is not implemented.
 - Inactive slots clear their DSP histories. A new note cannot inherit a completed
   or panicked voice's tail. Live held-note state is transient: same-schema
   snapshots restore parameters/shared LFO but do not revive held voices. Inactive
-  histories are cleared on the first rendered sample. Follow the existing
+  histories are cleared on the first rendered sample, including when a new note
+  arrives in the first quantum after restore. That clearing sample is silent;
+  the new note begins at phase zero on the next sample. A pristine instance
+  needs no extra clearing sample. Follow the existing
   rendered-parameter snapshot constraint; schema migration is not added.
 
 ## Verification and integration

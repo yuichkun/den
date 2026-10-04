@@ -110,6 +110,21 @@ test('default combined capacity renders and snapshots do not revive held notes',
   expect(restored.outputs.main[0].every(x=>x===0)).toBe(true);
 },60000);
 
+test('restore plus first-quantum note cannot inherit any voice envelope',async()=>{
+  const rate=48000;
+  for(const target of ['amp','pitch','filter']) {
+    const config={...setup,capacity:1,oscillator:target==='pitch'?frequencyProbe:dc,filter:target==='filter'?cutoffProbe:wire};
+    const processor=createInstrument(config);
+    const controls={...params,[target+'Attack']:[512/rate],[target+'Decay']:[0],
+      pitchEnvelopeDepth:[target==='pitch'?12:0],filterEnvelopeDepth:[target==='filter'?1:0]};
+    const first=await renderOffline(processor,{sampleRate:rate,duration:128/rate,params:controls,events:events([[on(69)]])});
+    const restored=await renderOffline(processor,{sampleRate:rate,duration:128/rate,restore:first.state,params:controls,events:events([[on(81)]])});
+    close(restored.outputs.main[0],Array.from({length:128},(_,n)=>n===0?0:
+      target==='amp'?n/512:target==='pitch'?0.88*2**(n/512):0.05*2**(n/512)));
+    expect(restored.diagnostics.scrubbedSamples).toBe(0);
+  }
+});
+
 test('combined construction bound: 16 voices / 256 held identities; fail before compiling 32',async()=>{
   expect(()=>createInstrument({...setup,capacity:32})).toThrow(/compiled graph limit/);
   const result=await render({...setup,capacity:16,heldCapacity:256},[Array.from({length:16},(_,n)=>on(48+n)),[cc(120)]],48000);
