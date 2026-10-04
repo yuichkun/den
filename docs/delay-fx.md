@@ -142,9 +142,19 @@ without changing the DSP, source, captured duration or residual threshold. The
 8192-frame capture still examines every audio sample; it does not average blocks
 or relax the waveform oracle. Main-thread playback timestamps have render-quantum
 jitter, so they are a coarse health check, not a sample-accurate deadline counter.
-The local 48 kHz sustained run has a maximum stereo residual of 7.46e-9 against
-the independent reference, with all 191998 samples between the first and last
-nonzero source samples accounted for. Exact-head CI remains an independent gate.
+An isolated local run passed with maximum stereo residual 7.46e-9 and complete
+source capture, but the subsequent full-suite run failed during the tail despite
+a continuous input capture. Its native-only baseline was also continuous. The
+real-time gate is therefore unresolved; an isolated pass is not readiness proof.
+Raw PCM and residual positions are retained without loosening the threshold.
+
+`performance.mjs` separately measures the existing driver with byte-identical
+packed browser WASM. It records size/hash, controls, warm-up, mean/p99/max block
+time and total wall time for 12 seconds of audio. This host-dependent direct-WASM
+diagnostic excludes browser scheduling/copy overhead and does not replace the
+real-time gate. Initial local measurement: 62,653 bytes, mean 0.366 ms, p99 0.943 ms,
+maximum 2.844 ms per 128 frames versus a 2.667 ms budget. Shared modules and
+unworklet remain unchanged; no general real-time performance guarantee is made.
 
 `artifacts/delay-fx/` contains CANDIDATE WAVs/raw browser PCM, static plots and a
 manifest linking source hashes, exact settings/input, rates, dependency locks,
