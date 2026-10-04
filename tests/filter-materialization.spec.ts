@@ -46,11 +46,30 @@ for (const sampleRate of [8000, 44100, 48000, 96000, 192000]) {
       if (level === 1e-30) expect(next.outputs.main[3].some(x => Math.abs(x) > 1e-4)).toBe(true);
       expect(next.state).toEqual(old.state);
       expect(Object.keys(inspect(next.state).slots).sort()).toEqual(['a/band', 'a/low', 'b/band', 'b/low', 'cascade/band', 'cascade/low']);
-      const block = { sampleRate, duration: 128 / sampleRate, inputs: { main: inputs.map(x => x.slice(0, 128)) } };
-      const oldResume = await renderOffline(oldGraph, { ...block, restore: next.state });
-      const nextResume = await renderOffline(nextGraph, { ...block, restore: old.state });
-      for (let ch = 0; ch < 4; ch++) expect(bytes(nextResume.outputs.main[ch])).toEqual(bytes(oldResume.outputs.main[ch]));
-      expect(nextResume.state).toEqual(oldResume.state);
+      // Resume a real suffix after the last reset, not a new block starting at
+      // sample zero: a reset there would hide a missing/ignored restoration.
+      const split = 3072;
+      expect(reset.slice(split).every(x => x === 0)).toBe(true);
+      const prefix = { sampleRate, duration: split / sampleRate, inputs: { main: inputs.map(x => x.slice(0, split)) } };
+      const suffix = { sampleRate, duration: (n - split) / sampleRate, inputs: { main: inputs.map(x => x.slice(split)) } };
+      const oldPrefix = await renderOffline(oldGraph, prefix), nextPrefix = await renderOffline(nextGraph, prefix);
+      expect(oldPrefix.outputs.main[0].length).toBe(split);
+      expect(nextPrefix.state).toEqual(oldPrefix.state);
+      const oldResume = await renderOffline(oldGraph, { ...suffix, restore: nextPrefix.state });
+      const nextResume = await renderOffline(nextGraph, { ...suffix, restore: oldPrefix.state });
+      const expectContinuation = (result: typeof nextResume) => {
+        for (let ch = 0; ch < 4; ch++) expect(bytes(result.outputs.main[ch])).toEqual(bytes(old.outputs.main[ch].slice(split)));
+        expect(result.state).toEqual(old.state);
+      };
+      expectContinuation(oldResume);
+      expectContinuation(nextResume);
+      if (level === 1) {
+        // Tiny levels can legitimately flush all history. At normal level,
+        // omitting restore must fail the very same continuation assertion.
+        const ignoredRestore = await renderOffline(nextGraph, suffix);
+        expect(() => expectContinuation(ignoredRestore)).toThrow();
+        expect(bytes(ignoredRestore.outputs.main[0])).not.toEqual(bytes(old.outputs.main[0].slice(split)));
+      }
     }
   }, 60000);
 }
