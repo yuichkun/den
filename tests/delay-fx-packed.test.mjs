@@ -15,7 +15,7 @@ test('packed delay FX: isolated low-pass feedback render and 48 kHz browser cont
   const consumer = mkdtempSync(join(tmpdir(), 'den-delay-fx-'));
   cpSync(join(root, 'tests/consumer'), consumer, { recursive: true });
   cpSync(join(root, 'tests/delay-fx-consumer'), consumer, { recursive: true });
-  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2023', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, skipLibCheck: false, noEmit: true, types: [], lib: ['ES2023', 'DOM'] }, include: ['processor.ts'] }));
+  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2023', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, skipLibCheck: false, noEmit: true, types: [], lib: ['ES2023', 'DOM'] }, include: ['processor.ts', 'capture.ts'] }));
   const [pack] = JSON.parse(run('npm', ['pack', '--json', '--pack-destination', consumer], root));
   assert(pack.files.some(f => f.path === 'dist/delay-fx.d.ts'));
   copyFileSync(join(consumer, pack.filename), join(consumer, 'den.tgz'));
@@ -80,8 +80,7 @@ test('packed delay FX: isolated low-pass feedback render and 48 kHz browser cont
       }
       errors.push({ channel: ch, maximumError, worstFrame });
     }
-    const captureGaps = sustained.playbackTimes.slice(1).map((t, n) => Math.abs(t - sustained.playbackTimes[n] - sustained.captureBlockFrames / 48000));
-    const maxCaptureGap = Math.max(...captureGaps);
+    assert(sustained.processedFrames >= sustained.frames, 'capture processed every requested frame');
     const firstInput = channels[0].findIndex(x => Math.abs(x) > 1e-5);
     let lastInput = channels[0].length - 1;
     while (lastInput >= 0 && Math.abs(channels[0][lastInput]) <= 1e-5) lastInput--;
@@ -89,12 +88,12 @@ test('packed delay FX: isolated low-pass feedback render and 48 kHz browser cont
     for (let n = firstInput + 2; n <= lastInput; n++) {
       inputRecurrenceError = Math.max(inputRecurrenceError, Math.abs(channels[0][n] - 2 * Math.cos(2 * Math.PI * 220 / 48000) * channels[0][n - 1] + channels[0][n - 2]));
     }
-    const verification = { errors, maxCaptureGap, firstInput, lastInput, inputRecurrenceError, reference: 'actual downstream raw input through independent direct-form feedback reference', threshold: 6e-6, limitation: 'No direct deadline counter in pinned unworklet; missing/zero/repeated output quanta are detected by sample residuals and capture timestamps' };
+    const verification = { errors, firstInput, lastInput, inputRecurrenceError, reference: 'actual downstream raw input through independent direct-form feedback reference', threshold: 6e-6, limitation: 'Graph-sample continuity only; no hardware-output or scheduler deadline counter. Deadline traces remain separate.' };
     writeFileSync(join(artifacts, 'browser-sustained-verification.json'), JSON.stringify(verification, null, 2));
     files['browser-sustained-verification.json'] = hash(join(artifacts, 'browser-sustained-verification.json'));
     console.log('Sustained browser verification:', JSON.stringify(verification));
-    if (errors.some(error => error.maximumError >= 6e-6) || lastInput - firstInput !== 4 * 48000 - 2) {
-      // Diagnose the capture/source path without changing the engine or its oracle.
+    {
+      // Always run the ten-second native control; do not select a passing retry.
       const baseline = await page.evaluate(() => window.runSustainedFx(true));
       const samples = baseline.channels[0];
       const first = samples.findIndex(x => Math.abs(x) > 1e-5);
@@ -106,16 +105,17 @@ test('packed delay FX: isolated low-pass feedback render and 48 kHz browser cont
       writeFileSync(join(artifacts, 'native-baseline.json'), JSON.stringify({ ...baseline, channels: undefined, first, last, discontinuity }, null, 2));
       for (const file of ['native-baseline-input.f32le', 'native-baseline.json']) files[file] = hash(join(artifacts, file));
       console.log('Native capture baseline:', JSON.stringify({ first, last, discontinuity }));
+      assert(baseline.processedFrames >= baseline.frames);
+      assert.equal(last - first, baseline.source.durationSeconds * 48000 - 2);
+      assert(discontinuity < 1e-6, 'continuous native baseline');
+      assert.deepEqual(baseline.channels[1], baseline.channels[0]);
+      assert.deepEqual(baseline.channels[2], baseline.channels[0]);
     }
-    writeFileSync(join(artifacts, 'manifest.json'), JSON.stringify({ status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(['src/delay-fx.ts', 'src/delay-readhead.ts', 'src/filter.ts', 'src/lfo.ts', 'tests/delay-fx.spec.ts', 'tests/delay-fx-packed.test.mjs', 'tests/delay-fx-consumer/processor.ts', 'tests/delay-fx-consumer/main.js', 'tests/delay-fx-consumer/render.mjs', 'tests/delay-fx-consumer/performance.mjs', 'package-lock.json'].map(file => [file, hash(join(root, file))])), den: '0.0.0', unworklet: '0.4.1', node: process.version, engine: 'den.delay.fx.consumer.v1', settings: { maxDelaySeconds: 0.1, tone: 'lowpass', Q: 0.5, stereoPhaseCycles: 0.5, interpolation: 'linear', transition: 'moving head', initialHistory: 'zero' }, parameters: { timeSamples: [8, 12], feedback: 0.5, cutoffHz: 1000, mix: 1, sync: false, bpm: 120, beatsLeft: 1, beatsRight: 1.5, rateHz: 0, depthSeconds: 0, bypass: false, reset: false, browserSequence: ['steady', 'mix=0', 'mix=1,bypass=true', 'bypass=false,reset=true', 'reset=false', 'sync=true (rejected)', 'restore steady snapshot'] }, input: { offline: 'stereo impulses: L[0]=1, R[16]=-0.5, otherwise zero; 2048 frames', browser: 'mono constant 0.25 upmixed by Web Audio to stereo' }, channels: 2, samples: 2048, midi: [], seed: null, preset: null, offlineSampleRates: [44100, 48000, 96000], browserSampleRates: [48000], sustainedBrowser: { frames: sustained.frames, source: sustained.source, settings: sustained.settings, inputAndOutputs: 'three raw f32le files, 48000 Hz', verification }, verification: 'Independent unbounded feedback timeline plus direct-form biquad; strict isolated consumer typecheck; actual browser mix/bypass/reset/capacity rejection and same-schema restoration', limitations: ['Not human approved', 'Physical packed module import; public export pending integration', 'No representative chorus/rhythmic preset yet'], files }, null, 2));
+    writeFileSync(join(artifacts, 'manifest.json'), JSON.stringify({ status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(['src/delay-fx.ts', 'src/delay-readhead.ts', 'src/filter.ts', 'src/lfo.ts', 'tests/delay-fx.spec.ts', 'tests/delay-fx-packed.test.mjs', 'tests/delay-fx-consumer/processor.ts', 'tests/delay-fx-consumer/capture.ts', 'tests/delay-fx-consumer/main.js', 'tests/delay-fx-consumer/render.mjs', 'tests/delay-fx-consumer/performance.mjs', 'package-lock.json'].map(file => [file, hash(join(root, file))])), den: '0.0.0', unworklet: '0.4.1', node: process.version, engine: 'den.delay.fx.consumer.v1', settings: { maxDelaySeconds: 0.1, tone: 'lowpass', Q: 0.5, stereoPhaseCycles: 0.5, interpolation: 'linear', transition: 'moving head', initialHistory: 'zero' }, parameters: { timeSamples: [8, 12], feedback: 0.5, cutoffHz: 1000, mix: 1, sync: false, bpm: 120, beatsLeft: 1, beatsRight: 1.5, rateHz: 0, depthSeconds: 0, bypass: false, reset: false, browserSequence: ['steady', 'mix=0', 'mix=1,bypass=true', 'bypass=false,reset=true', 'reset=false', 'sync=true (rejected)', 'restore steady snapshot'] }, input: { offline: 'stereo impulses: L[0]=1, R[16]=-0.5, otherwise zero; 2048 frames', browser: 'mono constant 0.25 upmixed by Web Audio to stereo' }, channels: 2, samples: 2048, midi: [], seed: null, preset: null, offlineSampleRates: [44100, 48000, 96000], browserSampleRates: [48000], sustainedBrowser: { frames: sustained.frames, source: sustained.source, settings: sustained.settings, inputAndOutputs: 'three raw f32le files, 48000 Hz', verification }, verification: 'Independent unbounded feedback timeline plus direct-form biquad; strict isolated consumer typecheck; actual browser mix/bypass/reset/capacity rejection and same-schema restoration', limitations: ['Not human approved', 'Physical packed module import; public export pending integration', 'No representative chorus/rhythmic preset yet'], files }, null, 2));
     assert.deepEqual(sustained.errors.filter(error => error.code !== 'sab-unavailable'), []);
     assert(firstInput >= 0 && lastInput - firstInput === 4 * 48000 - 2, 'continuous four-second native input');
     assert(inputRecurrenceError < 1e-6, `native input discontinuity ${inputRecurrenceError}`);
     for (const error of errors) assert(error.maximumError < 6e-6, JSON.stringify(error));
-    // ScriptProcessor playbackTime is delivered on the main thread and can
-    // jitter by render quanta even while captured audio matches sample-exactly.
-    // Keep it as a coarse capture-health check; PCM residuals are the gap oracle.
-    assert(maxCaptureGap < sustained.captureBlockFrames / 48000, `capture gap larger than a complete block: ${maxCaptureGap}`);
 
   } finally {
     await browser?.close();

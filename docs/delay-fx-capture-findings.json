@@ -1,0 +1,134 @@
+{
+  "status": "NUMERICAL_DIAGNOSTIC_NOT_LISTENING_APPROVAL",
+  "sourceCommit": "2ada71cfdb785d8940dae2f655abda180ea7eeaa",
+  "engineWasmSHA256": "25202e821cecfc39de34a7c6e153d89091ff5b29db893856d22861370c21b6f1",
+  "method": "Simultaneous engine-internal fixed-buffer snapshots and downstream ScriptProcessor capture; separate run with internal capture only; separate ten-second native source. No thresholds changed. Recordings compared to independent feedback/biquad reference.",
+  "results": [
+    {
+      "mode": "paired",
+      "externalInput": {
+        "first": 7201,
+        "last": 198559,
+        "span": 191358,
+        "recurrenceMax": 0.09555476785926614,
+        "gaps": [
+          73728,
+          73729,
+          73856,
+          73857,
+          81920,
+          81921,
+          131200,
+          131201,
+          147456,
+          147457
+        ]
+      },
+      "internalInput": {
+        "first": 7201,
+        "last": 199199,
+        "span": 191998,
+        "recurrenceMax": 1.7585315980131466e-07,
+        "gaps": []
+      },
+      "internalOracle": [
+        {
+          "ch": 0,
+          "max": 7.450580596923828e-09,
+          "first": -1
+        },
+        {
+          "ch": 1,
+          "max": 0,
+          "first": -1
+        }
+      ],
+      "externalOracle": [
+        {
+          "ch": 0,
+          "max": 0.0973740704357624,
+          "first": 73728
+        },
+        {
+          "ch": 1,
+          "max": 0.3697686046361923,
+          "first": 73728
+        }
+      ],
+      "alignmentOffset": 0,
+      "externalVsInternal": [
+        {
+          "ch": 0,
+          "max": 0.09630811214447021,
+          "first": 73728
+        },
+        {
+          "ch": 1,
+          "max": 0.05186933092772961,
+          "first": 73728
+        },
+        {
+          "ch": 2,
+          "max": 0.2157386764883995,
+          "first": 73728
+        }
+      ]
+    },
+    {
+      "mode": "internal",
+      "externalInput": {
+        "first": -1,
+        "last": -1,
+        "span": 0,
+        "recurrenceMax": 0,
+        "gaps": []
+      },
+      "internalInput": {
+        "first": 7201,
+        "last": 199199,
+        "span": 191998,
+        "recurrenceMax": 1.7585315980131466e-07,
+        "gaps": []
+      },
+      "internalOracle": [
+        {
+          "ch": 0,
+          "max": 7.450580596923828e-09,
+          "first": -1
+        },
+        {
+          "ch": 1,
+          "max": 0,
+          "first": -1
+        }
+      ]
+    },
+    {
+      "mode": "native",
+      "externalInput": {
+        "first": 7201,
+        "last": 487199,
+        "span": 479998,
+        "recurrenceMax": 1.795446433333625e-07,
+        "gaps": []
+      }
+    }
+  ],
+  "fileSHA256": {
+    "native-external-2.f32le": "c33ce044995ae068c9ec702bf90499a3f0ff0f737415aabef23e324e1487ce2f",
+    "native-external-1.f32le": "c33ce044995ae068c9ec702bf90499a3f0ff0f737415aabef23e324e1487ce2f",
+    "native-external-0.f32le": "c33ce044995ae068c9ec702bf90499a3f0ff0f737415aabef23e324e1487ce2f",
+    "internal-capturedRight.f32le": "da393ab21b1351f79886509730ba257baf90826b3ce3773e66b6b1be26deb2de",
+    "internal-capturedLeft.f32le": "9340b04f14ec1b10cf470ced283be59f421bb29218ffae29e10bb1f07d72b0b2",
+    "internal-capturedInput.f32le": "041f4c9538b9a1871bfef691105315c168287630ab662daab2c3a1d278d91d45",
+    "internal-external-2.f32le": "5647f05ec18958947d32874eeb788fa396a05d0bab7c1b71f112ceb7e9b31eee",
+    "internal-external-1.f32le": "5647f05ec18958947d32874eeb788fa396a05d0bab7c1b71f112ceb7e9b31eee",
+    "internal-external-0.f32le": "5647f05ec18958947d32874eeb788fa396a05d0bab7c1b71f112ceb7e9b31eee",
+    "paired-capturedRight.f32le": "da393ab21b1351f79886509730ba257baf90826b3ce3773e66b6b1be26deb2de",
+    "paired-capturedLeft.f32le": "9340b04f14ec1b10cf470ced283be59f421bb29218ffae29e10bb1f07d72b0b2",
+    "paired-capturedInput.f32le": "041f4c9538b9a1871bfef691105315c168287630ab662daab2c3a1d278d91d45",
+    "paired-external-2.f32le": "f658b8375c49984cf924067a88048d9817a263fe6469612b0169a744e5dff12f",
+    "paired-external-1.f32le": "f93c655f9ba42e80bd9b2bf7db1d5aa83ebcd822219b8f80196fa9fd8929492a",
+    "paired-external-0.f32le": "9d7567d989e6563813433dd71752d6bd680dc754855d88f6bff02a92927e101c"
+  }
+}

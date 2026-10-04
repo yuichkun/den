@@ -124,31 +124,39 @@ a separate direct-form reference, builds the standard unworklet browser path and
 exercises mix/bypass/reset/capacity rejection and snapshot restore at 48 kHz.
 
 The sustained browser gate records 2^19 frames (10.92 seconds) downstream of the
-worklet: actual input plus left/right output, including four seconds of sustained
-220-Hz input and more than six seconds of tail. It compares every captured output
-sample to an independent reference driven by the captured input and checks capture
-block timestamps. Zero/repeated/missing output quanta or periodic state resets
-must exceed the residual bound and fail; native input is recorded to distinguish
-capture/source anomalies. Pinned unworklet exposes no direct deadline-miss counter,
-so this test detects the resulting waveform/capture discontinuities, not a private
-scheduler metric. Capture uses a native ScriptProcessorNode only as test apparatus,
-not a new product worklet or routing layer. Browser raw data, metadata and residuals
-and source/hash manifests are preserved even when these assertions fail. On a
-residual or input-duration failure, a second native-only capture diagnoses the
-source/capture path without the FX engine. This is not a listening approval.
+worklet: actual input plus left/right output, with four seconds of sustained
+220-Hz input and more than six seconds of tail. `capture.ts` is a fixed test fixture
+built with existing unworklet buffers, audio ports and snapshots. It writes three
+channels on the audio thread, emits silence, and reads its snapshot after suspend.
+A guard quantum protects the requested prefix after recording fills. The frame
+counter must cover the entire requested prefix. No custom loader, transport or
+capture framework is added; the product processor is unchanged.
 
-The capture buffer is 8192 frames. A 1024-frame ScriptProcessor capture lost or
-repeated source samples even in the native-only baseline in the local headless
-browser. Enlarging this test-only delivery buffer removed those capture losses
-without changing the DSP, source, captured duration or residual threshold. The
-8192-frame capture still examines every audio sample; it does not average blocks
-or relax the waveform oracle. Main-thread playback timestamps have render-quantum
-jitter, so they are a coarse health check, not a sample-accurate deadline counter.
-An isolated local run passed with maximum stereo residual 7.46e-9 and complete
-source capture, but the subsequent full-suite run failed during the tail despite
-a continuous input capture. Its native-only baseline was also continuous. The
-real-time gate is therefore unresolved; an isolated pass is not readiness proof.
-Raw PCM and residual positions are retained without loosening the threshold.
+Every captured output sample is compared to an independent reference driven by
+captured input at the unchanged 6e-6 threshold. Input continuity retains its 1e-6
+sine-recurrence threshold and exact four-second span. A ten-second native source
+control always runs, including its full sustained span; all three captured control
+channels must be identical. There are no passing-retry selection or skipped
+startup samples. Raw PCM and source/hash manifests are retained. This verifies
+graph-sample continuity, not hardware-output delivery or scheduler deadlines.
+
+The original ScriptProcessor apparatus produced false discontinuities. In one
+simultaneous recording, internal input was continuous and internal outputs matched
+the independent reference (left 7.45e-9, right 0), while external capture first
+diverged at sample 73728 and lost 640 source samples. A separate internal-only run
+had the same reference accuracy. Another saved tail failure started exactly at
+capture block 393216: shifting the reference by 128 samples restored right-channel
+bit equality and left error below 5.83e-11. The source was already silent, so a
+short native-source control could not diagnose that tail capture loss. This is
+why the baseline now sustains for ten seconds. See `delay-fx-capture-findings.json`
+for numerical results and hashes; raw evidence and diagnostic fixtures are kept
+in `artifacts/delay-fx/capture-investigation/`. The original failures are preserved,
+not converted into passing comparisons by alignment or tolerance changes.
+
+Deadline safety remains a separate unresolved question. Real AudioWorklet traces
+have included startup and non-startup CPU/wall-time budget exceedances even after
+expression materialization; replacing the recorder does not clear those findings.
+No listening approval is inferred from corrected waveform capture.
 
 `performance.mjs` separately measures the existing driver with byte-identical
 packed browser WASM. It records size/hash, controls, warm-up, mean/p99/max block

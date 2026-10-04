@@ -5,7 +5,7 @@ import { performance } from 'node:perf_hooks';
 import { compile } from '@unworklet/core';
 import { processor } from './processor.ts';
 const compiled = await compile(processor, { sampleRate: 48000 });
-const built = readFileSync(`dist/assets/${readdirSync('dist/assets').find(name => name.endsWith('.wasm'))}`);
+const built = readFileSync(`dist/assets/${readdirSync('dist/assets').find(name => name.startsWith('processor-') && name.endsWith('.wasm'))}`);
 assert.deepEqual(new Uint8Array(built), compiled.wasm, 'benchmark must match the packed browser WASM');
 const instance = await compiled.driver.instantiate();
 const settings = { timeLeft: 0.075, timeRight: 0.1, feedback: 0.95, mix: 1, cutoff: 1000, sync: 0, bpm: 120, beatsLeft: 1, beatsRight: 1.5, rate: 2, depth: 0.001, bypass: 0, reset: 0 };
