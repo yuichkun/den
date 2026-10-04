@@ -169,8 +169,26 @@ establish real-time readiness. Against commit 6cf15d1, all four output/status
 channels were bit-identical over 18 cases: 44.1/48/96 kHz, flat/lowpass, and LFO
 rate/depth pairs 0/0, 4 Hz/2 ms, 12 Hz/20 ms. Each case rendered 16384 samples with
 sample-varying time, cutoff, gain, mix, sync, bypass and reset. This equivalence
-check supplements the independent numerical references; it is not a golden. Shared modules and
-unworklet remain unchanged; no general real-time performance guarantee is made.
+check supplements the independent numerical references; it is not a golden. That
+composition audit changed no shared module or unworklet source; no general
+real-time performance guarantee is made.
+
+The subsequent main integration includes the filter materialization described in
+`filter-materialization.md`. It preserves the persistent schema and tiny-value
+behavior while reducing this consumer's WASM to 24,707 bytes (SHA-256
+`74ab305c15c932d3d7bc32e7d4a0499439adfdfb107355f329e46d1ffea9fdb0`).
+The prior 18-case comparison against the 7ef7ce6 delay engine also found identical
+complete snapshot bytes, and bidirectional restored continuation matched continuous
+rendering with an ignored-restore negative control. The delay engine, readhead and
+LFO sources are unchanged by this main integration.
+
+The exact same generated WASM is covered by the recorded four cold candidate
+trials in `filter-materialization-results.json` (first callback wall time
+1.659–1.900 ms). Reusing matching source/WASM hashes avoids another timing sample;
+these local measurements are not universal deadline clearance or evidence of a
+hot-loop speedup. Non-first callback outliers, native-control observations and
+clock anomalies remain separate limitations. The full numerical/packed suite also
+checks the shared audition consumer introduced on main.
 
 `artifacts/delay-fx/` contains CANDIDATE WAVs/raw browser PCM, static plots and a
 manifest linking source hashes, exact settings/input, rates, dependency locks,
