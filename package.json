@@ -57,7 +57,8 @@
     "check": "tsc --noEmit",
     "test": "npm run build && vitest run && node --test --test-concurrency=1 tests/*.test.mjs && node --test tests/realtime/*.test.mjs",
     "prepack": "npm run build",
-    "build:consumer": "node scripts/build-consumer.mjs"
+    "build:consumer": "node scripts/build-consumer.mjs",
+    "build:integration": "node scripts/build-integration.mjs"
   },
   "peerDependencies": {
     "@unworklet/core": "0.4.1"

@@ -7,7 +7,7 @@ This branch combines audition `29daeff030b53670394893b4154ab9a06cc250ec`, filter
 `1fa26a69ed2d3fc10202c9fc465b2cb18dc40fd0`. It is not an instrument release or a
 completed sound bank. The instrument runtime gate is not cleared, and physical
 playback/listening remain unverified. This branch also follows approved main
-`91c45c5c58ea4c2cb0a30bcbdf84dc56097ed0cd` (including PR20 and PR23).
+`c65e2a8586eb0325cbccc3963af3764c7f15c926` (including PR20, PR23 and PR25).
 Further main changes require corresponding integration verification. No registry publication or hosting change is included.
 
 The isolated `tests/integration-consumer` imports the public `./instrument` and
@@ -54,8 +54,13 @@ consumer, independent analytic/direct-form references, and browser taps of the
 actual connected instrument/FX outputs. It retains candidate WAV, settings,
 source/package/WASM hashes, every numerical peak, browser results and failures
 under `artifacts/integration`. Generated evidence is never an approved golden.
-Main's existing consumer and deployment output remain the audition site; this
-candidate is not added to its Vite entrypoints or Vercel build.
+`npm run build:integration` packs den into the clean locked integration consumer
+and stages its Vite output into `site-dist`. This candidate branch's `vercel.json`
+selects that explicit build command; its root `/` serves the integration UI.
+Production main retains its audition `build:consumer` command. Do not merge this
+candidate branch into main or change the Vercel production branch/project settings.
+Local delivery verification serves the exact staged output and exercises Start,
+selection and Stop from that entrypoint. No deployment is performed by building.
 
 This candidate is labeled INTEGRATION CANDIDATE without a privacy claim. A
 nonproduction preview in the existing Vercel project is in scope after final
