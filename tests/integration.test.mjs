@@ -23,9 +23,9 @@ test('private integration candidate: public packed imports, MIDI → instrument 
   browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});manifest.browser=browser.version();
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{
-   window.__contexts=[];window.__nodes=[];window.__analysers=[];
+   window.__contexts=[];window.__nodes=[];window.__analysers=[];window.__transports=[];
    const AC=AudioContext;window.AudioContext=class extends AC{constructor(...a){if(window.__failContext)throw Error('constructor probe');super(...a);window.__contexts.push(this);}};
-   const AW=AudioWorkletNode;window.AudioWorkletNode=class extends AW{constructor(...a){super(...a);window.__nodes.push(this);}};
+   const AW=AudioWorkletNode;window.AudioWorkletNode=class extends AW{constructor(...a){super(...a);window.__nodes.push(this);window.__transports.push(a[2]?.processorOptions?.transport??null);}};
    const AN=AnalyserNode;window.AnalyserNode=class extends AN{constructor(...a){super(...a);window.__analysers.push(this);}};
   });
   const advance=async seconds=>{const t=await page.evaluate(s=>window.__contexts.at(-1).currentTime+s,seconds);await page.waitForFunction(t=>window.__contexts.at(-1).currentTime>=t,t);};
@@ -33,9 +33,9 @@ test('private integration candidate: public packed imports, MIDI → instrument 
   const set=(id,value)=>page.locator('#'+id).evaluate((el,v)=>{el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
   const stop=async()=>{await page.locator('#stop').tap();await page.waitForFunction(()=>window.denIntegration.state().contextState==='closed'&&!window.denIntegration.state().stopping&&!window.denIntegration.state().starting);};
   const ready=()=>page.waitForFunction(()=>window.denIntegration.state().ready);
-  await page.goto(server.resolvedUrls.local[0]);assert.equal(await page.evaluate(()=>window.__contexts.length),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  const response=await page.goto(server.resolvedUrls.local[0]);const headers=await response.allHeaders();manifest.delivery={server:"Vite preview, configFile:false",coop:headers["cross-origin-opener-policy"]??null,coep:headers["cross-origin-embedder-policy"]??null,...await page.evaluate(()=>({crossOriginIsolated,sharedArrayBuffer:typeof SharedArrayBuffer}))};assert.equal(await page.evaluate(()=>window.__contexts.length),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.evaluate(()=>window.__failContext=true);await page.locator('#start').tap();assert.match(await page.locator('#status').textContent(),/constructor probe/);await page.evaluate(()=>window.__failContext=false);
-  await page.locator('#start').tap();await ready();assert.equal(await peak(),0);
+  await page.locator('#start').tap();await ready();manifest.delivery.nodeTransports=await page.evaluate(()=>window.__transports.slice());assert.equal(manifest.delivery.crossOriginIsolated,false);assert.deepEqual(manifest.delivery.nodeTransports,['postMessage','postMessage'],'exercise both nodes through the production-observed fallback');assert.equal(await peak(),0);
   await set('volume',.1);await set('feedback',.5);await set('mix',1);await advance(.3);
   // Test-only observer taps the actual native source and FX nodes. Product route remains intact.
   await page.evaluate(async()=>{

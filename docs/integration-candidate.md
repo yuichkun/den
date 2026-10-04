@@ -5,8 +5,9 @@ This branch combines audition `29daeff030b53670394893b4154ab9a06cc250ec`, filter
 `7ef7ce670531b1230111f1d2c89302bfe44935b2`, and instrument
 `baa4bd50f11d1561b0f52e2c6417970e563f7114`. It is not an instrument release or a
 completed sound bank. The instrument runtime gate is not cleared, and physical
-playback/listening remain unverified. Final integration must be tested again on
-the approved main baseline. No registry publication or hosting change is included.
+playback/listening remain unverified. This branch also follows approved main
+`202b7a0576f73b40adca7da3d04b182acfef2752` (including the audition pitch oracle).
+Further main changes require corresponding integration verification. No registry publication or hosting change is included.
 
 The isolated `tests/integration-consumer` imports the public `./instrument` and
 `./delay-fx` subpaths from the installed package. The instrument is a processor;
@@ -47,3 +48,14 @@ candidate is not added to its Vite entrypoints or Vercel build.
 The existing preview has been observed behind authentication, but protection
 inheritance for a new branch has not been established here. Candidate push/deploy
 remains on hold; local implementation and validation do not require that change.
+
+The packed and realtime browser gates use Vite preview with `configFile:false`,
+without COOP/COEP headers. The integration manifest records response isolation
+headers, `crossOriginIsolated`, SharedArrayBuffer availability, and the actual
+transport passed to each native AudioWorkletNode. Both instrument and delay are
+verified using `postMessage`. `vercel.json` does not configure isolation headers;
+production browser observation reported the same fallback warning. Direct public
+response-header inspection from this workspace was blocked by the network proxy
+(CONNECT 403), so upstream hosting/proxy headers are not independently verified.
+This establishes fallback coverage, not identical phone scheduling or physical
+audio behavior. No hosting/header settings are changed.
