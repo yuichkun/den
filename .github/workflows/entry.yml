@@ -1,0 +1,29 @@
+name: Entry gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  entry:
+    name: entry
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm exec -- playwright install --with-deps chromium
+      - run: npm run check
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: entry-candidate-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/
