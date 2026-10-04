@@ -44,14 +44,64 @@ passed. Offline rate coverage remains distinct from 48-kHz browser coverage.
 
 ## Timing reproduction
 
-Build and install the existing isolated Delay FX consumer twice using
-`tests/delay-fx-packed.test.mjs` at `7ef7ce6`: once unchanged and once with only
-this filter patch. Keep both disposable consumer directories. Then run:
+The fixture is in **this repository**, on the separate Delay FX PR #23 history;
+it is not a file on this filter PR's main-based checkout. Fetch its exact commit
+before looking for it:
 
-```sh
-CHROMIUM_PATH=/path/to/chromium node tests/probes/filter-browser-timing.mjs \
-  /path/to/baseline-consumer /path/to/candidate-consumer /path/to/evidence
+- Repository: <https://github.com/yuichkun/den>
+- Fixture commit: `7ef7ce670531b1230111f1d2c89302bfe44935b2`
+- [Packed test at that commit](https://github.com/yuichkun/den/blob/7ef7ce670531b1230111f1d2c89302bfe44935b2/tests/delay-fx-packed.test.mjs)
+- [Consumer directory at that commit](https://github.com/yuichkun/den/tree/7ef7ce670531b1230111f1d2c89302bfe44935b2/tests/delay-fx-consumer)
+- Filter/probe revision: `ca3f18ee516cdf477260e7ab88ea0780c6bd049f`
+
+Run this Bash recipe with Node 24, npm and Chromium's system dependencies
+available. Optionally export `CHROMIUM_PATH` to an installed Chromium executable;
+otherwise the recipe installs Playwright's pinned Chromium. The clone and all
+worktrees are disposable. The candidate starts at the same fixture commit as the
+baseline and receives **only** `src/filter.ts` from the specified filter revision.
+Separate `TMPDIR` directories make both generated consumer paths unambiguous.
+
+```bash
+set -euo pipefail
+repro_root=$(mktemp -d)
+fixture_rev=7ef7ce670531b1230111f1d2c89302bfe44935b2
+filter_rev=ca3f18ee516cdf477260e7ab88ea0780c6bd049f
+git clone https://github.com/yuichkun/den.git "$repro_root/repo"
+git -C "$repro_root/repo" fetch origin "$fixture_rev" "$filter_rev"
+git -C "$repro_root/repo" worktree add --detach "$repro_root/baseline" "$fixture_rev"
+git -C "$repro_root/repo" worktree add --detach "$repro_root/candidate" "$fixture_rev"
+git -C "$repro_root/repo" worktree add --detach "$repro_root/tools" "$filter_rev"
+git -C "$repro_root/repo" show "$filter_rev:src/filter.ts" > "$repro_root/candidate/src/filter.ts"
+(
+  cd "$repro_root/tools"
+  npm ci
+  if [ -z "${CHROMIUM_PATH:-}" ]; then
+    npm exec -- playwright install chromium
+  fi
+)
+mkdir -p "$repro_root/tmp/baseline" "$repro_root/tmp/candidate"
+for variant in baseline candidate; do
+  (
+    cd "$repro_root/$variant"
+    npm ci
+    TMPDIR="$repro_root/tmp/$variant" node --test tests/delay-fx-packed.test.mjs
+  ) > "$repro_root/$variant-packed.log" 2>&1
+done
+baseline_consumers=("$repro_root/tmp/baseline"/den-delay-fx-*)
+candidate_consumers=("$repro_root/tmp/candidate"/den-delay-fx-*)
+test "${#baseline_consumers[@]}" -eq 1
+test "${#candidate_consumers[@]}" -eq 1
+test -f "${baseline_consumers[0]}/package-lock.json"
+test -f "${candidate_consumers[0]}/package-lock.json"
+node "$repro_root/tools/tests/probes/filter-browser-timing.mjs"   "${baseline_consumers[0]}" "${candidate_consumers[0]}" "$repro_root/evidence"   > "$repro_root/timing.log" 2>&1
+printf 'Retained reproduction directory: %s\n' "$repro_root"
 ```
+
+A failed packed gate stops the recipe; inspect the corresponding `*-packed.log`
+and retained `artifacts/delay-fx` directory rather than selecting a passing retry.
+`evidence/browser-timing.json` includes every timing trial, WASM hash/size and raw
+trace hash. Expect the same packed WASM sizes/hashes recorded below; timing values
+are machine-dependent and must not be required to match the original numbers.
 
 The probe appends a recorder-free entry to the disposable consumer pages, rebuilds
 with the existing plugin, and alternates four fresh-browser trials per variant.
