@@ -47,7 +47,9 @@ async function start(held = true) {
     return;
   }
   const id = ++epoch;
-  const ctx = new AudioContext({sampleRate:48000});
+  let ctx;
+  try { ctx = new AudioContext({sampleRate:48000}); }
+  catch (error) { status(`Audio unavailable: ${error.message}`); return; }
   const s = {ctx,id,node:null,held,peak:0,frame:0}; session=s; starts++;buttons();status('Starting…');
   try {
     // Resume in the user gesture, before asynchronous worklet installation.
