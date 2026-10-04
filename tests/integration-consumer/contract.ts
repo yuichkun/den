@@ -1,3 +1,5 @@
+import {chorusSettings,rhythmicDelaySettings,type DelaySettings} from '@denaudio/den/delay-settings';
+export const settings:readonly DelaySettings[]=[chorusSettings,rhythmicDelaySettings];
 import { createInstrument, type InstrumentConfig } from '@denaudio/den/instrument';
 import { delayFx, type DelayFxConfig, type DelayFxControls } from '@denaudio/den/delay-fx';
 import { defineProcessor, instantiate, audioOutput, forSample, f32, bool } from '@unworklet/core';

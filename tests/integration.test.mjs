@@ -10,14 +10,15 @@ import {buildConsumer} from '../scripts/build-consumer.mjs';
 import {delayReference,compare,peak as pcmPeak} from './integration-consumer/reference.mjs';
 const root=join(import.meta.dirname,'..'),artifacts=join(root,'artifacts/integration',new Date().toISOString().replace(/[:.]/g,'-'));
 const sha=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
-test('private integration candidate: public packed imports, MIDI → instrument → stereo delay, peaks and lifecycle',{timeout:240000},async()=>{
+test('integration candidate: public packed imports, MIDI → instrument → stereo delay, peaks and lifecycle',{timeout:240000},async()=>{
  mkdirSync(artifacts,{recursive:true});console.log(`Evidence: ${artifacts}`);let browser,server;
  const manifest={status:'CANDIDATE',runtimeGate:'NOT_CLEARED',physicalListening:'UNVERIFIED',deployment:'LOCAL_ONLY',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),dirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:{},checks:[]};
- for(const file of ['package.json','package-lock.json','src/instrument.ts','src/filter.ts','src/delay-fx.ts','scripts/build-consumer.mjs',...readdirSync(join(root,'tests/integration-consumer')).map(f=>'tests/integration-consumer/'+f),'tests/integration.test.mjs'])manifest.sources[file]=sha(join(root,file));
+ for(const file of ['package.json','package-lock.json','src/instrument.ts','src/filter.ts','src/delay-fx.ts','src/delay-settings.ts','tests/fixtures/delay-settings.mjs','scripts/build-consumer.mjs',...readdirSync(join(root,'tests/integration-consumer')).map(f=>'tests/integration-consumer/'+f),'tests/integration.test.mjs'])manifest.sources[file]=sha(join(root,file));
  try{
   const {consumer,output,pack}=buildConsumer({fixture:'tests/integration-consumer',stageSite:false});manifest.pack={integrity:pack.integrity,shasum:pack.shasum};manifest.consumer=consumer;
+  writeFileSync(join(consumer,'delay-settings-reference.mjs'),readFileSync(join(root,'tests/fixtures/delay-settings.mjs'),'utf8').replace('../../dist/delay-fx.js','@denaudio/den/delay-fx'));
   console.log(execFileSync('node',['render.mjs'],{cwd:consumer,encoding:'utf8'}));manifest.checks.push('public imports, strict TS, packed production build, independent offline MIDI/filter/delay references, coherent four-voice maximum-feedback peaks');
-  for(const f of ['integration-candidate.wav','integration-numerical.json'])copyFileSync(join(consumer,f),join(artifacts,f));
+  for(const f of ['integration-candidate.wav','integration-numerical.json','integration-chorus.wav','integration-rhythmic.wav','integration-settings-numerical.json'])copyFileSync(join(consumer,f),join(artifacts,f));
   manifest.wasm=Object.fromEntries(readdirSync(join(output,'assets')).filter(f=>f.endsWith('.wasm')).map(f=>[f,{bytes:readFileSync(join(output,'assets',f)).length,sha256:sha(join(output,'assets',f))}]));
   server=await preview({root:consumer,configFile:false,build:{outDir:output},preview:{host:'127.0.0.1',port:0}});
   browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,args:['--no-sandbox']});manifest.browser=browser.version();
@@ -61,7 +62,7 @@ test('private integration candidate: public packed imports, MIDI → instrument 
   // Observe real second-node loading so cancellation covers a partially allocated graph.
   let began,unblock;const begun=new Promise(r=>began=r),barrier=new Promise(r=>unblock=r);let requests=0;
   await page.route('**/*.wasm',async route=>{requests++;if(requests===2){began();await barrier;}await route.continue();});
-  await page.locator('#start').tap();await Promise.race([begun,new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error('second WASM request missing')),15000);t.unref();})]);await stop();unblock();await page.waitForTimeout(300);await page.unroute('**/*.wasm');
+  await page.locator('#start').tap();assert(await page.locator('#effect').isDisabled());await Promise.race([begun,new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error('second WASM request missing')),15000);t.unref();})]);await stop();unblock();await page.waitForTimeout(300);await page.unroute('**/*.wasm');
   assert.equal(await page.evaluate(()=>window.__contexts.every(c=>c.state==='closed')),true);
   // A rejected second WASM request must dispose the already-created instrument.
   let rejectedRequests=0;await page.route('**/*.wasm',async route=>{if(++rejectedRequests===2)await route.abort('failed');else await route.continue();});
@@ -71,8 +72,25 @@ test('private integration candidate: public packed imports, MIDI → instrument 
   let first,release;const seen=new Promise(r=>first=r),wait=new Promise(r=>release=r);
   await page.route('**/*.wasm',async route=>{first();await wait;await route.continue();});
   await page.locator('#chord').focus();await page.keyboard.down('Space');await Promise.race([seen,new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error('WASM request missing')),15000);t.unref();})]);await page.keyboard.up('Space');await page.keyboard.down('Space');release();await ready();await advance(.25);assert((await peak())>.001);await page.keyboard.up('Space');await advance(.4);assert((await peak())<1e-7);await stop();await page.unroute('**/*.wasm');
+  manifest.settings=[];
+  for(const [name,mix,feedback] of [['chorus',.45,0],['rhythmic',.35,.48]]){
+   assert.equal(await page.locator('#effect').isDisabled(),false);await page.selectOption('#effect',name);
+   const state=await page.evaluate(()=>window.denIntegration.state());assert.equal(state.selected,name);assert.equal(state.controls.mix,mix);assert.equal(state.controls.feedback,feedback);assert.equal(state.contextState,'closed');
+   await page.locator('#start').tap();await ready();assert(await page.locator('#effect').isDisabled());
+   const native=await page.evaluate(()=>{const node=window.__nodes.at(-1);return {mix:node.parameters.get('mix').value,feedback:node.parameters.get('feedback').value,transport:window.__transports.at(-1)};});
+   assert(Math.abs(native.mix-mix)<1e-6);assert(Math.abs(native.feedback-feedback)<1e-6);assert.equal(native.transport,'postMessage');
+   await page.locator('#effect').evaluate(el=>{el.value='diagnostic';el.dispatchEvent(new Event('change',{bubbles:true}));});assert.equal(await page.locator('#effect').inputValue(),name);
+   assert.equal(await page.evaluate(()=>window.denIntegration.state().activeEffect),name);
+   await set('volume',.1);await set('feedback',.5);await set('mix',1);await advance(.3);
+   await page.locator('#chord').focus();await page.keyboard.down('Space');await advance(1.1);const maximumPeak=await peak();assert(maximumPeak>.001&&maximumPeak<=.040001);
+   await page.keyboard.up('Space');await advance(.25);assert((await peak())>1e-6);
+   await page.locator('#reset').tap();await advance(.15);assert((await peak())<1e-7);
+   await page.screenshot({path:join(artifacts,'mobile-'+name+'.png'),fullPage:true});
+   manifest.settings.push({name,initial:native,maximumPeak});
+   await stop();assert.equal(await page.locator('#effect').isDisabled(),false);
+  }
   assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>window.__contexts.every(c=>c.state==='closed')),true);
-  manifest.checks.push('real MIDI→instrument→stereo Delay wiring against captured-input oracle','maximum feedback/chord peaks','dry/wet, note-off tail, panic, zero volume','constructor failure/retry','touch cancel','repeated start/stop','second-node startup cancellation and fetch-failure disposal','renewed keyboard hold','no autoplay, mobile layout, all contexts closed, no page errors');manifest.result='PASS';
+  manifest.checks.push('real MIDI→instrument→stereo Delay wiring against captured-input oracle','maximum feedback/chord peaks','dry/wet, note-off tail, panic, zero volume','constructor failure/retry','touch cancel','repeated start/stop','second-node startup cancellation and fetch-failure disposal','renewed keyboard hold','no autoplay, mobile layout, all contexts closed, no page errors','chorus/rhythmic public settings, stopped-only switching, selected native defaults and fallback transport, maximum-feedback chord peaks, release tails, reset and stop');manifest.result='PASS';
  }catch(error){manifest.result='FAIL';manifest.error=String(error);throw error;}
  finally{writeFileSync(join(artifacts,'manifest.json'),JSON.stringify(manifest,null,2));try{await browser?.close();}finally{if(server)await new Promise(r=>server.httpServer.close(r));}}
 });

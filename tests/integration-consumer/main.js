@@ -1,14 +1,19 @@
 import { createNode } from '@unworklet/core';
 import instrumentProcessor from './instrument.js?worklet';
 import delayProcessor from './delay.js?worklet';
-import {engineConfig,instrumentInitial,delayInitial,masterMaximum,feedbackMaximum} from './settings.js';
+import chorusProcessor from './chorus.js?worklet';
+import rhythmicProcessor from './rhythmic.js?worklet';
+const processors={diagnostic:delayProcessor,chorus:chorusProcessor,rhythmic:rhythmicProcessor};
+import {engineConfig,instrumentInitial,delayInitial,masterMaximum,feedbackMaximum,delayCandidates} from './settings.js';
 const $=id=>document.getElementById(id), held=new Map(), active=new Set();
+let selected="diagnostic";
 let session=null,stopping=false,starts=0,closes=0;
 const controls=()=>({volume:Number($('volume').value),mix:Number($('mix').value),feedback:Number($('feedback').value)});
 function status(message){$('status').textContent=message;}
-function buttons(){ $('start').disabled=!!session||stopping; for(const id of ['release','reset','stop'])$(id).disabled=!session||stopping; }
-function show(){const c=controls();for(const[k,v]of Object.entries(c))$(k+'-value').textContent=v.toFixed(3);$('settings').textContent=JSON.stringify({status:'CANDIDATE — runtime and listening unverified',sampleRate:48000,engineConfig,instrumentInitial,delay:{...delayInitial,...c,volume:undefined},outputGain:c.volume},null,2);}
+function buttons(){ $('effect').disabled=!!session||stopping; $('start').disabled=!!session||stopping; for(const id of ['release','reset','stop'])$(id).disabled=!session||stopping; }
+function show(){const c=controls();for(const[k,v]of Object.entries(c))$(k+'-value').textContent=v.toFixed(3);$('settings').textContent=JSON.stringify({status:'CANDIDATE — runtime and listening unverified',sampleRate:48000,engineConfig,instrumentInitial,effect:selected,delay:{...delayCandidates[selected],parameters:{...delayCandidates[selected].parameters,mix:c.mix,feedback:c.feedback}},outputGain:c.volume},null,2);}
 function apply(){show();const s=session;if(!s?.master)return;const c=controls(),now=s.ctx.currentTime;s.master.gain.setTargetAtTime(Math.max(0,Math.min(masterMaximum,c.volume)),now,.015);s.delay.params.mix.setTargetAtTime(Math.max(0,Math.min(1,c.mix)),now,.015);s.delay.params.feedback.setTargetAtTime(Math.max(0,Math.min(feedbackMaximum,c.feedback)),now,.015);}
+$('effect').addEventListener('change',()=>{if(session||stopping){$('effect').value=selected;return;}const value=$('effect').value;if(!processors[value])return;selected=value;const p=delayCandidates[selected].parameters;$('mix').value=p.mix;$('feedback').value=p.feedback;show();status('Effect selected. Start audio to load it.');});
 for(const id of ['volume','mix','feedback'])$(id).addEventListener('input',apply);
 function send(notes,on){const s=session;if(!s?.ready)return;for(const note of notes)s.instrument.midi.midi.send({type:on?'noteOn':'noteOff',note,velocity:on?100:0,channel:0});}
 function release(id){const notes=held.get(id);if(notes&&active.has(id))send(notes,false);held.delete(id);active.delete(id);refreshHeld();}
@@ -19,13 +24,13 @@ function draw(s){if(session!==s||!s.ready)return;const data=new Float32Array(s.a
 async function start(){
   if(session||stopping)return;
   let ctx;try{ctx=new AudioContext({sampleRate:48000});}catch(e){releaseAll();status(`Audio unavailable: ${e.message}`);return;}
-  const s={ctx,ready:false,peak:0};session=s;starts++;buttons();status('Starting candidate…');
+  const s={ctx,ready:false,peak:0,effect:selected};session=s;starts++;buttons();status('Starting candidate…');
   try{
     await ctx.resume();if(ctx.sampleRate!==48000)throw Error('This candidate requires a 48 kHz context.');
     if(session!==s)return;
     const instrument=await createNode(ctx,instrumentProcessor,{initial:instrumentInitial});
     if(session!==s){instrument.dispose();return;}s.instrument=instrument;
-    const delay=await createNode(ctx,delayProcessor,{initial:delayInitial});
+    const delay=await createNode(ctx,processors[s.effect],{initial:s.effect==="diagnostic"?delayInitial:{mix:delayCandidates[s.effect].parameters.mix,feedback:delayCandidates[s.effect].parameters.feedback}});
     if(session!==s){delay.dispose();return;}s.delay=delay;
     s.master=new GainNode(ctx,{gain:0});s.analyser=new AnalyserNode(ctx,{fftSize:2048});
     instrument.outputs.main.connect(delay.inputs.main);delay.outputs.main.connect(s.master);s.master.connect(s.analyser).connect(ctx.destination);
@@ -51,8 +56,8 @@ for(const b of [...keys,$('chord')]){
   b.addEventListener('keyup',e=>{if(['Space','Enter'].includes(e.code)){e.preventDefault();release(b.id+':keyboard');}});
   b.addEventListener('blur',()=>release(b.id+':keyboard'));
 }
-document.addEventListener('keydown',e=>{if(e.target.matches('input,button')||e.repeat)return;const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)hold(b.id+':shortcut',[Number(b.dataset.note)]);});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,button,select')||e.repeat)return;const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)hold(b.id+':shortcut',[Number(b.dataset.note)]);});
 document.addEventListener('keyup',e=>{const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)release(b.id+':shortcut');});
 window.addEventListener('blur',releaseAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)void stop();});window.addEventListener('pagehide',()=>void stop());
-window.denIntegration={state:()=>({stopping,ready:!!session?.ready,starting:!!session&&!session.ready,contextState:session?.ctx.state??'closed',held:held.size,starts,closes,peak:session?.peak??0,controls:controls()})};
+window.denIntegration={state:()=>({selected,activeEffect:session?.effect??null,stopping,ready:!!session?.ready,starting:!!session&&!session.ready,contextState:session?.ctx.state??'closed',held:held.size,starts,closes,peak:session?.peak??0,controls:controls()})};
 show();buttons();

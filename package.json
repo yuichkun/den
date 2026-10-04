@@ -43,6 +43,10 @@
     "./delay-fx": {
       "types": "./dist/delay-fx.d.ts",
       "import": "./dist/delay-fx.js"
+    },
+    "./delay-settings": {
+      "types": "./dist/delay-settings.d.ts",
+      "import": "./dist/delay-settings.js"
     }
   },
   "engines": {
