@@ -1,9 +1,16 @@
 import { createNode, inspect } from '@unworklet/core';
 import processor from './processor.js?worklet';
-window.runGate = async () => {
-  const ctx = new AudioContext({sampleRate: 48000});
+window.runGate = async (sampleRate) => {
+  const ctx = new AudioContext({sampleRate});
   await ctx.suspend();
-  const node = await createNode(ctx, processor, {initial: {gain: 0.5}});
+  let node;
+  try {
+    node = await createNode(ctx, processor, {initial: {gain: 0.5}});
+  } catch (error) {
+    const failure = {status:'blocked', requestedSampleRate:sampleRate, actualSampleRate:ctx.sampleRate, error:String(error)};
+    await ctx.close();
+    return failure;
+  }
   const initial = inspect(await node.snapshot());
   const source = new ConstantSourceNode(ctx, {offset: 1});
   const analyser = new AnalyserNode(ctx, {fftSize: 256});
@@ -29,6 +36,6 @@ window.runGate = async () => {
     const changed = await settle();
     const restored = await node.restore(saved);
     const after = await settle();
-    return {initial, suspended, saved: inspect(saved), restored, before, changed, after};
+    return {status:'rendered', requestedSampleRate:sampleRate, actualSampleRate:ctx.sampleRate, initial, suspended, saved: inspect(saved), restored, before, changed, after};
   } finally { source.stop(); node.dispose(); await ctx.close(); }
 };

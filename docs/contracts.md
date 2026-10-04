@@ -56,9 +56,14 @@ choice, but must coordinate changes that affect shared consumers/contracts.
 - Save after AudioParam edits have actually rendered, while controls are stable
   (#78). A suspended snapshot is not a reliable capture of pending edits in 0.4.1.
   This gate does not solve suspended preset editing or in-flight automation recall.
-- Worklet compilation is sample-rate-specific. Build/load for the actual context
-  rate using unworklet; do not carry compiled artifacts across rates. Numerical
-  lane coverage starts at 44100, 48000, and 96000 Hz, 128-frame render quanta.
+- Worklet compilation is sample-rate-specific. Offline rendering is verified at
+  44100, 48000, and 96000 Hz, with 128-frame quanta. The existing 0.4.1 Vite plugin
+  compiles at 48000 and exposes no sample-rate option; real browser contexts at
+  44100/96000 are verified to reject creation. Browser rendering is proven only
+  at 48000. Non-48-kHz browser loading remains an upstream limitation, not a requirement
+  of this entry gate and not a blocker for den development. Do not bypass the
+  mismatch guard or claim multi-rate browser readiness. The supported browser
+  scope is explicitly 48 kHz; offline multi-rate coverage is separate.
 - State allocation is fixed at graph creation. No dynamic audio-thread allocation.
   Reset uses existing node/event control, clears histories/voices/phase immediately
   at its dispatched sample, and may create a discontinuity. Reset is not bypass.

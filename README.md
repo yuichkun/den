@@ -51,7 +51,12 @@ const cell = instantiate(gateCell, { scale: 1 }, { name: 'cell' });
 
 For the browser, re-export `gate` from a consumer processor module and import
 that module with `?worklet`; use the existing `@unworklet/unplugin` Vite plugin and
-`createNode`. See [the clean consumer](tests/consumer). No den loader is needed.
+`createNode`. The repository includes the clean consumer under `tests/consumer`;
+the published package includes the usage constraints in `docs/`. No den loader
+is needed.
+The supported plugin path is currently **48 kHz browser only**: real 44.1/96 kHz
+contexts are tested and rejected by unworklet 0.4.1. Three-rate success applies
+to **offline** rendering only; see the known limitation in the findings.
 This gate exercises explicit TS subgraphs, not `.uwk` sugar or browser HMR.
 
 Read [lane contracts](docs/contracts.md) before starting dependent DSP work, and

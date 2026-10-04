@@ -12,7 +12,8 @@
     "dist",
     "README.md",
     "LICENSE-MIT",
-    "LICENSE-APACHE"
+    "LICENSE-APACHE",
+    "docs"
   ],
   "exports": {
     ".": {
@@ -44,7 +45,7 @@
     "@unworklet/unplugin": "0.4.1",
     "playwright": "1.60.0",
     "typescript": "5.9.3",
-    "vite": "7.3.1",
+    "vite": "7.3.6",
     "vitest": "4.1.11"
   }
 }
