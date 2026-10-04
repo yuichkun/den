@@ -178,3 +178,34 @@ test('an abrupt eight-sample time increase skips backward immediately without a 
   const result = await render(fixture(16), rate, input, times);
   expect(Math.abs(result.outputs.main[0][128] - result.outputs.main[0][127] + 7 / 256)).toBeLessThan(2e-6);
 });
+
+for (const rate of rates) {
+  test(`read-before-write composes feedback without an extra sample at ${rate}`, async () => {
+    const processor = defineProcessor(ctx => {
+      const input = audioInput({ channels: 2, name: 'main' });
+      const output = audioOutput({ channels: 2, name: 'main' });
+      const feedback = instantiate(delayReadhead, { sampleRate: ctx.sampleRate, maxDelaySeconds: 1 / ctx.sampleRate }, { name: 'feedback' });
+      const isolated = instantiate(delayReadhead, { sampleRate: ctx.sampleRate, maxDelaySeconds: 1 / ctx.sampleRate }, { name: 'isolated' });
+      return { process() { forSample(i => {
+        const tap = feedback.read(f32(1 / ctx.sampleRate), input.ch(1).at(i).gt(0));
+        // Only a composition fixture: no feedback engine or new feedback policy.
+        tap.write(input.ch(0).at(i).add(tap.output.mul(0.5)));
+        output.ch(0).at(i).write(tap.output);
+        const other = isolated.read(f32(1 / ctx.sampleRate), f32(0).gt(1));
+        other.write(f32(0));
+        output.ch(1).at(i).write(other.output);
+      }); } };
+    });
+    const impulse = new Float32Array(length);
+    const resets = new Float32Array(length);
+    for (const n of [0, 64, 128, 192]) { impulse[n] = 1; resets[n] = 1; }
+    const result = await renderOffline(processor, { sampleRate: rate, duration: length / rate, inputs: { main: [impulse, resets] } });
+    // Closed form, not a feedback recurrence. Reset every 64 frames keeps
+    // the tail above unworklet's 1e-30 state-flush threshold.
+    const expected = Float32Array.from({ length }, (_, n) => n % 64 === 0 ? 0 : 2 ** (1 - n % 64));
+    expect(result.outputs.main[0].slice(0, 6)).toEqual(new Float32Array([0, 1, 0.5, 0.25, 0.125, 0.0625]));
+    expectAudioMatches({ ...result, outputs: { main: [result.outputs.main[0]] } }, [expected], { tolerance: 0 });
+    expect(result.outputs.main[1].every(x => x === 0)).toBe(true);
+    expect(result.diagnostics.scrubbedSamples).toBe(0);
+  });
+}

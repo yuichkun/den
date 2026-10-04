@@ -13,6 +13,27 @@ const cell = instantiate(delayReadhead, {
 const { output, outOfRange } = cell.tick(input, delaySeconds, reset);
 ```
 
+For same-sample feedback or other processing of the delayed output, use the
+read-before-write boundary instead of `tick`:
+
+```ts
+const tap = cell.read(delaySeconds, reset);
+tap.write(input.add(tap.output.mul(0.5)));
+output.write(tap.output);
+```
+
+Each sample must use exactly one `read` followed by exactly one call to **that
+read's** `write`, or exactly one `tick`; do not combine the two forms on one instance.
+`read` captures the current delayed output and reset-adjusted pointers. Its `write`
+commits the current input and advances history once. This allows
+`writeInput[n] = input[n] + gain * delayedOutput[n]`, with no previous-output bridge
+and no extra circulation latency. The returned object and closure exist only while
+constructing the unworklet graph, not during audio processing. `tick` delegates to
+the same read/write pair. Reset masks old history before the read, then the write
+starts new history at the reset sample. The minimal feedback test uses a closed-form
+one-sample-delay impulse `[0, 1, 0.5, 0.25, ...]`, including reset and isolation at
+all three offline rates; it does not implement the dependent feedback engine.
+
 `input` / `delaySeconds` are `Node<'f32'>`; `reset` and `outOfRange` are
 `Node<'bool'>`. Input audio must be finite. The sample rate must be the enclosing
 processor's compile-time rate. Use existing AudioParams/events and snapshot APIs;
