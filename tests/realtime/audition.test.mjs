@@ -6,6 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {buildConsumer} from '../../scripts/build-consumer.mjs';
 import {captureRealtime} from './capture.mjs';
+import {assertPitchModulation} from '../consumer/pitch-oracle.mjs';
 
 function assertNoUnderruns(r){
  assert(r.observationComplete,`${r.mode}: playback statistics did not cover capture within four seconds`);
@@ -19,18 +20,21 @@ test('sustained packed audition meets real-time deadlines and preserves raw cont
  // Own only this run directory; a failed run must never present an older manifest.
  rmSync(artifacts,{recursive:true,force:true});mkdirSync(artifacts,{recursive:true});
  const hash=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
- const provenance={sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:Object.fromEntries(['tests/consumer/audition-processor.js','tests/realtime/capture.mjs','tests/realtime/audition.test.mjs','src/envelope.ts','src/lfo.ts','src/oscillator.ts','package-lock.json'].map(file=>[file,hash(join(root,file))]))};
- let consumer,cost=null,failure=null,completed=false;
+ const provenance={sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sourceDirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim()!=='',sources:Object.fromEntries(['tests/consumer/audition-processor.js','tests/consumer/pitch-oracle.mjs','tests/realtime/capture.mjs','tests/realtime/audition.test.mjs','src/envelope.ts','src/lfo.ts','src/oscillator.ts','package-lock.json'].map(file=>[file,hash(join(root,file))]))};
+ let consumer,cost=null,pitchModulation=null,failure=null,completed=false;
  const json=file=>existsSync(join(artifacts,file))?JSON.parse(readFileSync(join(artifacts,file),'utf8')):null;
  const persist=()=>{
   const results=json('probe.json')??[];
-  writeFileSync(join(artifacts,'manifest.json'),JSON.stringify({status:'CANDIDATE — not listening-approved',verification:failure?'failed':completed?'passed':'running',...provenance,browser:json('environment.json'),sampleRate:48000,cost,results,error:failure,captureError:json('capture-error.json'),files:Object.fromEntries(results.map(r=>[r.mode+'.f32',hash(join(artifacts,r.mode+'.f32'))])),limitations:['Chromium headless; no physical mobile listening','Raw capture precedes hardware fallback; playbackStats checks that separate layer','One-second recorder warmup precedes each five-second steady window','Underrun interval conservatively includes delayed reporting and post-capture observation']},null,2));
+  writeFileSync(join(artifacts,'manifest.json'),JSON.stringify({status:'CANDIDATE — not listening-approved',verification:failure?'failed':completed?'passed':'running',...provenance,browser:json('environment.json'),sampleRate:48000,cost,pitchModulation,results,error:failure,captureError:json('capture-error.json'),files:Object.fromEntries(results.map(r=>[r.mode+'.f32',hash(join(artifacts,r.mode+'.f32'))])),limitations:['Chromium headless; no physical mobile listening','Raw capture precedes hardware fallback; playbackStats checks that separate layer','One-second recorder warmup precedes each five-second steady window','Underrun interval conservatively includes delayed reporting and post-capture observation']},null,2));
  };
  persist();
  try {
   const built=buildConsumer({stageSite:false});consumer=built.consumer;
   const results=await captureRealtime(built.output,artifacts);
   persist(); // Preserve every completed capture before the first assertion.
+  const raw=readFileSync(join(artifacts,'lfo.f32'));
+  pitchModulation=assertPitchModulation(new Float32Array(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength)));
+  persist(); // Numerical LFO evidence is retained even if playback statistics fail.
 
   for(const r of results){
    assert(r.observationComplete,`${r.mode}: playback statistics observation timed out`);

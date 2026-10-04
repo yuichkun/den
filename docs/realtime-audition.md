@@ -45,3 +45,14 @@ The [Web Audio stats update algorithm](https://webaudio.github.io/web-audio-api/
 The raw sample/wall-time window remains five seconds. The zero-underrun assertion conservatively includes the interval from the baseline's last reported counters through the delayed final counters; this may include pre-capture reporting lag and post-capture rendering/result handling. No late event is automatically attributed to conversion or discarded. Every observation retains wall time, audio time, covered audio time, visibility and counters.
 
 A test-only 100 ms stall on the final recorded quantum of a native sine produced zero immediate events but nine delayed events (0.09018 seconds) in the local probe. The counterexample uses the same observation logic and requires the normal zero-underrun assertion to reject the capture. Fault audio is labeled separately from candidate audio. Passing earlier immediate-only checks does not establish end-of-window playback correctness.
+
+## Independent LFO frequency assertion
+
+The LFO capture also measures positive zero-crossing periods. An independent
+least-squares fit of log-frequency against 4 Hz sine/cosine bases verifies the
+0.5-semitone modulation depth, carrier and residual while allowing arbitrary LFO
+phase at capture start. A plain 220 Hz signal cannot pass. The offline packed
+fixture applies the same oracle to nonzero depth and requires zero depth to be
+rejected. Disabling depth in a separate copy of the audition composition makes
+that packed render fail specifically at the pitch-depth assertion. This adds a
+numerical check without changing DSP, continuity thresholds or expected audio.
