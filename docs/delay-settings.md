@@ -84,3 +84,25 @@ integration and public exports are separate. Proposed minimal root export:
 export { chorusSettings, rhythmicDelaySettings } from './delay-settings.js';
 export type { DelaySettings, DelaySettingsValues } from './delay-settings.js';
 ```
+
+The checked-in `delay-settings-candidate.json` is the small provenance manifest
+for source commit `d542ebe3b4bfd7fc51222519be810819cf47cac9`. Audio and images are
+excluded from Git. Regenerate them with the command above into `artifacts/`, the
+repository's existing CI artifact-upload path. The recorded audio remains
+CANDIDATE, even when the mechanical checks pass. A documentation-only commit does
+not invalidate the recorded source/file hashes.
+
+For focused review, after `npm ci && npm run build` run:
+
+```sh
+npm run check
+npx vitest run tests/delay-settings.spec.ts
+node --test tests/delay-settings-packed.test.mjs
+```
+
+The dedicated packed check installs the tarball into a separate locked consumer
+and tests both settings at 44.1/48/96 kHz. Its package and verification files are
+also written under `artifacts/delay-settings/`. Candidate audio generation is an
+explicit local step; the current workflow does not automatically run the plotting
+script. Publishing the listening packet through CI requires the integration
+owner's existing artifact workflow; no preview/deployment settings are changed here.

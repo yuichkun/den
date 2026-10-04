@@ -1,0 +1,333 @@
+{
+  "status": "CANDIDATE",
+  "approval": null,
+  "previousApprovedAudio": null,
+  "description": "Initial reference candidates, not approved golden. No normalization or limiter.",
+  "sourceCommit": "d542ebe3b4bfd7fc51222519be810819cf47cac9",
+  "sourceDirty": false,
+  "sourceFiles": {
+    "src/delay-settings.ts": "fb7a8ec25889514d9fd75a883c55afe58d2ffad412eb2c35918dd9ad8aa1d626",
+    "src/delay-fx.ts": "1df28860ffee67b594088ece185a81827fec90abb2acd81199ea90df047c420a",
+    "src/delay-readhead.ts": "b859b816bdccb9e638a79f07c8084761fb4f951a943ca2d48fb962162477ce38",
+    "src/filter.ts": "7a31a854ae9af7473a23ea141ec94fa66ac283c49ed8d611cb36282c81f04c64",
+    "src/lfo.ts": "a2d73e0c389b91b62e3e833635dc7406d354dcce2d76e83d12e96abce7ca3daf",
+    "tests/fixtures/delay-settings.mjs": "ebf999b689f5f7608547a9d41b2cd72924712946216833992573786393a66318",
+    "scripts/render-delay-settings.mjs": "5da957ade4a82f7863d27d237250cbfc6c4b5cfb4a6260b9fa1ae00c81001815",
+    "scripts/plot-delay-settings.py": "e027a9958cadf9ea1321de1d64ccf689e3db2bba0e44728673f5e250ea21fe19",
+    "tests/delay-settings.spec.ts": "0e5eb94a49c484a871810d65f334f4da65e7db852213f132fac1495eadc18eb9",
+    "tests/delay-settings-packed.test.mjs": "947fdbfa4ef5d1e8cf82365bf4e4ece7640e75868dbd9528809ca83af96bd52a",
+    "package-lock.json": "9aebb16d62097a630ef0022e375f0570dfcc7c082746e74e4b9427637c6fa53a"
+  },
+  "dependencies": {
+    "den": "0.0.0",
+    "unworklet": "0.4.1",
+    "lockSHA256": "9aebb16d62097a630ef0022e375f0570dfcc7c082746e74e4b9427637c6fa53a"
+  },
+  "sampleRate": 48000,
+  "channels": 2,
+  "frames": 262144,
+  "durationSeconds": 5.461333333333333,
+  "initialState": "Fresh engine: zero history/filter states and initial LFO phase; no restored snapshot",
+  "seed": null,
+  "midi": null,
+  "audioEncoding": "IEEE float32 WAV",
+  "browserScope": "48kHz engine packed gate is separate; these candidate files are offline renders",
+  "cases": [
+    {
+      "id": "chorus-base",
+      "setting": {
+        "config": {
+          "maxDelaySeconds": 2,
+          "tone": "flat",
+          "stereoPhaseCycles": 0.5
+        },
+        "parameters": {
+          "timeLeftSeconds": 0.018,
+          "timeRightSeconds": 0.018,
+          "sync": false,
+          "bpm": 120,
+          "beatsLeft": 1,
+          "beatsRight": 1,
+          "feedback": 0,
+          "cutoffHz": 3200,
+          "mix": 0.45,
+          "rateHz": 0.65,
+          "depthSeconds": 0.003,
+          "bypass": false,
+          "reset": false
+        }
+      },
+      "events": [],
+      "source": "Identical mono L/R; 220/330/440Hz sine sum gains 0.12/0.06/0.03; 20ms linear attack, 50ms release; source stops at 2s.",
+      "input": {
+        "file": "chorus-base-input.wav",
+        "sha256": "7323fd06940d219a2c0e96af964394d19fa99d879d3b5a97390943e87d134473"
+      },
+      "raw": {
+        "file": "chorus-base-raw.wav",
+        "sha256": "3eeeffd71e1a7d5e23729f1b29f630ab9befd15994a58b36e3c529f1d7dc1461"
+      },
+      "peaks": [
+        0.19121864438056946,
+        0.19117864966392517
+      ],
+      "verification": {
+        "independentTimelineBiquadMaxError": [
+          2.0489096641540527e-07,
+          1.9371509552001953e-07
+        ],
+        "tolerance": 5e-06,
+        "scrubbedSamples": 0
+      },
+      "listeningFocus": "Slow widening and pitch motion; mono fold coloration; rate/depth edit can click.",
+      "waveform": {
+        "file": "chorus-base-waveform.png",
+        "sha256": "44840f45455ee91e93a918495e23f6a99070dd85de6960a72e618cf92c3eb450",
+        "bucketSamples": 128,
+        "amplitudeRange": [
+          -0.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "id": "chorus-edits",
+      "setting": {
+        "config": {
+          "maxDelaySeconds": 2,
+          "tone": "flat",
+          "stereoPhaseCycles": 0.5
+        },
+        "parameters": {
+          "timeLeftSeconds": 0.018,
+          "timeRightSeconds": 0.018,
+          "sync": false,
+          "bpm": 120,
+          "beatsLeft": 1,
+          "beatsRight": 1,
+          "feedback": 0,
+          "cutoffHz": 3200,
+          "mix": 0.45,
+          "rateHz": 0.65,
+          "depthSeconds": 0.003,
+          "bypass": false,
+          "reset": false
+        }
+      },
+      "events": [
+        {
+          "sample": 72000,
+          "values": {
+            "rateHz": 1.3,
+            "depthSeconds": 0.006
+          }
+        },
+        {
+          "sample": 144000,
+          "values": {
+            "bypass": true
+          }
+        },
+        {
+          "sample": 168000,
+          "values": {
+            "bypass": false
+          }
+        },
+        {
+          "sample": 216000,
+          "values": {
+            "reset": true
+          }
+        },
+        {
+          "sample": 216001,
+          "values": {
+            "reset": false
+          }
+        }
+      ],
+      "source": "Identical mono L/R; 220/330/440Hz sine sum gains 0.12/0.06/0.03; 20ms linear attack, 50ms release; source stops at 2s.",
+      "input": {
+        "file": "chorus-edits-input.wav",
+        "sha256": "7323fd06940d219a2c0e96af964394d19fa99d879d3b5a97390943e87d134473"
+      },
+      "raw": {
+        "file": "chorus-edits-raw.wav",
+        "sha256": "eaafa1a74a47b189a3bf6c26cf287c9c6c12e4813801f3fc6bc29c82e566d8a3"
+      },
+      "peaks": [
+        0.19121313095092773,
+        0.19117864966392517
+      ],
+      "verification": {
+        "independentTimelineBiquadMaxError": [
+          3.0919909477233887e-07,
+          1.9371509552001953e-07
+        ],
+        "tolerance": 5e-06,
+        "scrubbedSamples": 0
+      },
+      "listeningFocus": "Slow widening and pitch motion; mono fold coloration; rate/depth edit can click.",
+      "waveform": {
+        "file": "chorus-edits-waveform.png",
+        "sha256": "9c2ab4f7b0ffc1d195b24c78ff02d992bac62e65935301317bd15d5224dcea24",
+        "bucketSamples": 128,
+        "amplitudeRange": [
+          -0.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "id": "rhythmic-delay-base",
+      "setting": {
+        "config": {
+          "maxDelaySeconds": 2,
+          "tone": "lowpass",
+          "stereoPhaseCycles": 0.5
+        },
+        "parameters": {
+          "timeLeftSeconds": 0.375,
+          "timeRightSeconds": 0.5,
+          "sync": true,
+          "bpm": 120,
+          "beatsLeft": 0.75,
+          "beatsRight": 1,
+          "feedback": 0.48,
+          "cutoffHz": 3200,
+          "mix": 0.35,
+          "rateHz": 0,
+          "depthSeconds": 0,
+          "bypass": false,
+          "reset": false
+        }
+      },
+      "events": [],
+      "source": "Identical mono L/R; four 0.5s plucks at t=0/0.5/1/1.5; 0.3*exp(-local/0.065)*(sin(2pi*110*local)+0.25*sin(2pi*330*local)); stops at 2s.",
+      "input": {
+        "file": "rhythmic-delay-base-input.wav",
+        "sha256": "b58394aba9656fd2949937c71881d6e9a45add8c41cb8247a726389aa3e2982c"
+      },
+      "raw": {
+        "file": "rhythmic-delay-base-raw.wav",
+        "sha256": "3421ba3682892b307e7f426cdbf512ae9f47fd578ff954f6117465a2dc0c9fc9"
+      },
+      "peaks": [
+        0.18629704415798187,
+        0.32658955454826355
+      ],
+      "verification": {
+        "independentTimelineBiquadMaxError": [
+          1.4901161193847656e-08,
+          2.9802322387695312e-08
+        ],
+        "tolerance": 5e-06,
+        "scrubbedSamples": 0
+      },
+      "listeningFocus": "Dotted-eighth/quarter spacing and darkening repeats; abrupt tempo edit can jump/click; bypass hides but preserves tail.",
+      "waveform": {
+        "file": "rhythmic-delay-base-waveform.png",
+        "sha256": "5e420ffe22efd3dfc57955286ae9d66bf838672f3b7a2f6a33d123c30fe2c467",
+        "bucketSamples": 128,
+        "amplitudeRange": [
+          -0.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "id": "rhythmic-delay-edits",
+      "setting": {
+        "config": {
+          "maxDelaySeconds": 2,
+          "tone": "lowpass",
+          "stereoPhaseCycles": 0.5
+        },
+        "parameters": {
+          "timeLeftSeconds": 0.375,
+          "timeRightSeconds": 0.5,
+          "sync": true,
+          "bpm": 120,
+          "beatsLeft": 0.75,
+          "beatsRight": 1,
+          "feedback": 0.48,
+          "cutoffHz": 3200,
+          "mix": 0.35,
+          "rateHz": 0,
+          "depthSeconds": 0,
+          "bypass": false,
+          "reset": false
+        }
+      },
+      "events": [
+        {
+          "sample": 72000,
+          "values": {
+            "bpm": 180,
+            "feedback": 0.65
+          }
+        },
+        {
+          "sample": 144000,
+          "values": {
+            "bypass": true
+          }
+        },
+        {
+          "sample": 168000,
+          "values": {
+            "bypass": false
+          }
+        },
+        {
+          "sample": 216000,
+          "values": {
+            "reset": true
+          }
+        },
+        {
+          "sample": 216001,
+          "values": {
+            "reset": false
+          }
+        }
+      ],
+      "source": "Identical mono L/R; four 0.5s plucks at t=0/0.5/1/1.5; 0.3*exp(-local/0.065)*(sin(2pi*110*local)+0.25*sin(2pi*330*local)); stops at 2s.",
+      "input": {
+        "file": "rhythmic-delay-edits-input.wav",
+        "sha256": "b58394aba9656fd2949937c71881d6e9a45add8c41cb8247a726389aa3e2982c"
+      },
+      "raw": {
+        "file": "rhythmic-delay-edits-raw.wav",
+        "sha256": "a8e395239a030f920735f61c770b63e6cd40eaba2541bd604235763c74e7ae78"
+      },
+      "peaks": [
+        0.1877381056547165,
+        0.30593806505203247
+      ],
+      "verification": {
+        "independentTimelineBiquadMaxError": [
+          2.9802322387695312e-08,
+          2.9802322387695312e-08
+        ],
+        "tolerance": 5e-06,
+        "scrubbedSamples": 0
+      },
+      "listeningFocus": "Dotted-eighth/quarter spacing and darkening repeats; abrupt tempo edit can jump/click; bypass hides but preserves tail.",
+      "waveform": {
+        "file": "rhythmic-delay-edits-waveform.png",
+        "sha256": "72bbeef4e0453e180968e6a520a197fd0d26454768e50d739f5ff7c4da311a33",
+        "bucketSamples": 128,
+        "amplitudeRange": [
+          -0.5,
+          0.5
+        ]
+      }
+    }
+  ],
+  "plotter": {
+    "matplotlib": "3.10.8",
+    "numpy": "2.3.5"
+  }
+}
