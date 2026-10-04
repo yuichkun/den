@@ -28,6 +28,10 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
   const state=()=>page.evaluate(()=>window.denAudition.state());
   const peak=()=>page.evaluate(()=>{const a=window.__analysers.at(-1),v=new Float32Array(a.fftSize);a.getFloatTimeDomainData(v);return Math.max(...v.map(Math.abs));});
   const set=async(id,value)=>page.locator('#'+id).evaluate((el,value)=>{el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
+  const advance=async(seconds)=>{
+    const until=await page.evaluate(seconds=>window.__contexts.at(-1).currentTime+seconds,seconds);
+    await page.waitForFunction(until=>window.__contexts.at(-1).currentTime>=until,until);
+  };
   try {
     await page.goto(server.resolvedUrls.local[0]+'audition.html');
     await page.waitForFunction(()=>window.denAudition);
@@ -40,14 +44,14 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
     const artifacts=join(import.meta.dirname,'../artifacts/audition');mkdirSync(artifacts,{recursive:true});
     await page.screenshot({path:join(artifacts,'mobile-playing.png'),fullPage:true});
     await set('volume',0.1);await set('sustain',1);await set('depth',2);await set('rate',12);
-    await page.waitForTimeout(250);
+    await advance(0.25);
     assert((await peak())>0.08);assert((await peak())<=0.10001,'output cap exceeded');
-    await set('volume',0);await page.waitForTimeout(350);assert((await peak())<1e-6,'zero volume is not silent');
+    await set('volume',0);await advance(0.35);assert((await peak())<1e-6,'zero volume is not silent');
     await set('volume',0.035);await set('release-time',0.1);
     // Let the smoothed release control settle before the envelope latches it.
-    await page.waitForTimeout(200);
+    await advance(0.2);
     await page.getByRole('button',{name:'Release',exact:true}).tap();
-    await page.waitForTimeout(250);assert((await peak())<1e-6,'release did not reach silence');
+    await advance(0.25);assert((await peak())<1e-6,'release did not reach silence');
     await page.getByRole('button',{name:'Stop audio',exact:true}).tap();
     await page.waitForFunction(()=>window.denAudition.state().contextState==='closed');
     for(let n=0;n<3;n++){
@@ -63,7 +67,7 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
     await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+80,y:box.y+40}]});
     await page.waitForFunction(()=>window.denAudition.state().peak>0.01);
     await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
-    await page.waitForTimeout(250);assert((await peak())<1e-6,'touch release stuck a note');
+    await advance(0.25);assert((await peak())<1e-6,'touch release stuck a note');
     await page.getByRole('button',{name:'Stop audio',exact:true}).tap();
     await page.waitForFunction(()=>window.denAudition.state().contextState==='closed');
     // A release and renewed hold while the first worklet is loading must retain
@@ -80,7 +84,7 @@ test('packed mobile audition: gesture playback, controls, release, repeated stop
     unblock();
     await page.waitForFunction(()=>window.denAudition.state().peak>0.01);
     await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    await page.waitForTimeout(250);assert((await peak())<1e-6,'renewed touch release stuck');
+    await advance(0.25);assert((await peak())<1e-6,'renewed touch release stuck');
     await page.getByRole('button',{name:'Stop audio',exact:true}).tap();
     await page.waitForFunction(()=>window.denAudition.state().contextState==='closed');
     await page.unroute('**/*worklet*');
