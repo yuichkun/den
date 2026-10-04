@@ -64,6 +64,8 @@ Separate `TMPDIR` directories make both generated consumer paths unambiguous.
 ```bash
 set -euo pipefail
 repro_root=$(mktemp -d)
+export npm_config_cache="$repro_root/npm-cache"
+export PLAYWRIGHT_BROWSERS_PATH="$repro_root/playwright"
 fixture_rev=7ef7ce670531b1230111f1d2c89302bfe44935b2
 filter_rev=ca3f18ee516cdf477260e7ab88ea0780c6bd049f
 git clone https://github.com/yuichkun/den.git "$repro_root/repo"
