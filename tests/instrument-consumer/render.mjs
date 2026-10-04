@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { renderOffline, encodeWav } from '@unworklet/offline';
-import { createInstrument, diagnosticInstrumentParameters } from './node_modules/@denaudio/den/dist/instrument.js';
+import { createInstrument, diagnosticInstrumentParameters } from '@denaudio/den/instrument';
 import { replacementInstrument } from './node_modules/@denaudio/den/dist/instrument-example.js';
 const settings = {mode:'poly',capacity:4,heldCapacity:32,waveform:'sine'};
 const parameters = {...diagnosticInstrumentParameters};

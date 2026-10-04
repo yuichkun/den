@@ -35,6 +35,14 @@
     "./oscillator": {
       "types": "./dist/oscillator.d.ts",
       "import": "./dist/oscillator.js"
+    },
+    "./instrument": {
+      "types": "./dist/instrument.d.ts",
+      "import": "./dist/instrument.js"
+    },
+    "./delay-fx": {
+      "types": "./dist/delay-fx.d.ts",
+      "import": "./dist/delay-fx.js"
     }
   },
   "engines": {

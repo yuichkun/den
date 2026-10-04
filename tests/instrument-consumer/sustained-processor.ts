@@ -1,2 +1,2 @@
-import { instrument } from './node_modules/@denaudio/den/dist/instrument.js';
+import { instrument } from '@denaudio/den/instrument';
 export { instrument };

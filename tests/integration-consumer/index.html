@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>den · integration candidate</title>
+<link rel="stylesheet" href="./style.css">
+<main><p class="eyebrow">DEN · PRIVATE INTEGRATION CANDIDATE</p><h1>A small room<br>for four notes.</h1><p>One diagnostic instrument through stereo delay. Start with low device volume.</p>
+<p class="notice">CANDIDATE · Runtime gate not cleared. Physical playback and listening quality are unverified.</p>
+<div class="actions"><button id="start">Start audio</button><button id="release">Release notes</button><button id="reset">Clear notes & tail</button><button id="stop">Stop audio</button></div>
+<p id="status" role="status" aria-live="polite">Audio is off.</p>
+<div class="keys"><button data-note="60" data-key="a">C <small>A</small></button><button data-note="64" data-key="s">E <small>S</small></button><button data-note="67" data-key="d">G <small>D</small></button><button data-note="72" data-key="f">C′ <small>F</small></button></div>
+<button id="chord" class="wide">Hold chord · Space</button>
+<label>Output volume <output id="volume-value"></output><input id="volume" type="range" min="0" max="0.1" step="0.005" value="0.035"></label>
+<label>Delay wet mix <output id="mix-value"></output><input id="mix" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+<label>Feedback <output id="feedback-value"></output><input id="feedback" type="range" min="0" max="0.5" step="0.05" value="0.25"></label>
+<canvas id="waveform" width="640" height="140" aria-label="Candidate output waveform"></canvas><p id="peak">Output peak —</p>
+<details><summary>Candidate settings</summary><pre id="settings"></pre><p>48 kHz browser candidate; MIDI dispatch is at quantum boundaries. Four voices, fixed sine and low-pass, no completed sound bank.</p></details></main><script type="module" src="./main.js"></script></html>

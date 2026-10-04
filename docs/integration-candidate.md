@@ -1,0 +1,49 @@
+# Local mobile integration candidate
+
+This branch combines audition `29daeff030b53670394893b4154ab9a06cc250ec`, filter
+`5c087449fad2ea77756affa3e9231e4c544741e5`, delay
+`7ef7ce670531b1230111f1d2c89302bfe44935b2`, and instrument
+`baa4bd50f11d1561b0f52e2c6417970e563f7114`. It is not an instrument release or a
+completed sound bank. The instrument runtime gate is not cleared, and physical
+playback/listening remain unverified. Final integration must be tested again on
+the approved main baseline. No registry publication or hosting change is included.
+
+The isolated `tests/integration-consumer` imports the public `./instrument` and
+`./delay-fx` subpaths from the installed package. The instrument is a processor;
+the delay uses a small processor adapter around the existing subgraph. Its stereo
+Web Audio path is MIDI → instrument → delay → master gain → analyser → destination.
+MIDI remains the existing unworklet quantum-boundary interface. No new MIDI,
+parameter, snapshot, serialization, routing or preset framework is introduced.
+
+This one diagnostic uses four sine voices, engine gain 0.05, fixed 1 kHz/Q=0.5
+low-pass, no pitch/filter/LFO depth, and 10 ms attack/200 ms release. The UI exposes
+only note/chord holds, delay mix, feedback (0–0.5), and output volume (0–0.1,
+default 0.035). Delay taps are fixed at 125/187.5 ms, with one-second allocation.
+At most four active voices contribute. For this fixed positive low-pass response,
+a .2 voice-sum bound and feedback ≤.5 give a .4 delay bound before the .1 master,
+or .04 absolute peak (apart from floating rounding). Tests inspect every sample
+of both channels for musical chords and coherent maximum-velocity four-voice
+input at maximum feedback and master; RMS alone is not an acceptance criterion.
+This bound is for these restricted settings, not arbitrary engine replacements.
+The displayed analyser monitor is mono; stereo peak assertions use both channels.
+
+Start unlocks a fresh 48 kHz AudioContext in a real gesture. Holds may begin during
+asynchronous loading and retain their latest intent. Release sends note-offs and
+allows the delay tail to decay. Clear sends the existing instrument reset and a
+delay-adapter reset event. Stop fades master gain for 20 ms, disposes both nodes,
+and closes the context. Partial startup failure/cancellation cannot connect a
+late node. Hidden-page teardown and touch/keyboard cancellation are retained.
+
+Run `CHROMIUM_PATH=/usr/bin/chromium node --test tests/integration.test.mjs` on a
+host with that browser, or omit the variable for the pinned Playwright browser.
+The fixture uses the existing pack/install/build helper, a separate locked
+consumer, independent analytic/direct-form references, and browser taps of the
+actual connected instrument/FX outputs. It retains candidate WAV, settings,
+source/package/WASM hashes, every numerical peak, browser results and failures
+under `artifacts/integration`. Generated evidence is never an approved golden.
+Main's existing consumer and deployment output remain the audition site; this
+candidate is not added to its Vite entrypoints or Vercel build.
+
+The existing preview has been observed behind authentication, but protection
+inheritance for a new branch has not been established here. Candidate push/deploy
+remains on hold; local implementation and validation do not require that change.
