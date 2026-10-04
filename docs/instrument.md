@@ -13,7 +13,7 @@ bass/percussion/pad presets. Those sounds will use this same engine.
 Pass a required configuration to `createInstrument`:
 
 - `mode`: `mono` or `poly`; `legato`, `capacity`, `heldCapacity` follow the voice
-  policy. Mono uses one voice; poly defaults to 16. Engine capacity is currently
+  policy. Mono uses one voice; poly defaults to 4. Engine capacity is currently
   limited to 16, held capacity to the underlying policy's 256. These are fixed
   construction/compilation bounds, not approved product-wide polyphony limits.
 - `waveform`: `sine` (default) or `saw`, using the existing oscillator.
@@ -29,9 +29,12 @@ upgrade. Its amplitude/response is checked against independent formulas.
 
 The processor uses unworklet's compile-time sample rate. Offline coverage is
 44.1/48/96 kHz; the published 0.4.1 bundler/browser boundary remains 48 kHz.
-The complete default 16-voice graph compiles. A 32-voice probe produced a
-11,614,744-byte process function, exceeding WebAssembly's 7,654,321-byte function
-limit. The engine rejects >16 at construction instead of failing during loading;
+The complete 16-voice graph compiles, but the initial real-time trace found
+frequent deadline overruns at that capacity on the validation host. The engine
+therefore starts at four voices; higher capacities require a device-specific
+real-time budget check. A 32-voice probe produced a
+11,614,744-byte process function before completion-expression materialization, exceeding WebAssembly's 7,654,321-byte function
+limit. The first engine keeps a tested ceiling of 16 at construction;
 16 voices with 256 held identities are tested. These checks establish compilation
 and bounded rendering, not a mobile-device real-time CPU guarantee.
 
@@ -65,6 +68,9 @@ and any host smoothing use unworklet/Web Audio, not a den wrapper.
 
 Each voice has three instances of the same linear ADSR. The amp envelope governs
 voice lifetime: zero sustain does not free a held voice; release completion does.
+Audio ends on the exact envelope sample. The allocator consumes completion once
+at block end, before the next block-boundary MIDI dispatch; it does not perform
+quadratic allocation-rank maintenance on every audio sample.
 Pitch/filter envelopes may finish earlier or later but cannot keep an amp-silent
 voice allocated. Retrigger/release starts from each envelope's current level.
 Duration quantization, segment latching and zero-duration behavior are those of
@@ -133,3 +139,38 @@ Shared export integration remains separate. Proposed subpaths:
 packed files by path; they do not claim these public subpaths already exist. No
 package, lockfile, shared consumer, contracts, UI or deployment settings change
 is included here.
+
+## Sustained real-time gate
+
+The instrument-specific browser observer records twelve seconds of actual graph
+output at 48 kHz, including four held A4 voices, note-offs and a one-second
+release. Its fixed capture buffer is test instrumentation only. A sinusoid fit
+from the initial steady window predicts seven seconds of later samples; a
+separate first-difference bound detects discontinuities and the known release
+law predicts the tail. The recorder checks render-frame gaps and preserves raw
+WAV, a waveform, native errors and output timestamps. The expected 0.4.1
+`sab-unavailable` notification is recorded; traps and queue/length errors fail.
+
+Chrome audio trace is also collected to inspect per-quantum render durations.
+Raw graph continuity alone cannot establish that the hardware output met its
+real-time deadline. Neither this fixture nor offline correctness substitutes for
+hardware-loopback/device testing or listening approval.
+
+The trace report includes generated WASM sizes/hashes, wall and CPU render
+durations, and counts above the 128-frame budget (2.667 ms). It excludes the
+first second when reporting steady timing and tests the detector with an
+explicit over-budget counterexample. Any observed steady wall-time overrun
+sets `QUANTUM_OVERRUNS_REQUIRE_REVIEW`; passing numerical assertions does not
+override this readiness finding. A four-voice measurement on the validation
+host had median 0.344 ms, p99 0.992 ms, maximum 14.752 ms and 9 steady wall-time
+overruns. Sixteen voices had median 1.447 ms, p99 4.583 ms and 221 overruns.
+These are host-specific observations, not portable capacity guarantees. The
+raw trace and each run's exact figures are preserved with the candidate WAV.
+
+Intermediate musical signals and control predicates are explicitly stored
+using existing transient unworklet state, because expression reuse alone can
+expand the generated graph. Voice completion is committed once per block after
+sample processing; this avoids running allocator rank maintenance at audio rate
+while preserving exact sample silence and availability at the next MIDI drain.
+Shared DSP modules remain unchanged; the common expression-expansion/runtime
+performance investigation is still outstanding.

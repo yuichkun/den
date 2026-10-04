@@ -43,16 +43,19 @@ export const diagnosticInstrumentParameters = {
  * use native AudioParams. See docs/instrument.md for timing and reset semantics.
  */
 export function createInstrument(config: InstrumentConfig) {
-  // The composed 32-voice graph exceeds WebAssembly's function-size limit in
-  // 0.4.1. Sixteen voices with 256 held identities are compiled in the tests.
-  if ((config.capacity ?? (config.mode === 'mono' ? 1 : 16)) > 16) {
+  // Keep the tested compilation ceiling after the initial 32-voice graph
+  // exceeded the WASM function-size limit. This is not a real-time guarantee.
+  if ((config.capacity ?? (config.mode === 'mono' ? 1 : 4)) > 16) {
     throw new RangeError('instrument capacity must be <= 16 (compiled graph limit)');
   }
   return defineProcessor(({ sampleRate }) => {
-    const policy = instantiate(voicePolicy, config, { name: 'voices' });
+    const policy = instantiate(voicePolicy, { ...config, capacity: config.capacity ?? (config.mode === 'mono' ? 1 : 4) }, { name: 'voices' });
     const output = audioOutput({ channels: 2, name: 'main' });
     const midi = event.midi({ from: 'main', name: 'midi' });
     const panic = state.bool(false).expose({ name: 'panic', snapshot: 'transient' });
+    const voiceControls = state.buffer.bool({ size: 3 * policy.capacity }).expose({ name: 'voiceControls', snapshot: 'transient' });
+    const audioSignals = state.buffer.f32({ size: 2 * policy.capacity }).expose({ name: 'audioSignals', snapshot: 'transient' });
+    const completed = state.buffer.bool({ size: policy.capacity }).expose({ name: 'completed', snapshot: 'transient' });
     const cleared = state.buffer.bool({ size: policy.capacity }).expose({ name: 'cleared', snapshot: 'transient' });
     const tuning = state.buffer.f32({ size: 128 }).expose({ name: 'tuning', snapshot: 'transient' });
     const modulation = instantiate(lfo, { sampleRate }, { name: 'lfo' });
@@ -111,9 +114,10 @@ export function createInstrument(config: InstrumentConfig) {
         let sum = f32(0);
         policy.voices.forEach((voice, n) => {
           const v = voice.read();
-          const trigger = voice.takeRetrigger();
-          const clear = reset.or(v.active.not()).or(cleared.read(n));
-          const gate = v.gate.and(clear.not());
+          voiceControls.write(n * 3, reset.or(v.active.not()).or(cleared.read(n)));
+          voiceControls.write(n * 3 + 1, v.gate.and(voiceControls.read(n * 3).not()));
+          voiceControls.write(n * 3 + 2, voice.takeRetrigger());
+          const clear = voiceControls.read(n * 3), gate = voiceControls.read(n * 3 + 1), trigger = voiceControls.read(n * 3 + 2);
           const p = parts[n];
           const common = { gate, retrigger: trigger, reset: clear };
           const amp = p.amp.tick({ ...common, attack: ampAttack.at(i), decay: ampDecay.at(i), sustain: ampSustain.at(i), release: ampRelease.at(i) });
@@ -128,13 +132,14 @@ export function createInstrument(config: InstrumentConfig) {
           const octaves = signals.read(n * 5 + 2).mul(filterEnvelopeDepth.at(i)).add(wave.mul(lfoFilterDepth.at(i)));
           signals.write(n * 5 + 3, modulatePitch(tuning.read(v.note.max(0)), f32(1), semitones, 0.45 * sampleRate));
           signals.write(n * 5 + 4, modulateCutoff(cutoff.at(i), f32(1), octaves, Math.min(20000, 0.45 * sampleRate)));
-          const source = p.oscillator.tick(signals.read(n * 5 + 3), clear.or(trigger));
-          const filtered = p.filter.tick(select(clear, f32(0), source), signals.read(n * 5 + 4), resonance.at(i), clear.or(trigger));
+          audioSignals.write(n * 2, p.oscillator.tick(signals.read(n * 5 + 3), clear.or(trigger)));
+          audioSignals.write(n * 2 + 1, p.filter.tick(select(clear, f32(0), audioSignals.read(n * 2)), signals.read(n * 5 + 4), resonance.at(i), clear.or(trigger)));
+          const filtered = audioSignals.read(n * 2 + 1);
           // Unipolar tremolo: depth 0 is unity; depth 1 spans 0..1.
           const tremolo = f32(1).sub(lfoAmpDepth.at(i).mul(f32(1).sub(wave)).mul(0.5));
           const sample = select(v.active.and(clear.not()), filtered.mul(signals.read(n * 5)).mul(v.velocity).mul(tremolo), f32(0));
           sum = sum.add(sample);
-          voice.releaseFinished(amp.done);
+          completed.write(n, amp.done);
           cleared.write(n, 0);
         });
         const result = select(bypass.at(i).gte(0.5).or(reset), f32(0), sum.mul(gain.at(i)));
@@ -142,9 +147,14 @@ export function createInstrument(config: InstrumentConfig) {
         output.ch(1).at(i).write(result);
         panic.write(false);
       });
+      // MIDI is drained only before process(). Once the amp reaches zero it
+      // stays done for the rest of this block. Free completed allocations here,
+      // before the next MIDI dispatch, instead of doing O(voices²) rank updates
+      // on every sample. Audio termination remains on the exact envelope sample.
+      policy.voices.forEach((voice, n) => voice.releaseFinished(completed.read(n)));
     } };
   });
 }
 
-/** One diagnostic sound using the configurable default polyphonic capacity. */
+/** Diagnostic default: four voices, configurable at construction. */
 export const instrument = createInstrument({ mode: 'poly' });
