@@ -41,7 +41,11 @@ function draw(s) {
   s.frame = requestAnimationFrame(()=>draw(s));
 }
 async function start(held = true) {
-  if (session || stopping) { if (session?.node && held) strike(); return; }
+  if (stopping) return;
+  if (session) {
+    if (held) { session.held = true; if (session.node) strike(); }
+    return;
+  }
   const id = ++epoch;
   const ctx = new AudioContext({sampleRate:48000});
   const s = {ctx,id,node:null,held,peak:0,frame:0}; session=s; starts++;buttons();status('Starting…');
