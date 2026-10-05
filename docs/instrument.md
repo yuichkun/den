@@ -152,10 +152,23 @@ it at 48 kHz (the stock instrument is rendered at all three offline rates). It d
 The instrument-specific browser observer records twelve seconds of actual graph
 output at 48 kHz, including four held A4 voices, note-offs and a one-second
 release. Its fixed capture buffer is test instrumentation only. A sinusoid fit
-from the initial steady window predicts seven seconds of later samples; a
-separate first-difference bound detects discontinuities and the known release
-law predicts the tail. The recorder checks render-frame gaps and preserves raw
-WAV, a waveform, native errors and output timestamps. The expected 0.4.1
+from the initial steady window predicts the entire steady interval; a separate
+first-difference bound detects discontinuities and the known release law
+predicts the tail. A separate native `AudioBufferSourceNode` supplies an exactly
+representable reference ramp to the observer's second input. The test requires
+4,500 complete 128-sample blocks and exact ramp progression through all 576,000
+samples, including the silent tail. Duplicate, dropped, reordered, zeroed and
+short-block counterexamples verify the observation contract.
+
+Published `currentFrame` entry/exit values and output timestamps remain in the
+raw evidence. Repeated/skipped published frame values are reported separately
+as `CLOCK_METADATA_ANOMALY_REQUIRES_REVIEW`: a hosted failing and passing capture
+had byte-identical complete WAVs despite different frame metadata. Chromium's
+worklet-scope clock publication can skip a lock-contended update; this mechanism
+does not by itself establish the cause of an individual anomaly. Native ramp
+progression and the independent audio oracle establish the captured graph's
+sequence, not hardware continuity. The artifact retains `NOT_CLEARED`, the raw
+WAV/reference data, waveform, native errors and timestamps. The expected 0.4.1
 `sab-unavailable` notification is recorded; traps and queue/length errors fail.
 
 Chrome audio trace is also collected to inspect per-quantum render durations.

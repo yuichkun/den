@@ -86,6 +86,25 @@ jobs:
           for (const check of ['types', 'offline', 'nativeRestore', 'build', 'browser']) assert.equal(result.checks[check], 'PASS');
           console.log('Canonical native capture/freeze restore gate completed on exact clean head.');
           NODE
+      - name: Run canonical transition and expression browser gate
+        run: node --test --test-concurrency=1 tests/transitions-browser.test.mjs
+      - name: Verify transition restore gate actually completed
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readdirSync, readFileSync } from 'node:fs';
+          const root = 'artifacts/transitions-browser';
+          const manifests = readdirSync(root).map(dir => JSON.parse(readFileSync(`${root}/${dir}/manifest.json`, 'utf8')));
+          assert.equal(manifests.length, 1);
+          const result = manifests[0];
+          assert.equal(result.sourceCommit, process.env.EXPECTED_HEAD);
+          assert.equal(result.sourceDirty, false);
+          assert.equal(result.failure, undefined);
+          for (const check of ['types', 'offline', 'nativeRestore', 'build', 'browser']) assert.equal(result.checks[check], 'PASS');
+          console.log('Canonical transition/expression gate completed on exact clean head.');
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -93,3 +112,4 @@ jobs:
           path: |
             artifacts/catalog-audition/
             artifacts/capture-freeze-browser/
+            artifacts/transitions-browser/
