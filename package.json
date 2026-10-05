@@ -211,6 +211,10 @@
     "./filterbank-vocoder": {
       "types": "./dist/filterbank-vocoder.d.ts",
       "import": "./dist/filterbank-vocoder.js"
+    },
+    "./live-buffer": {
+      "types": "./dist/live-buffer.d.ts",
+      "import": "./dist/live-buffer.js"
     }
   },
   "engines": {
