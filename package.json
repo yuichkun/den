@@ -195,6 +195,10 @@
     "./freeze-reverb": {
       "types": "./dist/freeze-reverb.d.ts",
       "import": "./dist/freeze-reverb.js"
+    },
+    "./resident-time-stretch": {
+      "types": "./dist/resident-time-stretch.d.ts",
+      "import": "./dist/resident-time-stretch.js"
     }
   },
   "engines": {

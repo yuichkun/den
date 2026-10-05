@@ -31,6 +31,7 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Crossfaded resident loops | `/loop-crossfade` | Independent forward/reverse/fractional/overlap/replacement/state proof; effective period is L-F, no unchanged-duration or arbitrary-content seamlessness claim |
 | Native bounded take recorder | `/resident-recorder` | Independent sample-by-sample append/pause/full/reset, loaded-prefix/readback, finite-range, maximum-capacity and native snapshot/public-package proof; no device capture or streaming layer |
 | Controlled FDN frozen tail | `/freeze-reverb` | Independent recurrence, input suppression, bounded transition, frozen-energy drift, native history restore and public-package proof; finite-precision and runtime limits remain |
+| Experimental bounded resident WSOLA | `/resident-time-stretch` | Independent exact rational active-duration/EOF, grain-local sampling/search, native state and public-package proof; severe padded-tail carrier loss, dominant-frequency deviation and CPU deadline misses prevent transparent-quality or realtime acceptance |
 | Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
 Contracts, controls and limitations are detailed in [filters](catalog-filters.md),
@@ -44,7 +45,8 @@ Contracts, controls and limitations are detailed in [filters](catalog-filters.md
 [windowed pitch shift](windowed-pitch-shift.md), [lower-zone expression](mpe-expression.md),
 [spectral gating](spectral-gate.md), [prepared convolution](prepared-convolution.md),
 [crossfaded loops](loop-crossfade.md), [take recording](resident-recorder.md),
-[frozen tails](freeze-reverb.md), and [musical examples](musical-examples.md).
+[frozen tails](freeze-reverb.md), [experimental resident WSOLA](resident-time-stretch.md),
+and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
 loader, asset or test framework is introduced. Dependencies stay at unworklet 0.4.1. The only initial-DSP source exception is
 a narrowly tested one-sample read-head construction-boundary correction; existing
@@ -114,7 +116,7 @@ merge; this document itself does not certify that a pending run has completed.
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
 | 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Controlled four-line FDN freeze/thaw is included with finite-precision limits. Arbitrary long-room support, hybrid and shimmer remain |
-| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Independent time stretch, WSOLA and phase-vocoder capabilities remain |
+| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. A bounded sparse resident WSOLA experiment adds independent duration and local-pitch controls, but general time-stretch quality remains incomplete; transparent/stereo/streaming stretching and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
 
@@ -203,6 +205,35 @@ The installed consumer also renders both compositions at 44.1/48/96 kHz before
 bundling. Browser execution must pass on the exact final head in hosted CI. These
 checks introduce no capture permission, device bridge, storage service or runtime
 clearance. Logical clearing of either storage does not securely erase old bytes.
+
+
+## Experimental resident stretching boundary
+
+`/resident-time-stretch` is a deliberately limited experiment, not a recommended
+realtime default or completion of the time-stretch category. Independent review
+found and corrected the exact rational EOF calculation: a 147-frame/44.1 kHz
+resident at 48 kHz now has exactly 80/160/320 active frames for scales .5/1/2.
+Active duration is not guaranteed nonzero or audible duration. A measured padded
+edge lost most of the intended carrier (about .00145 versus .5 in its supported
+interior), and a separate dominant-frequency example deviated by +3 Hz.
+
+The final maximum graph is approximately 315 KB / 52,040-byte WASM with fixed
+4,521,984-byte native memory. Independent packed timing observed 49.90 ms cold
+and 21.84 ms warm maximum. An actually loaded maximum graph observed 2.385 ms
+median and 7.927 ms maximum; all 256 measured quanta exceeded the 0.667 ms
+budget at 192 kHz. These supplement earlier lower measurements. **NOT_REALTIME**
+and **CANDIDATE** remain mandatory; mathematical correctness is not musical
+quality, listening approval or hardware capacity clearance.
+
+`tests/stretch-browser.test.mjs` requires actual 48 kHz native resident ingress,
+exact active counts and first-EOF timing at both pitch settings, and an independent
+scalar accumulation of rendered audio. A separate coherent, source-supported
+interior checks latched parameter edits, retriggered frequency, exact EOF, held-
+gate replacement cancellation, and in-place restoration of noninitial source
+time plus PCM. Those selected interiors do not hide or supersede the retained
+edge, arbitrary-tone, alias and cost counterexamples. Native three-rate exact
+rational composition and public type/build checks precede the hosted browser
+gate. Bit-exact quantum continuation remains separately verified offline.
 
 The initial hosted PR38 and stacked PR39 gates exposed a real live-restore
 ordering limitation: restored state can process under old AudioParams before
