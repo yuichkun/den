@@ -76,7 +76,8 @@ Snapshots require the same processor/schema/sample rate. See the
 ## Extended catalog candidates
 
 The [catalog coverage record](docs/catalog-status.md) lists additive clean filter/EQ,
-formant/crossover, dynamics, drive/reduction and modulation/reverb candidates,
+formant/crossover, dynamics, drive/reduction, modulation/reverb, source/resonator
+and control/sequence/arpeggiator candidates,
 with their public imports, independent tests and remaining work. These modules
 have separate acceptance evidence; the initial five sounds' feedback does not
 approve new audio automatically.
