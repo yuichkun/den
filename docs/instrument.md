@@ -142,12 +142,10 @@ manifest binding the exact source hashes/commit, package/lock, all diagnostic
 parameters, MIDI, rates, seed and verification. No audio matcher/golden update or
 FFT is used.
 
-Shared export integration remains separate. Proposed subpaths:
-`./instrument` → `dist/instrument.js` / `dist/instrument.d.ts` and optional
-`./instrument-example` → its matching files. The tests currently import installed
-packed files by path; they do not claim these public subpaths already exist. No
-package, lockfile, shared consumer, contracts, UI or deployment settings change
-is included here.
+The public subpaths are `@denaudio/den/instrument` and
+`@denaudio/den/instrument-example`. The isolated packed fixture imports the
+replacement oscillator/filter example through that public boundary and renders
+it at all three offline sample rates. It does not reach into package internals.
 
 ## Sustained real-time gate
 

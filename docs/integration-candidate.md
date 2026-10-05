@@ -1,14 +1,16 @@
 # Mobile integration candidate
 
-This branch combines audition `29daeff030b53670394893b4154ab9a06cc250ec`, filter
-`5c087449fad2ea77756affa3e9231e4c544741e5`, delay
-`7ef7ce670531b1230111f1d2c89302bfe44935b2`, and instrument
-`baa4bd50f11d1561b0f52e2c6417970e563f7114`, plus the two delay settings from
-`1fa26a69ed2d3fc10202c9fc465b2cb18dc40fd0`. It is not an instrument release or a
-completed sound bank. The instrument runtime gate is not cleared, and physical
-playback/listening remain unverified. This branch also follows approved main
-`c65e2a8586eb0325cbccc3963af3764c7f15c926` (including PR20, PR23 and PR25).
-Further main changes require corresponding integration verification. No registry publication or hosting change is included.
+The initial integration candidate is based on reviewed candidate
+`196a1c3ef0e8eda9a007a2474c9d06f7f654acfa` (PR26, including PR28/PR29)
+and main `9fd730bf9afb786edaae808d41208904fb3c844d`. This integration completes
+public subpath access and the permanent packed-site build without changing DSP,
+settings or dependencies. It is not a registry release or a real-time clearance.
+
+The owner supplied positive feedback on the three dry sounds and the integrated
+sound/FX preview on 2026-10-05. That candidate listening feedback is recorded in
+[the acceptance record](initial-acceptance.md). No identical listening request is
+pending. Exact-hash golden promotion remains separate; general physical-device
+stability and the instrument runtime gate remain NOT_CLEARED.
 
 The isolated `tests/integration-consumer` imports the public `./instrument` and
 `./delay-fx` and `./delay-settings` subpaths from the installed package. The instrument is a processor;
@@ -21,8 +23,9 @@ The sound selector offers Diagnostic, Bass, Percussion and Pad. The three sound
 candidates are the unchanged public `createInstrument` configurations and all 22
 native parameters from PR28, merged into this candidate branch at
 `e87e51f25052d0ad474efe1a928f80908cf3bcaf`. Source SHA-256 checks pin their audio
-identity. These remain sound candidates: no golden promotion, physical browser
-playback acceptance, or runtime clearance is recorded by this integration.
+identity. These remain sound candidates: no golden promotion or general runtime clearance
+is recorded by this integration. Existing candidate listening feedback is retained
+separately from machine-generated evidence.
 
 Diagnostic retains four sine voices, gain .05, fixed 1 kHz/Q=.5 low-pass and
 10 ms attack/200 ms release. Bass is mono last-held legato and Percussion mono
@@ -65,18 +68,20 @@ consumer, independent analytic/direct-form references, and browser taps of the
 actual connected instrument/FX outputs. It retains candidate WAV, settings,
 source/package/WASM hashes, every numerical peak, browser results and failures
 under `artifacts/integration`. Generated evidence is never an approved golden.
-`npm run build:integration` packs den into the clean locked integration consumer
-and stages its Vite output into `site-dist`. This candidate branch's `vercel.json`
-selects that explicit build command; its root `/` serves the integration UI.
-Production main retains its audition `build:consumer` command. Do not merge this
-candidate branch into main or change the Vercel production branch/project settings.
-Local delivery verification serves the exact staged output and exercises Start,
-selection and Stop from that entrypoint. No deployment is performed by building.
+`npm run build:integration` produces a standalone integration-only local build.
+The permanent `npm run build:site` route packs the same source into two clean
+locked consumers and stages their checked assets into `site-dist`: integration
+at `/`, the silent gate at `/diagnostics.html`, and the earlier Envelope/LFO
+module audition at `/audition.html`. Both package integrities must match and
+conflicting asset names fail the build. Vercel uses this versioned `build:site`
+command, not a branch-only build override. Building does not itself deploy.
 
-This candidate is labeled INTEGRATION CANDIDATE without a privacy claim. A
-nonproduction preview in the existing Vercel project is in scope after final
-review and verification; this change does not push or deploy it, modify access
-settings, or merge the instrument into main.
+`tests/site.test.mjs` serves the staged deployment bytes and verifies both
+selected sound/FX graphs, the silent gain/snapshot gate, preserved audition,
+fresh navigation, and missing-asset/page-error absence. The full matrix and
+interrupted/repeated lifecycle checks remain in `tests/integration.test.mjs`.
+No production branch/project, authentication, access, or header setting change
+is needed. Merge and deployment follow independent review and exact-head CI.
 
 The packed and realtime browser gates use Vite preview with `configFile:false`,
 without COOP/COEP headers. The integration manifest records response isolation
@@ -104,5 +109,6 @@ restart. Existing startup-failure, partial-load cancellation, touch cancellation
 keyboard renewal, context cleanup, and 15 ms target/20 ms Stop-fade checks remain.
 Screenshots and measurement JSON are retained with candidate artifacts. Browser
 CI is required; a local numerical pass is not a browser pass. Runtime remains
-NOT_CLEARED and generated evidence remains CANDIDATE. Main and the production
-branch/project settings remain unchanged.
+NOT_CLEARED and generated evidence remains CANDIDATE. Production branch/project
+settings are unchanged; merging this reviewed build configuration deploys the
+initial candidate through the existing Vercel integration.

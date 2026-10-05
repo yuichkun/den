@@ -1,6 +1,6 @@
 import { audioInput, audioOutput, defineProcessor, forSample, instantiate, param } from '@unworklet/core';
 // Physical packed entry until the integration owner adds the proposed public export.
-import { delayReadhead } from './node_modules/@denaudio/den/dist/delay-readhead.js';
+import { delayReadhead } from '@denaudio/den/delay-readhead';
 export const processor = defineProcessor(ctx => {
   const input = audioInput({ channels: 1, name: 'main' });
   const output = audioOutput({ channels: 1, name: 'main' });

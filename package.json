@@ -1,7 +1,7 @@
 {
   "name": "@denaudio/den",
   "version": "0.0.0",
-  "description": "Composable DSP for unworklet (entry gate)",
+  "description": "Composable DSP modules and instrument/delay engines for unworklet",
   "type": "module",
   "license": "MIT OR Apache-2.0",
   "repository": {
@@ -47,6 +47,22 @@
     "./delay-settings": {
       "types": "./dist/delay-settings.d.ts",
       "import": "./dist/delay-settings.js"
+    },
+    "./filter": {
+      "types": "./dist/filter.d.ts",
+      "import": "./dist/filter.js"
+    },
+    "./voice-policy": {
+      "types": "./dist/voice-policy.d.ts",
+      "import": "./dist/voice-policy.js"
+    },
+    "./delay-readhead": {
+      "types": "./dist/delay-readhead.d.ts",
+      "import": "./dist/delay-readhead.js"
+    },
+    "./instrument-example": {
+      "types": "./dist/instrument-example.d.ts",
+      "import": "./dist/instrument-example.js"
     }
   },
   "engines": {
@@ -58,7 +74,8 @@
     "test": "npm run build && vitest run && node --test --test-concurrency=1 tests/*.test.mjs && node --test tests/realtime/*.test.mjs",
     "prepack": "npm run build",
     "build:consumer": "node scripts/build-consumer.mjs",
-    "build:integration": "node scripts/build-integration.mjs"
+    "build:integration": "node scripts/build-integration.mjs",
+    "build:site": "node scripts/build-site.mjs"
   },
   "peerDependencies": {
     "@unworklet/core": "0.4.1"
