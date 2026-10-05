@@ -26,6 +26,9 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Dual-head delay-time transitions | `/dual-head-delay` | Independent absolute-history crossfade/queue/timing/reset/state oracles, maximum fixed capacity and packed tests; fixed heads do not imply click-free or general pitch/time behavior |
 | Bounded input pitch shift | `/windowed-pitch-shift` | Two complementary moving windows, independent coherent-frequency/alias/cancellation/latency/state oracles and packed tests; arbitrary tones may color or cancel, no general time stretch |
 | Manual lower-zone expression routing | `/mpe-expression` | Native MIDI member/master bend/pressure/CC74 routing, independent identity/controller/snapshot/audio proof; no full MPE pedal/RPN/hardware claim |
+| Framewise spectral gate | `/spectral-gate` | Independent dense-DFT/bin-mask/WOLA, frame-sampled controls, phase/state and public-package checks; no-hook STFT identity is byte-identical and processed tails require2N drain |
+| Prepared-spectrum convolution | `/prepared-convolution` | Certified unchanged host packet, fixed B128/P64 and8192 taps, independent direct/quantized FIR, native load/reset/state and public-package proof; quantization, preload and deadline limits remain |
+| Crossfaded resident loops | `/loop-crossfade` | Independent forward/reverse/fractional/overlap/replacement/state proof; effective period is L-F, no unchanged-duration or arbitrary-content seamlessness claim |
 | Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
 Contracts, controls and limitations are detailed in [filters](catalog-filters.md),
@@ -99,15 +102,15 @@ merge; this document itself does not certify that a pending run has completed.
 | --- | --- |
 | 1. Wavetable / VA / unison | Sine/saw/unison plus resident wavetable, pulse/triangle and seeded-noise candidates. Host-prepared pitch-band tables are included with explicit interpolation-image limits; richer table materials and higher-order antialiasing remain |
 | 2. FM / PM / additive / resonators | Bounded candidates included above with independent tuning/sideband/decay and alias evidence. General antialiasing or maximum-capacity real-time support is not implied |
-| 3. Sample / multisample / granular | Bounded resident PCM, one-shot/loop/reverse/slice, first-match multisample and seeded fixed-pool grains included. Loop crossfade, stereo/live recording, read/write-age rules and streaming remain |
+| 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Live recording, streaming and general stretch remain |
 | 4. Voice / note / expression | Existing voice policy and sustain/glide/tuning wrapper plus manually configured lower-zone member/master expression routing. Full MPE zone/RPN negotiation, master pedals and hardware delivery remain |
 | 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. No transport synchronization, chord capture, or external host/device delivery claim |
 | 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |
 | 7. Drive / waveshaping / reduction | Direct/ADAA fixed curves, native editable 2..17-point curves and fixed 2×/4× memoryless oversampling included, with filtered-dry/bandwidth/phase tradeoffs. General arbitrary-graph oversampling and higher-order AA remain |
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
-| 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Musical long-IR support, hybrid/freeze/shimmer remain |
-| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Spectral transforms, independent time stretch, WSOLA and phase-vocoder capabilities remain |
+| 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Arbitrary long-room support, hybrid/freeze/shimmer remain |
+| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Independent time stretch, WSOLA and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
 
@@ -140,3 +143,32 @@ harmonic rejection, edits the native frame, rejects short asset playback, and
 restores PCM/parameters before a held-reset phase check. The cycle-local reader
 precision repair is shared by both wavetable readers; rejected prior readers and
 actual tiny-phase/full-range counterexamples remain in nonshipping tests.
+
+The framewise [spectral gate](spectral-gate-entry.md) adds one bounded spectral
+operation without changing no-hook STFT output or schema. Its small browser
+composition checks native threshold/floor edits, all-pass/fixed-floor/closed
+limits, rendered-parameter restore and reset against exact delayed-source
+phase/gain. These functional limits supplement, rather than replace, the
+independent active-bin DFT/WOLA and arbitrary-phase continuation tests. The
+corrected candidate drains2N zeros; the original N-drained artifact is retained
+as superseded evidence, not presented as the completed effect tail.
+
+## Prepared tails and loop browser boundary
+
+`tests/tail-assets-browser.test.mjs` sends a full host-prepared8192-tap packet
+through the native message path, checks the independent delayed FIR complex
+transfer, rejects malformed metadata, unloads, replaces with a shorter IR,
+restores native coefficients/history, and resets/restarts. The small resident
+loop fixture compares every observed output sample to an independent scalar
+phase/overlap equation for forward, reverse and fractional playback, and checks
+shorter/empty replacement, held-gate invalidation, native asset/state restore
+and reset/release. AudioContexts are suspended for synchronous multichannel
+observation, then resumed; no alternate renderer or snapshot wrapper is used.
+The three-rate offline gate and prior maximum-capacity component proofs remain
+separate from this actual48-kHz browser functional boundary.
+
+Prepared convolution requires unchanged certified host packets and normalized
+input; native header/number scans do not certify arbitrary supplied spectra.
+Preload while audible playback is gated off. Its cold/warm deadline misses remain
+recorded. A loop overlap changes the effective duration and can cancel or smear
+material; no antialiasing, universal seam removal, recording or streaming follows.
