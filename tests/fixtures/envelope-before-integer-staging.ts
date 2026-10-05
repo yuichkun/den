@@ -1,3 +1,6 @@
+// Frozen behavioral baseline from c65e2a8586eb0325cbccc3963af3764c7f15c926.
+// Differential oracle only; independent expectations live in envelope.spec.ts
+// and envelope-integer-staging.spec.ts. Do not update this to match production.
 import { defineSubgraph, f32, f64, i32, select, state, type Node } from '@unworklet/core';
 
 export interface EnvelopeConfig { sampleRate: number }
@@ -39,25 +42,20 @@ export const envelope = defineSubgraph((config: EnvelopeConfig) => {
 
   return {
     tick(c: EnvelopeControls) {
-      // Capture old integer history before using its slots as exact temporaries.
-      const oldStage = stage.read();
-      const oldRemaining = remaining.read();
       const on = c.gate.and(previousGate.read().not().or(c.retrigger));
-      const off = c.gate.not().and(previousGate.read()).and(oldStage.eq(0).not());
+      const off = c.gate.not().and(previousGate.read()).and(stage.read().eq(0).not());
       const a = frames(c.attack), d = frames(c.decay), r = frames(c.release);
       const s = f64(c.sustain.clamp(0, 1));
-      stage.write(select(off, i32(4), select(on, i32(1), oldStage)));
-      const active = stage.read();
+      const active = select(off, i32(4), select(on, i32(1), stage.read()));
       const attack = active.eq(1);
-      const attackFrames = select(on, a, oldRemaining);
+      const attackFrames = select(on, a, remaining.read());
       // Collapse zero attack into decay at this sample; a positive attack ends
       // at 1 and begins decay on the following sample.
       const decay = active.eq(2).or(attack.and(attackFrames.eq(0)));
-      const enterDecay = decay.and(oldStage.eq(2).not().or(on));
+      const enterDecay = decay.and(stage.read().eq(2).not().or(on));
       const release = active.eq(4);
-      remaining.write(select(release, select(off, r, oldRemaining),
-        select(decay, select(enterDecay, d, oldRemaining), attackFrames)));
-      const count = remaining.read();
+      const count = select(release, select(off, r, remaining.read()),
+        select(decay, select(enterDecay, d, remaining.read()), attackFrames));
       const destination = select(release, f64(0), select(decay,
         select(enterDecay, s, target.read()), f64(1)));
       const start = select(attack.and(attackFrames.eq(0)), f64(1), level.read());
