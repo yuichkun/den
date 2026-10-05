@@ -99,6 +99,18 @@
     "./reverb": {
       "types": "./dist/reverb.d.ts",
       "import": "./dist/reverb.js"
+    },
+    "./source": {
+      "types": "./dist/source.d.ts",
+      "import": "./dist/source.js"
+    },
+    "./resonator": {
+      "types": "./dist/resonator.d.ts",
+      "import": "./dist/resonator.js"
+    },
+    "./modulation": {
+      "types": "./dist/modulation.d.ts",
+      "import": "./dist/modulation.js"
     }
   },
   "engines": {
