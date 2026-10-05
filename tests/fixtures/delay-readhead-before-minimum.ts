@@ -10,13 +10,10 @@ export interface DelayReadheadConfig {
 /** Mono moving readhead. Per sample, use tick or one read followed by its write. */
 export const delayReadhead = defineSubgraph((config: DelayReadheadConfig) => {
   const { sampleRate, maxDelaySeconds = 2 } = config;
-  // Compare the reciprocal boundary directly: sr * (1 / sr) may round just
-  // below one. Only an already-valid one-sample capacity receives this floor.
-  const maximum = Math.max(1, sampleRate * maxDelaySeconds);
+  const maximum = sampleRate * maxDelaySeconds;
   const size = Math.ceil(maximum) + 2;
   if (!Number.isFinite(sampleRate) || sampleRate <= 0 ||
-      !Number.isFinite(maxDelaySeconds) || maxDelaySeconds < 1 / sampleRate ||
-      !Number.isFinite(maximum) || size > 0x7fffffff ||
+      !Number.isFinite(maximum) || maximum < 1 || size > 0x7fffffff ||
       Math.fround(1 / sampleRate) <= 0 || !Number.isFinite(Math.fround(maxDelaySeconds))) {
     throw new RangeError('delayReadhead requires a positive finite sampleRate and capacity of at least one sample fitting i32 indexing');
   }

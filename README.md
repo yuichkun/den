@@ -73,6 +73,14 @@ Snapshots require the same processor/schema/sample rate. See the
 [Delay FX contract](docs/delay-fx.md), [effect settings](docs/delay-settings.md),
 [shared contracts](docs/contracts.md), and [dependency limitations](docs/dependency-findings.md).
 
+## Extended catalog candidates
+
+The [catalog coverage record](docs/catalog-status.md) lists additive clean filter/EQ,
+formant/crossover, dynamics, drive/reduction and modulation/reverb candidates,
+with their public imports, independent tests and remaining work. These modules
+have separate acceptance evidence; the initial five sounds' feedback does not
+approve new audio automatically.
+
 ## Evidence and scope
 
 The [integration notes](docs/integration-candidate.md) describe lifecycle and

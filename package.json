@@ -63,6 +63,42 @@
     "./instrument-example": {
       "types": "./dist/instrument-example.d.ts",
       "import": "./dist/instrument-example.js"
+    },
+    "./state-variable-filter": {
+      "types": "./dist/state-variable-filter.d.ts",
+      "import": "./dist/state-variable-filter.js"
+    },
+    "./biquad-eq": {
+      "types": "./dist/biquad-eq.d.ts",
+      "import": "./dist/biquad-eq.js"
+    },
+    "./crossover": {
+      "types": "./dist/crossover.d.ts",
+      "import": "./dist/crossover.js"
+    },
+    "./formant-bank": {
+      "types": "./dist/formant-bank.d.ts",
+      "import": "./dist/formant-bank.js"
+    },
+    "./dynamics": {
+      "types": "./dist/dynamics.d.ts",
+      "import": "./dist/dynamics.js"
+    },
+    "./drive": {
+      "types": "./dist/drive.d.ts",
+      "import": "./dist/drive.js"
+    },
+    "./modulation-fx": {
+      "types": "./dist/modulation-fx.d.ts",
+      "import": "./dist/modulation-fx.js"
+    },
+    "./stereo-delay": {
+      "types": "./dist/stereo-delay.d.ts",
+      "import": "./dist/stereo-delay.js"
+    },
+    "./reverb": {
+      "types": "./dist/reverb.d.ts",
+      "import": "./dist/reverb.js"
     }
   },
   "engines": {
