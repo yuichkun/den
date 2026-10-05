@@ -1,0 +1,53 @@
+# Bounded performance candidates
+
+Status: CANDIDATE. Catalog §4 extension; existing `voicePolicy`, instrument, presets and MIDI runtime are unchanged. This is not general MPE support, hardware validation, real-time acceptance or human-approved sound.
+
+## Public surface
+
+`@denaudio/den/performance` exports `performancePolicy`, `pitchGlide` and `tunedFrequency`, plus their TypeScript control/configuration types. Use existing unworklet 0.4.1 native MIDI, AudioParams and snapshots.
+
+`performancePolicy({mode, capacity, heldCapacity, legato})` composes the existing allocator. Mono requires one voice; poly defaults to four, maximum four. The held-identity ledger defaults to eight, maximum eight, and must be at least voice capacity. Methods are `bindMidi(input)`, `reset(when)`, `overflowed()`, and `voices[]`. Each voice retains `read()`, `takeRetrigger()` and `releaseFinished(done)` and adds `takeReset()` for a latched DSP-clear pulse. `read()` adds normalized `channelPressure`, `polyPressure`, `bend`, `timbre` and boolean `sustain` lanes. Bind once in declaration scope. Do not also bind the wrapped allocator.
+
+### Identity, sustain and cleanup contract
+
+- Each accepted positive-velocity note-on creates one bounded channel/key identity. FIFO note-off pairing is with the oldest physically-down matching identity, including stolen identities. Velocity-zero note-on is note-off.
+- With sustain down (CC64 >=64), note-off marks that identity physically released but keeps it held in the original allocator. Its gate stays high and it retains held-note allocation priority. The allocator still prefers free voices, then ordinary released voices, then steals the oldest held voice, which can be a pedal-held voice.
+- Pedal-up releases deferred identities in their original note-on order, oldest first. Ordinary nondeferred key releases take effect immediately. Mono therefore keeps the original last-held-note priority among physically-held and pedal-held identities; pedal-up may fall back to another held note without retrigger when legato is true.
+- Repeated same-key identities remain separate. A pedal-held older identity does not consume a later physical note-off twice. Pedal-up forwards exactly one oldest allocator note-off for each deferred identity. Stolen identities stay tracked until their own release, preventing a stale note-off from releasing a newer duplicate.
+- A full ledger rejects new positive note-ons and latches overflow. It never evicts an accepted held identity. MIDI 1.0 cannot identify a late note-off belonging to a rejected duplicate, so FIFO pairing remains explicit. Reset clears overflow; per-channel cleanup does not clear the global diagnostic.
+- CC123 marks all physically-down keys on its channel released. Pedal-down defers them; pedal-up releases them. It does not change expression or pedal state.
+- CC120 immediately clears that channel's keys and active/releasing voices, sets its pedal up and latches `takeReset()` for slots that were using that channel. It retains other expression controls. Mono may fall back to a different channel's held key, following the original allocator policy. The DSP-clear latch belongs to the physical slot and must be consumed by composition code before sounding any replacement there.
+- CC121 centers bend, clears channel pressure, timbre and that channel's active poly-pressure values, raises its pedal and releases its deferred identities. Physically-down notes stay held.
+- `reset(true)` clears every held identity, allocation, pedal and expression lane, pending retrigger and overflow, and latches every slot's DSP reset. Held reset repeatedly clears. `reset(false)` leaves state unchanged. Ordering follows graph invocation; a composition wanting panic to win over same-quantum MIDI must invoke reset after MIDI dispatch at the start of process, as the example does.
+- Release completion is forwarded to the original allocator only after the current envelope is done. Sustain-held notes cannot be freed by a stale completion because their allocator owner remains held. Completion must describe the current slot envelope; callers must not reuse completion from a previous owner.
+
+### Expression contract
+
+- Pitch bend 0..16383 maps to -1..1, center 8192 maps to exactly zero. Negative values divide by 8192; positive values divide by 8191. Bend range is a composition choice in semitones.
+- Channel pressure and CC74 timbre normalize 0..127 to 0..1 and persist per channel until updated, CC121 or reset. They affect held and releasing voices on that channel.
+- Native `aftertouch` is polyphonic key pressure. It updates all currently active matching channel/key voices, including release tails. Pressure received before a matching voice exists is ignored. New assignment/retrigger clears that slot's poly pressure; a mono legato pitch/channel change also clears it. Another same-key voice's existing pressure is preserved until the next matching aftertouch message. This is key-addressed expression, not a distinct-note MIDI 2.0 identifier.
+- Inactive voice expression outputs are zero. Unsupported controllers and message families are ignored. CC74 is a raw timbre lane; this module does not invent a destination or smoothing rule.
+- unworklet 0.4.1 drains MIDI in FIFO order before each 128-sample process quantum. This layer preserves that timing. Several changes in a quantum coalesce to the final assignment and latched start/reset flags. It does not implement sample-accurate MIDI scheduling.
+- Every performance/held-key/expression state slot is native transient state. Restoring a snapshot never restores held notes or pedal state. DSP composition must reset inactive voices to prevent restoring an orphan envelope tail.
+
+## Glide and tuning contract
+
+`pitchGlide({sampleRate}).tick({target,seconds,reset,snap})` returns MIDI-note semitones. Supported construction rates are integer 8000..192000 Hz. Finite target is clamped to [-128,255], finite seconds to [0,30], duration is floor(seconds * sampleRate + 0.5). The first call snaps to target. A changed target starts a new constant-time linear glide from the last emitted value; a change during a glide replaces its destination and duration. The first step is emitted on the change sample and step N is the exact endpoint. Zero/sub-half-sample durations snap. Seconds changes without a target change do not retime the current glide. `snap` and `reset` are level-sensitive and follow the current target immediately while held; releasing them does not invent a new glide. Native persistent state resumes exactly at the same sample rate. Different-rate snapshot restoration is outside this candidate contract.
+
+`tunedFrequency({note,transpose,cents,a4}, maxFrequency)` is a stateless 12-TET mapping: A4 × 2^((note−69+transpose+cents/100)/12), with note [-128,255], transpose [-48,48], cents [-1200,1200], A4 [220,880]. maxFrequency is a finite positive construction value no greater than the largest finite f32 value. The combined musical exponent is calculated before the single final frequency clamp. Controls must be finite. The bounded conversion uses degree-12 f64 exp(x/32) polynomial arithmetic and five squarings. Native 0.4.1 pow and exp both demote through an approximate f32 bridge; the independent tuning oracle caught this path's 0.05–0.098 Hz error before replacement. The independent oracle's threshold was preserved.
+
+## Candidate evidence
+
+- Native receiver entry passes at 44.1/48/96 kHz, including channel pressure, aftertouch, pitch bend and CC. An event scheduled at sample 129 is observed at boundary 128, demonstrating the native quantum timing rather than claiming sample timing.
+- 33 focused tests cover closed-form interrupted glide, duration latching, held reset/snap, tiny signed pitch, tuning and AudioParam automation, independent object/queue FIFO identity and sustain oracle, all controller cleanup paths, capacity/overflow, mono legato owner changes and same-key pedal/off orders. The combined focused and unchanged allocator/envelope/instrument regression run passes 94 tests.
+- The isolated packed consumer imports only public subpaths and typechecks strictly. At all three rates it renders the existing envelope and sine oscillator, checks held-pedal release, bend, pressure and timbre, and compares against independent Math.sin and linear-envelope equations. A separate chord exercises all four active voices. Tuning and automation outputs match the independent f32 oracle; all runs report zero scrubbed samples.
+- Performance state is absent from snapshots, while the composed envelope/oscillator/glide state is persistent. Restoring a snapshot from a sustained note produces exact silence; a fresh note after restore restarts safely. The pitch-glide primitive separately proves exact same-rate continuation.
+- The maximum declared four-voice/eight-identity diagnostic composition compiles to 747,451 WASM bytes with 65,536 bytes of memory, unchanged across 256 driver blocks. This is a local fixed-memory check, not a timing or hardware acceptance claim.
+
+The packed gate retains source/package/lock hashes, exact source commit and dirty-state flag, per-rate numerical results, and CANDIDATE status in its manifest. The first source-development packed run measured maximum audio error below 1.5e-8; subsequent clean-head results are in the generated manifest/result pair.
+
+The composition's choices are deliberately explicit: two-semitone bend range; normalized channel/poly pressure maximum scaled to amplitude 0.5..1; CC74 scaled to amplitude 0.5..1; gain 0.2; instantaneous attack/decay; a parameterized linear release; and sine source. These are diagnostic values and routing, not an approved preset. Pitch and frequency intermediates are materialized to bound the unworklet graph. Existing instrument and voice-policy behavior is unchanged.
+
+## Remaining boundaries
+
+MPE is not implemented. A fixed-member policy needs its own entry review and receiver/voice-mapping evidence. No hardware MIDI-host integration, browser-rate expansion, real-time CPU budget, acoustic/listening approval, cross-rate snapshot migration or approved golden is claimed. The full integrated catalog gate remains the integration owner's responsibility.

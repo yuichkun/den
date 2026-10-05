@@ -111,6 +111,30 @@
     "./modulation": {
       "types": "./dist/modulation.d.ts",
       "import": "./dist/modulation.js"
+    },
+    "./performance": {
+      "types": "./dist/performance.d.ts",
+      "import": "./dist/performance.js"
+    },
+    "./sample": {
+      "types": "./dist/sample.d.ts",
+      "import": "./dist/sample.js"
+    },
+    "./wavetable": {
+      "types": "./dist/wavetable.d.ts",
+      "import": "./dist/wavetable.js"
+    },
+    "./virtual-analog": {
+      "types": "./dist/virtual-analog.d.ts",
+      "import": "./dist/virtual-analog.js"
+    },
+    "./spectral": {
+      "types": "./dist/spectral.d.ts",
+      "import": "./dist/spectral.js"
+    },
+    "./convolution": {
+      "types": "./dist/convolution.d.ts",
+      "import": "./dist/convolution.js"
     }
   },
   "engines": {

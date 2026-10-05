@@ -9,8 +9,9 @@ jobs:
   entry:
     name: entry
     runs-on: ubuntu-latest
-    # Packed 4×3 sound/FX matrix adds long-LFO offline and browser lifecycle coverage.
-    timeout-minutes: 20
+    # PR32 took 15m46s; four new packed lanes and browser compositions need
+    # additional job budget. Numerical, browser and runtime thresholds are unchanged.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
