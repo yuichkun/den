@@ -64,6 +64,14 @@ choice, but must coordinate changes that affect shared consumers/contracts.
 - Save after AudioParam edits have actually rendered, while controls are stable
   (#78). A suspended snapshot is not a reliable capture of pending edits in 0.4.1.
   This gate does not solve suspended preset editing or in-flight automation recall.
+- Live `node.restore()` in core 0.4.1 is not an atomic state/AudioParam transaction.
+  The worklet copies persistent slots before acknowledging; only then does the
+  host restore AudioParam values. A running quantum can use restored history with
+  old controls. For the frozen-tail composition, first set every saved control,
+  confirm those values have rendered (including completed freeze transition),
+  then restore history while controls remain stable. This is a scoped caller
+  protocol, not a generic atomic-restore API or a guarantee for arbitrary graphs,
+  automation, external inputs or pending events. See [freeze restore](freeze-reverb.md#live-browser-restore-ordering).
 - Worklet compilation is sample-rate-specific. Offline rendering is verified at
   44100, 48000, and 96000 Hz, with 128-frame quanta. The existing 0.4.1 Vite plugin
   compiles at 48000 and exposes no sample-rate option; real browser contexts at

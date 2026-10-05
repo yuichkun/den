@@ -140,3 +140,12 @@ Offline multirate success, worklet build and actual browser execution are separa
 evidence. There is no device capture, listening approval, realtime deadline,
 seamless take transition, antialiasing, long-form recording or streaming claim.
 Core's non-48-kHz browser loader restriction remains unchanged.
+
+Live core 0.4.1 restoration copies DSP state before restoring host AudioParam
+values. Old record/reset/player controls can therefore act on restored state
+before the saved controls arrive. The browser fixture first renders the saved
+record, play, input, limit, position and reset controls, then restores the take.
+The earlier already-full-buffer pass masked the write hazard and is not general
+atomic-restore evidence. Browser playback checks are functional PCM/readback
+checks; phase-aligned quantum continuation is separately tested offline. See the
+[observed frozen-tail restore boundary](freeze-reverb.md#live-browser-restore-ordering).

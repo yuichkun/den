@@ -108,7 +108,8 @@ commercial-reverb equivalence or high-quality shimmer claim is made.
 
 Use existing unworklet snapshots only. All four delay histories, cursors, valid
 counts and ramp progress persist. Transient tap materialization is recomputed each
-sample. Same configuration, sample rate and schema restore must continue bit-for-bit,
+sample. With the same configuration, sample rate, schema and correctly coordinated
+controls/input, native quantum-boundary restoration continues bit-for-bit,
 including snapshots during a transition or fully frozen nonzero history. Cross-rate,
 capacity, configuration or schema migration is not provided by this module.
 
@@ -143,3 +144,36 @@ state followed by native snapshot restoration, and held reset/empty freeze.
 These functional browser windows do not measure total stored energy or assert
 sample-aligned continuation; the independent offline oracles retain that scope.
 The actual browser stage remains an exact-head CI requirement before merge.
+
+## Live browser restore ordering
+
+Core 0.4.1 `node.restore()` first asks the worklet to copy persistent states and
+buffers, awaits its acknowledgement, then writes the saved values to host
+AudioParams. The operation is **not atomic across DSP state and AudioParams**.
+While the node runs, even one quantum with old live/unfrozen controls can inject
+new excitation into newly restored frozen buffers before the saved freeze value
+arrives. This is a real execution boundary, not a waveform tolerance issue.
+
+The original PR38 and stacked PR39 browser runs observed paired-left residual
+0.2498931884765625 after restoring equal frozen histories into differently excited
+live instances. Independent native reproduction with the identical 48 kHz WASM
+and one stale-control quantum produced that exact value (right residual
+0.4752197265625). Longer gaps also diverged. Excluded wet scratch is recomputed
+every sample and was not the cause: poisoning it with ±1e90 did not alter the
+correctly coordinated result. The failed hosted artifacts remain preserved.
+
+For this frozen-tail composition, prepare **all saved controls before restore**:
+freeze=true, level=0, the saved disturbance/input control, and reset=false. Advance
+the native audio clock until those values have rendered and the configured freeze
+transition has completed. Confirm the two histories still differ, then restore the
+saved persistent history while those controls remain stable. At full freeze, new
+excitation is suppressed during any acknowledgement gap. The actual browser gate
+observes native control telemetry and preserves exact paired-zero/nonzero-tail
+assertions after restoration. Its earlier raw restore remains an observation;
+a deterministic native stale-gap regression supplies reproducible negative proof.
+
+This protocol uses existing controls and restore only. It adds no synchronization
+hook, serializer or upstream patch, and is not a universal recipe for arbitrary
+live graphs, changing automation, pending events or external audio. Fresh-instance
+offline restoration and correctly coordinated native continuation remain separate
+from unguarded browser restoration across different controls.
