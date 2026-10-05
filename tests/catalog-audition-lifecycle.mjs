@@ -168,11 +168,46 @@ export async function runCatalogLifecycle(browser, url) {
     await a.scrollIntoViewIfNeeded(); const ab = await a.boundingBox(), bb = await b.boundingBox();
     const fingers = [{ x: ab.x + ab.width / 2, y: ab.y + ab.height / 2, id: 11 }, { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2, id: 12 }];
     const client = await context.newCDPSession(page);
+    await page.evaluate(() => {
+      const controller = new AbortController();
+      const probe = window.__catalogTouchProbe = { events: [], stop: () => controller.abort() };
+      for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture']) {
+        document.addEventListener(type, event => {
+          if (event.pointerType !== 'touch') return;
+          probe.events.push({ type: event.type, pointerId: event.pointerId,
+            trigger: event.target.closest?.('[data-trigger]')?.dataset.trigger ?? null,
+            trusted: event.isTrusted });
+        }, { capture: true, signal: controller.signal });
+      }
+    });
+    const touchEvents = () => page.evaluate(() => window.__catalogTouchProbe.events);
     await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: fingers });
+    const downs = (await touchEvents()).filter(event => event.type === 'pointerdown');
+    assert.equal(downs.length, 2, 'both CDP contacts must produce native pointerdown events');
+    assert.deepEqual(downs.map(event => event.trigger).sort(), ['voice-a', 'voice-b']);
+    assert(downs.every(event => event.trusted), 'touch evidence must come from trusted browser input');
+    const pointerA = downs.find(event => event.trigger === 'voice-a').pointerId;
+    const pointerB = downs.find(event => event.trigger === 'voice-b').pointerId;
+    assert.notEqual(pointerA, pointerB, 'the browser must assign independent pointer identities');
     assert.deepEqual([...(await state()).held].sort(), ['gateA', 'gateB']);
-    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [fingers[1]] });
+    // Chromium CreateWebTouchEvents releases the supplied IDs on nonempty
+    // touchEnd; it does not interpret touchPoints as the contacts left down.
+    // DOM pointer IDs may be remapped, so observe their target/identity above.
+    // https://github.com/chromium/chromium/blob/148.0.7778.96/content/browser/devtools/protocol/input_handler.cc
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [fingers[0]] });
+    assert.deepEqual((await touchEvents()).filter(event => ['pointerup', 'pointercancel'].includes(event.type)),
+      [{ type: 'pointerup', pointerId: pointerA, trigger: 'voice-a', trusted: true }],
+      'ending contact A must release its native pointer while B remains down');
     assert.deepEqual((await state()).held, ['gateB']);
-    await client.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }); assert.deepEqual((await state()).held, []);
+    await client.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+    const observedTouchEvents = await touchEvents();
+    assert.deepEqual(observedTouchEvents.filter(event => ['pointerup', 'pointercancel'].includes(event.type)),
+      [{ type: 'pointerup', pointerId: pointerA, trigger: 'voice-a', trusted: true },
+        { type: 'pointercancel', pointerId: pointerB, trigger: 'voice-b', trusted: true }],
+      'cancel must target only the remaining B pointer');
+    assert.deepEqual((await state()).held, []);
+    checks.push({ check: 'trusted native touch target/identity sequence', events: observedTouchEvents });
+    await page.evaluate(() => window.__catalogTouchProbe.stop());
     await audioAdvance(.4);
     assert((await page.evaluate(() => window.denCatalog.measure(.1))).raw.every(x => x.peak === 0), 'touch cancellation must release the actual sound');
     await client.detach();
