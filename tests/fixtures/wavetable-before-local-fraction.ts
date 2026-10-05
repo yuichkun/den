@@ -1,6 +1,5 @@
 import { defineSubgraph, f32, f64, i32, select, state, type Node } from '@unworklet/core';
-import { readWavetableCycle } from './wavetable-read.js';
-import type { ResidentSample } from './sample.js';
+import type { ResidentSample } from '../../src/sample.js';
 
 export interface WavetableConfig {
   sampleRate: number;
@@ -28,7 +27,7 @@ function bounded(value: Node<'f32'>, high: number) {
   return select(value.eq(value), f64(value), f64(0)).clamp(0, high);
 }
 
-/** Two periodic linear cycle interpolations and frame morph. No automatic bandlimit. */
+/** Two periodic linear cycle reads and linear frame morph. No automatic bandlimit. */
 export const wavetableSource = defineSubgraph((config: WavetableConfig) => {
   const { sampleRate, sample, frameLength, frameCount, phaseCycles = 0 } = config;
   if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 192000) throw new RangeError('wavetable sampleRate must be in [8000,192000] Hz');
@@ -54,8 +53,9 @@ export const wavetableSource = defineSubgraph((config: WavetableConfig) => {
     const frame = scan.read().div(frameScale), p = current.read().div(scale);
     lower.write(i32(frame.floor()).mul(frameLength));
     upper.write(i32(frame.floor()).add(1).min(frameCount - 1).mul(frameLength));
-    const a = readWavetableCycle(sample, p, lower.read(), frameLength);
-    const b = readWavetableCycle(sample, p, upper.read(), frameLength);
+    const offset = p.mul(frameLength);
+    const a = sample.read(f64(lower.read()).add(offset), lower.read(), lower.read().add(frameLength), true);
+    const b = sample.read(f64(upper.read()).add(offset), upper.read(), upper.read().add(frameLength), true);
     const missing = sample.length().lt(required), mix = frame.sub(frame.floor());
     const output = select(missing, f32(0), f32(f64(a).mul(f64(1).sub(mix)).add(f64(b).mul(mix))));
     phase.write(p.add(bounded(c.frequencyHz, .45 * sampleRate).div(sampleRate)).frac().mul(scale));
@@ -64,4 +64,3 @@ export const wavetableSource = defineSubgraph((config: WavetableConfig) => {
   } };
 });
 
-export { bandedWavetableSource, prepareWavetableBands, type BandedWavetableConfig, type PreparedWavetableBands, type WavetableBandsOptions } from './wavetable-bands.js';

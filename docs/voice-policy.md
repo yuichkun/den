@@ -27,7 +27,7 @@ A full held ledger rejects new note-ons and latches overflow; it does not evict 
 
 Unworklet 0.4.1 drains MIDI at block boundaries in FIFO order, before processing samples. Generic control messages drain before MIDI in the same block. This module preserves those semantics; it does not add a sample-accurate event scheduler. Multiple starts in a block coalesce to one retrigger latch and the final voice assignment. An on/off pair in one block may produce a retrigger with gate already low; envelope integration must define that case. Do not claim sample-accurate MIDI from these tests.
 
-All voice and held-key storage uses unworklet transient state. Snapshots do not restore live held notes, and no new snapshot/preset serializer is provided. A reset is the explicit panic operation. Completion signals belong to the current envelope attached to each slot; a delayed completion from a previous released assignment must not be reused after a steal and subsequent release.
+All voice and held-key storage uses unworklet transient state. Snapshots exclude live held notes. A fresh instance therefore starts empty, while native in-place restore leaves currently held notes unchanged. Use explicit reset for a cold live restore; no new snapshot/preset serializer is provided. A reset is the explicit panic operation. Completion signals belong to the current envelope attached to each slot; a delayed completion from a previous released assignment must not be reused after a steal and subsequent release.
 
 ## Verification
 

@@ -159,5 +159,5 @@ test('STFT preserves quiet f32 and high finite inputs; reset does not leak histo
 }, 60000);
 
 test('STFT rejects unsupported sizes and window/hop combinations during capture', () => {
-  for (const [size, hop] of [[0, 0], [7, 2], [12, 6], [128, 32], [16, 3], [16, 16], [NaN, 4]]) expect(() => stftFixture(size, hop)).toThrow(RangeError);
+  for (const [size, hop] of [[0, 0], [7, 2], [12, 6], [2048, 512], [16, 3], [16, 16], [NaN, 4]]) expect(() => stftFixture(size, hop)).toThrow(RangeError);
 });

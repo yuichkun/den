@@ -13,8 +13,8 @@ once per sample from stride-1 `forSample((i, everyNSamples) => ...)`. The last
 argument is unworklet's existing conditional scheduler, not a den scheduler or a
 runtime JavaScript callback. `select` is never used to skip the FFT workload.
 
-- Initial supported N is a power of two in 8..64. H is N/2 or N/4. These are
-  feasibility bounds, not a musical-resolution or performance recommendation.
+- Supported N is a power of two in 8..1024. H is N/2 or N/4. These are
+  offline-candidate bounds, not a performance or concurrency recommendation.
 - The internal, non-public complex radix-2 kernel has natural-order real/imaginary
   planes, forward exponent -i2πkn/N, inverse exponent +i2πkn/N and inverse scale 1/N.
   All intermediate work/history use fixed f64 buffers; I/O is f32. The stream
@@ -43,9 +43,12 @@ runtime JavaScript callback. `select` is never used to skip the FFT workload.
   spectral scratch are transient and fully overwritten at each scheduled frame.
   Only identical graph/rate full-snapshot continuation is in scope; migration
   and cross-rate continuation are not promised.
-  Native 0.4.1 hop counters are not included in offline snapshots. The current
-  power-of-two hops all divide the 128-sample restore boundary, so a fresh
-  counter has the identical phase there. Larger hops cannot inherit this proof.
+  Native 0.4.1 hop counters are not included in offline snapshots. Dispatch
+  therefore occurs every min(H,128) samples, a divisor of the128-sample restore
+  boundary; the named persistent cursor modulo H selects frame commits. For
+  H>128 the FFT pair still executes every128 samples and off-phase results are
+  discarded. This explicitly preserves snapshot phase rather than promising
+  H-rate CPU savings. See [large-frame evidence](spectral-large-candidate.md).
 
 ## Verification required before integration
 
@@ -108,5 +111,8 @@ Together with three additional N256 direct-DFT cases, all 19 tests passed in
 direct DFT values; it does not broaden public module support. The test process
 tree's RSS was unavailable to that run's supervisor, so no zero-memory or peak
 memory claim is made for it. Final exact-head resource/packed evidence is a
-separate gate. Public N<=64/B<=32/IR<=128 bounds remain unchanged; larger STFT
-frames, longer IRs and all realtime claims remain unadvertised.
+separate gate. The later independently reviewed large-frame proof and public
+packed promotion extend STFT alone to N<=1024; B<=32/IR<=128 convolution bounds
+remain unchanged. At N1024/H512 the measured first quantum was18.98ms and warm
+maximum4.687ms with copies, both above a48-kHz quantum. Longer IRs and all
+realtime claims remain unadvertised.

@@ -23,7 +23,8 @@ The maximum layout holds 16 × 4096 = 65536 float32 samples (256 KiB). With the
 sample lane's explicit CAPACITY_16 ingress and 262144-byte payload capacity,
 the event payload arena contributes another 4 MiB, plus native metadata and
 I/O/state. Ingress belongs to the shared resident, not to each oscillator. A
-source has two linear readheads/four bounded PCM taps regardless of frame count,
+source has two cycle interpolations/four integer resident reads (eight bounded
+PCM taps) regardless of frame count,
 plus 36 bytes of declared scalar values before native layout/alignment. There is
 no unrolled table bank, mipmap builder, FFT, dynamic allocation or JS DSP callback.
 
@@ -39,7 +40,10 @@ no unrolled table bank, mipmap builder, FFT, dynamic allocation or JS DSP callba
   then advances. A held reset repeats the same phase, though morph can change.
 - Return: `{output, missing}`. Output is not peak-normalized or hard-clipped.
 
-Both selected cycles wrap independently from their last PCM sample back to their
+Cycle-local integer positions and fractions are split before adding a frame
+offset, preserving tiny fractional contributions against large finite PCM. Each
+cycle uses two integer resident reads and a convex linear mix. Both selected
+cycles wrap independently from their last PCM sample back to their
 own first sample, then their outputs are mixed. A cycle never interpolates into
 the next morph frame. `sourceSampleRate` metadata is intentionally irrelevant:
 each frame is one cycle, so frequency is controlled in host Hz, not playback-rate
@@ -75,8 +79,23 @@ no pitch bands or runtime harmonic rejection in this candidate. Pre-bandlimited
 assets may help static playback; they do not prove modulation is alias-free.
 
 Tests cover 44.1/48/96 kHz, independent periodic interpolation and sine-frequency
-oracles, exact phase/reset/hold, frame1/length4, wrapped endpoints, missing/short
+oracles, exact phase/reset/hold, frame 1/length4, wrapped endpoints, missing/short
 assets, revision wrap, max resident, full finite/subnormal/nonfinite PCM and exact
 snapshot continuation. An explicit high-harmonic test preserves the known folded
 alias instead of labeling the source bandlimited. Packed consumer evidence is
 separate from human listening, browser scheduling and hardware real-time proof.
+
+## Optional prepared pitch bands
+
+The same public subpath also exposes an additive host-preparation/native-reader
+candidate. See [prepared pitch bands](./wavetable-bands.md) for its separate layout,
+capacity, transition and quality contracts. The unbanded reader retains the
+separate layout and control contract described above.
+
+The cycle-local interpolation correction also fixes the former loss of tiny phase
+at nonzero frame offsets. A frozen pre-fix fixture records the failing case
+(phase 1e-40, a 0→3e38 ramp, expected 0.48 but formerly 0 in frame 1). Ordinary coherent
+quarter-sample reads remain bit-identical to that fixture; general ordinary-rate
+reads stay within the independent interpolation tolerance. Endpoint-safe convex
+weighting can legitimately improve previous rounding/cancellation at extreme
+PCM. Initial instrument/FX settings are untouched.
