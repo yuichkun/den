@@ -2,8 +2,7 @@
 
 Two plain configuration/value objects use the existing `delayFx` engine. They add
 no DSP, serializer, parameter registry, runtime, or UI. `chorusSettings` and
-`rhythmicDelaySettings` live in `src/delay-settings.ts`; public exports are pending
-integration. Values map directly to existing engine inputs / AudioParams. Supply
+`rhythmicDelaySettings` are exported by `@denaudio/den/delay-settings`. Values map directly to existing engine inputs / AudioParams. Supply
 `sampleRate` from the processor context, and spread the config to select a different
 fixed capacity before construction. Two seconds is a candidate allocation, not a
 product limit. Tone mode and stereo phase are construction configuration.
@@ -77,13 +76,10 @@ no MIDI or random source. No loudness-matched derivative is included.
 These are **initial reference CANDIDATES**, with no approved old audio or golden.
 Human approval must name the source/settings/audio hashes in a separate record;
 any sound-affecting update requires regeneration. Code checks alone do not approve
-tone, widening, repeat balance, edit clicks or bypass/unbypass feel. Shared frontend
-integration and public exports are separate. Proposed minimal root export:
-
-```ts
-export { chorusSettings, rhythmicDelaySettings } from './delay-settings.js';
-export type { DelaySettings, DelaySettingsValues } from './delay-settings.js';
-```
+tone, widening, repeat balance, edit clicks or bypass/unbypass feel. The shared
+frontend now exposes both settings in the integrated sound/FX candidate. Existing
+owner feedback is recorded in [initial acceptance](initial-acceptance.md), separately
+from the generated manifests and exact-hash golden approval.
 
 The checked-in `delay-settings-candidate.json` is the small provenance manifest
 for source commit `ace4deafaf41f8c4336df7fdb532bbac10a6be42`. Audio and images are

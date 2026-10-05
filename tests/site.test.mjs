@@ -12,7 +12,7 @@ const root = join(import.meta.dirname, '..');
 test('deployed site keeps instrument/FX, silent gate and module audition usable', {timeout: 180000}, async () => {
   const artifacts = join(root, 'artifacts/site', new Date().toISOString().replaceAll(':', '-'));
   mkdirSync(artifacts, {recursive: true});
-  const manifest = {status: 'CANDIDATE', runtimeGate: 'NOT_CLEARED', sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(), checks: []};
+  const manifest = {status: 'CANDIDATE', runtimeGate: 'NOT_CLEARED', sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], {cwd: root, encoding: 'utf8'}).trim() !== '', checks: []};
   let server, browser;
   try {
     const {output, diagnostic, integration} = buildSite();
@@ -51,6 +51,10 @@ test('deployed site keeps instrument/FX, silent gate and module audition usable'
     await page.click('#start'); await page.waitForFunction(() => document.querySelector('#status').textContent.includes('Playing'));
     await page.click('#stop'); await page.waitForFunction(() => document.querySelector('#peak').textContent.includes('closed'));
     manifest.checks.push('preserved module audition Start/Stop');
+    await page.getByRole('link', {name: 'Silent entry check', exact: true}).click();
+    assert.equal(new URL(page.url()).pathname, '/diagnostics.html');
+    assert.equal(await page.locator('#run').count(), 1);
+    manifest.checks.push('module audition return link targets silent diagnostics');
     assert.deepEqual(errors, []); assert.deepEqual(failed, []);
     await page.goto(url); assert.equal(await page.locator('#instrument').inputValue(), 'diagnostic');
     await page.screenshot({path: join(artifacts, 'initial-candidate.png'), fullPage: true});

@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildConsumer } from './build-consumer.mjs';
@@ -28,6 +28,17 @@ export function buildSite() {
     }
   };
   copy(integration.output, output);
+  // Standalone consumers retain their own root navigation; only staged site
+  // pages know that the silent gate moved away from the root.
+  const auditionPath = join(output, 'audition.html');
+  const audition = readFileSync(auditionPath, 'utf8');
+  const oldLink = '<a href="/">Silent entry check</a>';
+  if (!audition.includes(oldLink)) throw new Error('Missing module-audition return link');
+  writeFileSync(auditionPath, audition.replace(oldLink, '<a href="/diagnostics.html">Silent entry check</a>'));
+  const indexPath = join(output, 'index.html');
+  const index = readFileSync(indexPath, 'utf8');
+  if (!index.includes('</main>')) throw new Error('Missing integration page main element');
+  writeFileSync(indexPath, index.replace('</main>', '<p><a href="/diagnostics.html">Silent package check</a> · <a href="/audition.html">Envelope / LFO diagnostic</a></p></main>'));
   return {output, diagnostic, integration};
 }
 

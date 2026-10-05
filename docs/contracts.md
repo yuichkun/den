@@ -1,9 +1,11 @@
 # Entry contract for parallel DSP work
 
-Status: proposed integration contract, awaiting independent entry review. These
-are candidate den-specific contracts for GEN-611 through GEN-616; only the gate
-fixture is implemented. Changes to shared exports, package/lockfiles, consumer,
-or these boundaries belong to the integration lane.
+This document preserves the original G0 entry proposals and their provisional
+bounds. It is historical design context, not a statement that only the gate exists
+or that later public exports are unavailable. Current module contracts and the
+implemented initial package/site boundary are linked from [the README](../README.md)
+and [the acceptance record](initial-acceptance.md). Later reviewed module-specific
+contracts supersede the provisional choices below.
 
 ## Authority and provisional choices
 

@@ -194,10 +194,9 @@ checks the shared audition consumer introduced on main.
 manifest linking source hashes, exact settings/input, rates, dependency locks,
 package tarball and verification results. No golden is approved or updated.
 
-## Proposed shared integration changes (not applied)
+## Public integration
 
-Add to the public root: `export { delayFx, type DelayFxConfig, type DelayFxControls }
-from './delay-fx.js';`. Optionally add the corresponding `./delay-fx` subpath.
-Then switch the dedicated consumer's physical installed-module import to the
-chosen public entry. Shared exports/package/lock/contracts and user-facing UI
-remain under the integration owner. No GEN-621 preset data is included.
+`@denaudio/den/delay-fx` exports `delayFx`, `DelayFxConfig` and `DelayFxControls`.
+The isolated consumer imports that public subpath. The engine fixture remains
+separate from the Chorus/Rhythmic setting fixtures and the complete integrated
+site. Shared exports/package/lock/contracts and the UI retain one integration owner.

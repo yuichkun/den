@@ -146,7 +146,7 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
       sourceHashes: Object.fromEntries(['src/instrument.ts','src/instrument-example.ts','src/envelope.ts','src/lfo.ts','src/filter.ts','src/oscillator.ts','src/voice-policy.ts','tests/instrument.spec.ts','tests/instrument-packed.test.mjs','tests/instrument-consumer/processor.ts','tests/instrument-consumer/sustained-processor.ts','tests/instrument-consumer/main.js','tests/instrument-consumer/render.mjs','package-lock.json'].map(file => [file,hash(join(root,file))])),
       unworklet:'0.4.1', channels:2, offlineSampleRates:[44100,48000,96000], browserSampleRates:[48000],
       verification:'Independent DSP and voice tests; packed TypeScript/build/offline render; browser MIDI, polyphony, release, gain/cutoff edits, bypass, reset',
-      limitations:['Not human approved','Physical packed module import; public export pending integration','MIDI dispatch is quantum-boundary'],files,
+      limitations:['Not human approved','Public packed subpath import; browser coverage is 48 kHz only','MIDI dispatch is quantum-boundary'],files,
     },null,2));
     // Preserve all raw evidence and independent continuity metrics before the
     // frame-clock gate fails; a timestamp anomaly is not automatically PCM loss.
