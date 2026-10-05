@@ -10,5 +10,5 @@
 <label>Output volume <output id="volume-value"></output><input id="volume" type="range" min="0" max="2" step="0.05" value="1"></label>
 <label>Delay wet mix <output id="mix-value"></output><input id="mix" type="range" min="0" max="1" step="0.05" value="0.35"></label>
 <label>Feedback <output id="feedback-value"></output><input id="feedback" type="range" min="0" max="0.5" step="0.01" value="0.25"></label>
-<canvas id="waveform" width="640" height="140" aria-label="Candidate output waveform"></canvas><p id="peak">Output peak —</p>
+<canvas id="waveform" width="640" height="140" aria-label="Candidate output waveform, fixed scale minus one to plus one"></canvas><p>Waveform scale: −1 to +1</p><p id="peak">Output peak —</p>
 <details><summary>Candidate settings</summary><pre id="settings"></pre><p>48 kHz browser candidate; MIDI dispatch is at quantum boundaries. Four voices, fixed sine and low-pass, no completed sound bank.</p></details></main><script type="module" src="./main.js"></script></html>
