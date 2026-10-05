@@ -34,8 +34,15 @@ window.runTransitions = async () => {
   send(0,{type:'pitchBend',value:0});const summed=await read(mpeAnalysers);
   for(const channel of [0,1]){send(channel,{type:'channelPressure',pressure:127});cc(channel,74,127);}const expressive=await read(mpeAnalysers);
   cc(1,64,127);send(1,{type:'noteOff',note:69,velocity:0});const sustained=await read(mpeAnalysers),held=await mpe.snapshot();
+  const liveRestored=await mpe.restore(held),liveHeld=await read(mpeAnalysers);
   cc(1,64,0);const released=await read(mpeAnalysers);
   const mpeRestored=await mpe.restore(held),mpeAfterRestore=await read(mpeAnalysers);
+  send(2,{type:'noteOn',note:69,velocity:127});const inherited=await read(mpeAnalysers);
+  // Native live restore overlays persistent slots; it does not reset excluded
+  // notes/controllers. Use the composition's existing explicit reset and let
+  // it render before sending new notes when a cold restore is desired.
+  mpe.events.reset.emit({value:1});const resetBeforeRestore=await read(mpeAnalysers);
+  const coldRestored=await mpe.restore(held),cold=await read(mpeAnalysers);
   send(2,{type:'noteOn',note:69,velocity:127});const fresh=await read(mpeAnalysers);
   cc(2,120,0);const panic=await read(mpeAnalysers);
   const absent=await read(waveAnalysers);
@@ -44,6 +51,6 @@ window.runTransitions = async () => {
   wave.params.frequency.value=12000;wave.params.reset.value=1;await read(waveAnalysers);wave.params.reset.value=0;const high=await read(waveAnalysers);wave.params.frame.value=1;const morphed=await read(waveAnalysers),waveSaved=await wave.snapshot();
   wave.events.load.emit({data:new Float32Array([1])});const short=await read(waveAnalysers);
   const waveRestored=await wave.restore(waveSaved),waveAfterRestore=await read(waveAnalysers);wave.params.reset.value=1;const waveReset=await read(waveAnalysers);
-  return{wave:{absent,low,high,morphed,short,restored:waveRestored,afterRestore:waveAfterRestore,reset:waveReset},sampleRate:ctx.sampleRate,initial,up,downDry,restored,afterRestore,reset,mpe:{quiet,note,member,summed,expressive,sustained,released,restored:mpeRestored,afterRestore:mpeAfterRestore,fresh,panic},errors};
+  return{wave:{absent,low,high,morphed,short,restored:waveRestored,afterRestore:waveAfterRestore,reset:waveReset},sampleRate:ctx.sampleRate,initial,up,downDry,restored,afterRestore,reset,mpe:{quiet,note,member,summed,expressive,sustained,liveRestored,liveHeld,released,restored:mpeRestored,afterRestore:mpeAfterRestore,inherited,resetBeforeRestore,coldRestored,cold,fresh,panic},errors};
  }finally{node?.dispose();mpe?.dispose();wave?.dispose();await ctx.close();}
 };

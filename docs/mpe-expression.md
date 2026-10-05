@@ -31,7 +31,7 @@ CC121 resets only the addressed master/member expression state to bend center, p
 
 `reset(true)` resets every expression channel; `reset(false)` does nothing. Reset is level-sensitive and does not clear notes, stop audio, raise pedals, generate retriggers, or reset DSP. A composition's full panic must explicitly call the allocation policy reset and clear its envelopes/oscillators as appropriate. Call expression reset after native dispatch if reset should win over MIDI in the same quantum.
 
-All state is native transient integer state. Restoring a snapshot starts from centered bend, zero pressure and timbre byte 64; no expression gesture is restored. Existing policy live-note state is also transient. Persistent envelopes/oscillators must be reset by the composition when their note identity is absent; an expression reset alone cannot silence an orphan tail.
+All state is native transient integer state and is excluded from the snapshot. A **fresh-instance** restore (including `renderOffline` into a new driver) starts from centered bend, zero pressure and timbre byte 64. Native 0.4.1 **in-place** `node.restore()` only overlays saved slots: it leaves the current expression, notes and pedals unchanged. It neither recalls excluded gestures from the blob nor clears current ones. For a cold in-place restore, use the composition's existing explicit reset for expression, allocation policy and DSP after restoring; let at least one quantum render before fresh notes. Expression-only reset cannot clear notes or silence an orphan envelope. A composition must also clear persistent voice DSP whenever its note identity is absent.
 
 Native unworklet 0.4.1 dispatch is FIFO before each 128-sample process quantum. Multiple messages in a quantum coalesce to the final state. A nominal sample-129 event affects boundary 128. No sample-accurate scheduling, new transport or hardware MIDI claim is made.
 
@@ -48,3 +48,18 @@ The 35 focused tests use byte fixtures with an independent ordinary-object state
 The packed consumer gate requires strict public-subpath TypeScript, native MIDI/envelope/oscillator rendering at the three offline rates, independent pitch/amplitude equations, zero scrubbed samples, snapshot silence and fresh-note safety. Maximum configured member count is storage coverage, not 15-voice allocation or real-time clearance. No browser, hardware, listening approval or approved golden follows from offline evidence.
 
 The diagnostic composition routes pitch as note plus `bendSemitones`, then applies separate tuning controls. Its amplitude is velocity times a linear envelope times (0.5 + 0.25 member pressure + 0.25 master pressure) times (0.5 + 0.25 member timbre + 0.25 master timbre), with output gain 0.2. This is an explicit test routing, not a standardized MPE sound or preset. The initial packed proof reports zero pitch/level error, maximum audio error below 3.3e-8 and four-voice chord error below 7.7e-8. The four-voice/eight-identity/15-member composition is 719,110 WASM bytes with 65,536 bytes of memory, unchanged over 256 driver blocks. These are functional/fixed-memory results, not deadline clearance. Exact-head package/source/lock hashes and CANDIDATE status are retained in the generated manifest and result pair.
+
+## Retained live-restore finding
+
+The first integrated browser probe on `ed061ca` expected a centered fresh note
+after in-place restore, but observed 187.5 Hz rather than 375 Hz: the current master
+bend of −12 semitones was correctly retained by the native overlay. The fresh-
+driver offline test had not exercised this lifecycle. The corrected browser
+contract separately checks continued held notes/current expression, silence
+when the current note was already released, inherited master expression on a
+new member note, and centered fresh-note audio only after explicit composition
+reset has rendered. This diagnostic composition also tests reset-before-restore
+when a quantum has completed first: its inactive-voice guards clear the restored
+persistent envelope/oscillator tail. General compositions should use the explicit
+reset-after-restore sequence above unless their own ordering is verified. DSP
+statements and upstream restoration are unchanged.

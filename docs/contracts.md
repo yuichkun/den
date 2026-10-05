@@ -55,6 +55,12 @@ choice, but must coordinate changes that affect shared consumers/contracts.
   Gate restoration is verified only for the identical processor/schema and rate.
   Never treat same byte width as type compatibility (#79). A schema change needs
   an explicit reviewed migration and its own tests before old snapshots are used.
+- Native transient state is excluded from snapshots, not automatically reset by
+  an in-place restore. Fresh-driver offline restore starts from declaration
+  defaults; browser `node.restore()` leaves current excluded notes/controllers
+  unchanged. A cold live restore requires the composition's explicit reset,
+  followed by a rendered quantum before fresh notes. Do not infer live clearing
+  from fresh-instance offline evidence.
 - Save after AudioParam edits have actually rendered, while controls are stable
   (#78). A suspended snapshot is not a reliable capture of pending edits in 0.4.1.
   This gate does not solve suspended preset editing or in-flight automation recall.

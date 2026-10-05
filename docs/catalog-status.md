@@ -129,8 +129,9 @@ the independent FIR phase/gain, fixed-delay phase, coherent doubled/halved pitch
 STFT identity and member/master pitch/amplitude equations. Reset silences the
 DSP graph; native snapshot restoration is checked as a parameter path, while
 exact buffer/history/hop-phase continuation remains proved offline. Expression
-restore must clear transient notes and gestures, silence orphan DSP, then accept
-a fresh member note. This is 48-kHz functional evidence, not maximum-capacity,
+checks distinguish current live transient state from fresh-instance defaults.
+A cold live restore uses explicit native composition reset before the next fresh
+note; unreset held notes/controllers deliberately remain current. This is 48-kHz functional evidence, not maximum-capacity,
 all-device deadline, arbitrary-input pitch quality or full MPE acceptance.
 
 The transition browser gate also loads a small two-frame prepared pitch-band

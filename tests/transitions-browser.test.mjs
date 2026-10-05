@@ -24,7 +24,7 @@ function delayed(x,samples){return multiply(x,{re:Math.cos(2*Math.PI*samples/128
 test('packed transition, oversampling, spectral and member-expression controls in actual 48 kHz worklets',{timeout:180000},async()=>{
  const consumer=mkdtempSync(join(tmpdir(),'den-transitions-browser-')),artifacts=join(root,'artifacts/transitions-browser',new Date().toISOString().replaceAll(':','-'));mkdirSync(artifacts,{recursive:true});
  const sources=['package.json','package-lock.json',...readdirSync(join(root,'src')).filter(x=>x.endsWith('.ts')).map(x=>`src/${x}`),'tests/transitions-browser.test.mjs',...readdirSync(join(root,'tests/transitions-browser-consumer')).map(x=>`tests/transitions-browser-consumer/${x}`)];
- const manifest={status:'CANDIDATE',runtimeStatus:'NOT_CLEARED',sourceCommit:run('git',['rev-parse','HEAD'],root).trim(),sourceDirty:run('git',['status','--porcelain'],root).trim()!=='',sourceHashes:Object.fromEntries(sources.map(p=>[p,hash(join(root,p))])),checks:{},limitations:['Small N256/factor2/one-voice browser functional graph, not maximum-capacity or deadline clearance','Snapshot restores native parameters; exact module-history and hop-phase continuation are independently proved offline','Pitch frequency probes are coherent cases, not arbitrary-input pitch quality','MPE is only a manually configured lower-zone expression subset; no master-pedal or hardware guarantee']};
+ const manifest={status:'CANDIDATE',runtimeStatus:'NOT_CLEARED',sourceCommit:run('git',['rev-parse','HEAD'],root).trim(),sourceDirty:run('git',['status','--porcelain'],root).trim()!=='',sourceHashes:Object.fromEntries(sources.map(p=>[p,hash(join(root,p))])),checks:{},limitations:['Small N256/factor2/one-voice browser functional graph, not maximum-capacity or deadline clearance','Snapshot restores native parameters; live transient state is retained unless explicitly reset; exact module-history and hop-phase continuation are independently proved offline','Pitch frequency probes are coherent cases, not arbitrary-input pitch quality','MPE is only a manually configured lower-zone expression subset; no master-pedal or hardware guarantee']};
  let server,browser;
  try{
   cpSync(join(root,'tests/consumer'),consumer,{recursive:true});cpSync(join(root,'tests/transitions-browser-consumer'),consumer,{recursive:true});
@@ -46,9 +46,9 @@ test('packed transition, oversampling, spectral and member-expression controls i
   near(r.up[3].bins[4].amplitude,.125,'coherent doubled pitch');assert(r.up[3].bins[2].amplitude<1e-5);
   near(r.downDry[3].bins[1].amplitude,.125,'coherent halved pitch',2e-4);assert(r.downDry[3].bins[2].amplitude<1e-5);
   for(const x of r.reset)assert.equal(x.peak,0);
-  const m=r.mpe,base=.5*(.5+.5*64/127);assert.equal(m.restored.ok,true);
-  for(const[name,hz,bin,level]of[['note',375,2,base],['member',750,4,base],['summed',375,2,base],['expressive',375,2,1],['sustained',375,2,1],['fresh',375,2,base]]){const a=m[name];assert(a.every(x=>x.finite));near(a[1].mean,hz,`${name} pitch`);near(a[2].mean,level,`${name} level`);near(a[0].bins[bin].amplitude,.2*level,`${name} actual audio`);}
-  for(const name of['quiet','released','afterRestore','panic'])assert(m[name][0].peak===0,`${name} no orphan voice`);
+  const m=r.mpe,base=.5*(.5+.5*64/127),inheritedLevel=.75*(.75+.25*64/127);assert.equal(m.restored.ok,true);assert.equal(m.liveRestored.ok,true);assert.equal(m.coldRestored.ok,true);
+  for(const[name,hz,bin,level]of[['note',375,2,base],['member',750,4,base],['summed',375,2,base],['expressive',375,2,1],['sustained',375,2,1],['liveHeld',375,2,1],['inherited',187.5,1,inheritedLevel],['fresh',375,2,base]]){const a=m[name];assert(a.every(x=>x.finite));near(a[1].mean,hz,`${name} pitch`);near(a[2].mean,level,`${name} level`);near(a[0].bins[bin].amplitude,.2*level,`${name} actual audio`);}
+  for(const name of['quiet','released','afterRestore','resetBeforeRestore','cold','panic'])assert(m[name][0].peak===0,`${name} no orphan voice`);
   const w=r.wave;assert.equal(w.restored.ok,true);
   for(const a of Object.values(w).filter(Array.isArray))assert(a.every(x=>x.finite));
   for(const name of['absent','short']){assert.equal(w[name][0].peak,0);assert.equal(w[name][1].mean,1);}

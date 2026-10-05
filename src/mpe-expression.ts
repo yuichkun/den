@@ -30,8 +30,9 @@ export const mpeExpression = defineSubgraph((config: MpeExpressionConfig) => {
     if (!Number.isFinite(value) || value < 0 || value > 96) throw new RangeError(`mpeExpression ${name} must be finite in [0,96]`);
   }
   const ints = (name: string) => state.buffer.i32({ size: members + 1 }).expose({ name, snapshot: 'transient' });
-  // Store centered integer MIDI values, so zero-initialized/restored transient
-  // state represents bend 8192, pressure 0 and CC74 64 exactly.
+  // Store centered integer MIDI values, so fresh-instance transient defaults
+  // represent bend 8192, pressure 0 and CC74 64. In-place restore leaves
+  // transient state unchanged; reset() is the explicit clearing operation.
   const bend = ints('bend'), pressure = ints('pressure'), timbre = ints('timbre');
   const validChannel = (channel: Node<'i32'>) => channel.gte(0).and(channel.lte(members));
   const valid7 = (value: Node<'i32'>) => value.gte(0).and(value.lte(127));
