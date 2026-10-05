@@ -187,13 +187,15 @@ The recorder receives a synthetic native signal, not a microphone. A graph-side
 length limit makes 64/128-frame capture and pause deterministic; a limit above
 capacity proves the recorder's own 256-frame hard stop. The test checks segment
 boundaries, playback through the existing sample player, overwrite/reset, restored
-PCM plus player history, and loaded-prefix/recorded-suffix interpolation. A browser
+PCM and functional player readback, and loaded-prefix/recorded-suffix interpolation. A browser
 Analyser window covers complete 256-frame periods for the playback mean.
 
 Two independently instantiated frozen-tail subgraphs receive identical signals
 until only one receives a new disturbance. Their nonzero outputs remain exactly
 paired while fully frozen, separate again after thaw/reset, and recover a saved
-paired nonzero history through native in-place restoration. Freeze amount and
+paired nonzero history through native in-place restoration after every saved
+control has actually rendered. The pre-restore pair must still differ, proving
+that control synchronization did not reset away the mutation. Freeze amount and
 frozen flags, unforced thaw decay, held reset and empty-tail freezing are checked
 separately. The browser windows do not claim indefinite energy conservation or
 sample-aligned waveform continuation; independent offline energy/state oracles
@@ -232,3 +234,13 @@ time plus PCM. Those selected interiors do not hide or supersede the retained
 edge, arbitrary-tone, alias and cost counterexamples. Native three-rate exact
 rational composition and public type/build checks precede the hosted browser
 gate. Bit-exact quantum continuation remains separately verified offline.
+
+The initial hosted PR38 and stacked PR39 gates exposed a real live-restore
+ordering limitation: restored state can process under old AudioParams before
+the host restores those values. Both measured paired-left residual
+0.2498931884765625. An independent native one-quantum stale-control reproduction
+matched that exact value; rendering saved controls before restoration recovers
+bit-identical histories at all three rates, including poisoned transient scratch.
+The deterministic negative-gap regression remains in the packed gate. The raw
+browser attempt is retained as an observation, not required to race on every
+schedule. This is documented caller coordination, not atomic restore support.
