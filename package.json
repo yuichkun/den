@@ -199,6 +199,14 @@
     "./resident-time-stretch": {
       "types": "./dist/resident-time-stretch.d.ts",
       "import": "./dist/resident-time-stretch.js"
+    },
+    "./pitch-quantizer": {
+      "types": "./dist/pitch-quantizer.d.ts",
+      "import": "./dist/pitch-quantizer.js"
+    },
+    "./spectral-freeze": {
+      "types": "./dist/spectral-freeze.d.ts",
+      "import": "./dist/spectral-freeze.js"
     }
   },
   "engines": {

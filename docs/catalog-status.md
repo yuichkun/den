@@ -32,6 +32,8 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Native bounded take recorder | `/resident-recorder` | Independent sample-by-sample append/pause/full/reset, loaded-prefix/readback, finite-range, maximum-capacity and native snapshot/public-package proof; no device capture or streaming layer |
 | Controlled FDN frozen tail | `/freeze-reverb` | Independent recurrence, input suppression, bounded transition, frozen-energy drift, native history restore and public-package proof; finite-precision and runtime limits remain |
 | Experimental bounded resident WSOLA | `/resident-time-stretch` | Independent exact rational active-duration/EOF, grain-local sampling/search, native state and public-package proof; severe padded-tail carrier loss, dominant-frequency deviation and CPU deadline misses prevent transparent-quality or realtime acceptance |
+| Octave-periodic musical pitch quantizer | `/pitch-quantizer` | Independent exhaustive-lattice nearest/tie/Schmitt/reset/state and public-package checks, including sparse-array rejection; bounded pitch-control quantization, not audio pitch detection or event-time quantization |
+| Bin-centered spectral freeze | `/spectral-freeze` | Independent dense DFT and circular-shift WOLA, every supported hop/reset/state class and public-package checks; held output is N-periodic with captured-window modulation, not transparent or phase-locked sustain |
 | Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
 Contracts, controls and limitations are detailed in [filters](catalog-filters.md),
@@ -46,6 +48,7 @@ Contracts, controls and limitations are detailed in [filters](catalog-filters.md
 [spectral gating](spectral-gate.md), [prepared convolution](prepared-convolution.md),
 [crossfaded loops](loop-crossfade.md), [take recording](resident-recorder.md),
 [frozen tails](freeze-reverb.md), [experimental resident WSOLA](resident-time-stretch.md),
+[pitch quantization](pitch-quantizer.md), [bin-centered spectral freeze](spectral-freeze-entry.md),
 and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
 loader, asset or test framework is introduced. Dependencies stay at unworklet 0.4.1. The only initial-DSP source exception is
@@ -110,13 +113,13 @@ merge; this document itself does not certify that a pending run has completed.
 | 2. FM / PM / additive / resonators | Bounded candidates included above with independent tuning/sideband/decay and alias evidence. General antialiasing or maximum-capacity real-time support is not implied |
 | 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Bounded native graph-input take recording is included; microphone/device capture, rolling recording, streaming and general stretch remain |
 | 4. Voice / note / expression | Existing voice policy and sustain/glide/tuning wrapper plus manually configured lower-zone member/master expression routing. Full MPE zone/RPN negotiation, master pedals and hardware delivery remain |
-| 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. No transport synchronization, chord capture, or external host/device delivery claim |
+| 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. Bounded octave-periodic pitch-control quantization with explicit hysteresis is included. No transport synchronization, chord capture, or external host/device delivery claim |
 | 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |
 | 7. Drive / waveshaping / reduction | Direct/ADAA fixed curves, native editable 2..17-point curves and fixed 2×/4× memoryless oversampling included, with filtered-dry/bandwidth/phase tradeoffs. General arbitrary-graph oversampling and higher-order AA remain |
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
 | 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Controlled four-line FDN freeze/thaw is included with finite-precision limits. Arbitrary long-room support, hybrid and shimmer remain |
-| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. A bounded sparse resident WSOLA experiment adds independent duration and local-pitch controls, but general time-stretch quality remains incomplete; transparent/stereo/streaming stretching and phase-vocoder capabilities remain |
+| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Separate bin-centered spectral freeze captures and rotates frames into an explicitly N-periodic texture, not transparent sustain. A bounded sparse resident WSOLA experiment adds independent duration and local-pitch controls, but general time-stretch quality remains incomplete; transparent/stereo/streaming stretching and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
 
@@ -270,3 +273,32 @@ continuity and tail tolerances. Negative duplicate/drop/reorder/zero/short-block
 controls verify those assertions. Raw clock anomalies remain explicit
 `CLOCK_METADATA_ANOMALY_REQUIRES_REVIEW` findings; neither this observation fix
 nor a numerical pass clears hardware or real-time acceptance (`NOT_CLEARED`).
+
+## Musical quantization and spectral capture browser boundary
+
+`tests/quantized-freeze-browser.test.mjs` uses actual native 48 kHz control/audio
+outputs. Two three-degree quantizers compare nearest selection with inclusive
+hysteresis, adjacent f32 boundary values, negative octaves and held reset. A saved
+upper degree at the exact midpoint is contrasted with a fresh lower-nearest
+selection after mutation. Saved controls are rendered before restoration; the
+selected degree must remain different until persistent state is restored.
+
+The small N64/H16 spectral graph captures constant input. Positive bin rotations
+circularly shift the captured analysis window. Its steady held waveform therefore
+has an independent closed-form, nonconstant N-periodic envelope, checked sample
+by sample up to an unknown integer cyclic phase. A constant output, fitted RMS or
+changed amplitude cannot substitute for this waveform. Live identity, held input
+changes, latest-input release, a negative recapture and guarded recovery of the
+original positive capture are checked separately. Native telemetry verifies the
+saved controls while the negative capture is still present; reset and empty hold
+are also required. Three-rate native composition/public type/build checks precede
+actual browser execution. Exact full-state continuation stays independently
+verified offline.
+
+These are small functional graphs. Maximum 128-degree quantizer timing varied
+from p50/p99/max 2.04/16.19/152.4 ms in one run to .60/4.91/10.31 ms in a later
+run; both remain evidence, with no realtime clearance. Spectral freeze retains
+strong captured-window modulation, colored off-bin textures, possible increased
+peaks and no finite drain while held. Its ideal 2*sqrt(N) bound is not a limiter
+or a finite-precision theorem. All audio remains CANDIDATE, with no new human
+listening approval or completed general spectral/time-processing claim.
