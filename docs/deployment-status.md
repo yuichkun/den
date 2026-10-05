@@ -5,9 +5,10 @@ The versioned build for the initial candidate is `npm run build:site`:
 - `/`: integrated Diagnostic / Bass / Percussion / Pad × three Delay settings
 - `/diagnostics.html`: silent package gain/snapshot check
 - `/audition.html`: retained Envelope/LFO module audition
+- `/catalog.html`: four musical materials with A/B settings
 
-The build packs the same source into two isolated locked consumers, requires
-identical package integrity, typechecks/builds both, and copies only their Vite
+The build packs the same source into three isolated locked consumers, requires
+identical package integrity, typechecks/builds each, and copies only their Vite
 outputs into `site-dist`. Distinct outputs with the same asset name cause a hard
 failure. The deployment smoke test serves those exact bytes, not the source tree.
 `build:consumer` and `build:integration` remain available for focused local work.
@@ -63,3 +64,12 @@ credential, permission, or check-disabling change is required. See Vercel's
 [file-based configuration](https://vercel.com/docs/project-configuration) for
 install/build/output overrides. The deployment must pass on the final reviewed
 commit; a previous failed status is not waived by a local build.
+
+## Grouped catalog audition
+
+The combined build also stages `/catalog.html` from a third isolated consumer of
+the identical package. It imports four musical-example candidates and their A/B
+maps, uses explicit Start and a visible unity-default master, and retains the
+initial candidate routes. See [catalog audition](catalog-audition.md) for native
+asset receipt, cancellation, keyboard/touch behavior and exact browser gates.
+The standalone `build:catalog` output retains its own root without sibling links.

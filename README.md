@@ -32,6 +32,7 @@ uploads them. No command publishes to a registry.
 - `/`: Diagnostic / Bass / Percussion / Pad with Diagnostic delay / Chorus / Rhythmic delay
 - `/diagnostics.html`: silent package gain and snapshot check
 - `/audition.html`: earlier Envelope/LFO diagnostic listening room
+- `/catalog.html`: four new musical materials with complete A/B settings
 
 Serve that directory over HTTP locally, or use the existing Vercel deployment.
 Select a sound and effect while stopped, then press Start audio. Hold the keys
@@ -45,6 +46,10 @@ Browser coverage is **48 kHz only**; 44.1/96 kHz offline success is not browser
 support. Existing positive candidate listening feedback is recorded separately
 from generated test output and exact-hash golden approval in the
 [acceptance record](docs/initial-acceptance.md).
+
+The [catalog audition](docs/catalog-audition.md) has its own explicit Start,
+independent hold controls and visible unity-default master. Stop before changing
+materials or A/B settings. These new candidates have no inherited listening approval.
 
 ## Public package boundary
 

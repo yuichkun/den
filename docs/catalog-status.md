@@ -103,9 +103,13 @@ merge; this document itself does not certify that a pending run has completed.
 | 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Musical long-IR support, hybrid/freeze/shimmer remain |
 | 11. Pitch / time / STFT | Small FFT/STFT identity and bounded scheduling included only as feasibility proof. Larger musical frames, spectral processing, pitch/time and WSOLA/phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
-| 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped browser audition is separate pending UI work, and new human listening/golden approval is not implied |
+| 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
 
 A missing advanced technique does not stop independently implementable catalog
 work. A module name does not count as completed capability without its stated
 contract and numerical/package evidence. Broader research and runtime limits are
 kept separate from the useful, verified candidate surface.
+
+The grouped [catalog audition](catalog-audition.md) exposes the four A/B musical
+examples separately from the initial sounds. Its functional browser checks and
+visible unity-default gain do not promote runtime or human-listening acceptance.

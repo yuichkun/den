@@ -171,7 +171,8 @@
     "prepack": "npm run build",
     "build:consumer": "node scripts/build-consumer.mjs",
     "build:integration": "node scripts/build-integration.mjs",
-    "build:site": "node scripts/build-site.mjs"
+    "build:site": "node scripts/build-site.mjs",
+    "build:catalog": "node scripts/build-catalog.mjs"
   },
   "peerDependencies": {
     "@unworklet/core": "0.4.1"
