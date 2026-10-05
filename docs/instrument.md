@@ -145,7 +145,7 @@ FFT is used.
 The public subpaths are `@denaudio/den/instrument` and
 `@denaudio/den/instrument-example`. The isolated packed fixture imports the
 replacement oscillator/filter example through that public boundary and renders
-it at all three offline sample rates. It does not reach into package internals.
+it at 48 kHz (the stock instrument is rendered at all three offline rates). It does not reach into package internals.
 
 ## Sustained real-time gate
 
