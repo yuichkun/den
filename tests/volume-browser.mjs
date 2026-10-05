@@ -8,9 +8,9 @@ export async function installVolumeMeter(page){
   const m=new AudioWorkletNode(ctx,'volume-meter',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});window.__masters.at(-1).connect(m);m.connect(ctx.destination);window.__volumeMeter=m;
  });
 }
-export async function readVolumeMeter(page){
+export async function readVolumeMeter(page,exclusiveBound=.800001){
  const m=await page.evaluate(()=>new Promise((resolve,reject)=>{const m=window.__volumeMeter,t=setTimeout(()=>reject(Error('volume meter timeout')),5000);m.port.onmessage=e=>{clearTimeout(t);resolve(e.data);};m.port.postMessage('read');}));
- assert(m.frames>0);assert.equal(m.nonfinite,0);assert.equal(m.clipped,0);assert(m.peak.every(p=>p<=.800001));return m;
+ assert(m.frames>0);assert.equal(m.nonfinite,0);assert.equal(m.clipped,0);assert(m.peak.every(p=>p<exclusiveBound));return m;
 }
 export async function verifyGainAutomation(page){
  const result=await page.evaluate(async()=>{
