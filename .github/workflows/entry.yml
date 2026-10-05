@@ -9,9 +9,10 @@ jobs:
   entry:
     name: entry
     runs-on: ubuntu-latest
-    # PR32 took 15m46s; four new packed lanes and browser compositions need
-    # additional job budget. Numerical, browser and runtime thresholds are unchanged.
-    timeout-minutes: 25
+    # PR36's final run took22m04s. The new spectral/IR/loop focused and
+    # packed/browser gates add about2-3minutes of measured work. Only this
+    # aggregate job budget changes; every test/audio/runtime threshold remains.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:

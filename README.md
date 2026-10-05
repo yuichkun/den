@@ -85,7 +85,8 @@ formant/crossover, dynamics, drive/reduction, modulation/reverb, source/resonato
 control/sequence/arpeggiator, sample/granular, wavetable/VA, sustain/expression
 bounded spectral/convolution, character/frequency-shift, limiter/multiband,
 editable-curve, fixed oversampling, dual-head delay, windowed pitch-shift,
-manual lower-zone expression and musical-example candidates,
+manual lower-zone expression, framewise spectral gate, prepared convolution,
+crossfaded loops and musical-example candidates,
 with their public imports, independent tests and remaining work. These modules
 have separate acceptance evidence; the initial five sounds' feedback does not
 approve new audio automatically.

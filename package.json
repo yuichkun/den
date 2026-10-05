@@ -175,6 +175,18 @@
     "./windowed-pitch-shift": {
       "types": "./dist/windowed-pitch-shift.d.ts",
       "import": "./dist/windowed-pitch-shift.js"
+    },
+    "./spectral-gate": {
+      "types": "./dist/spectral-gate.d.ts",
+      "import": "./dist/spectral-gate.js"
+    },
+    "./prepared-convolution": {
+      "types": "./dist/prepared-convolution.d.ts",
+      "import": "./dist/prepared-convolution.js"
+    },
+    "./loop-crossfade": {
+      "types": "./dist/loop-crossfade.d.ts",
+      "import": "./dist/loop-crossfade.js"
     }
   },
   "engines": {

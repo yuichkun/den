@@ -1,14 +1,10 @@
+// Frozen STFT construction from 4be1c9991459ea559102a5fa8fd76fb3d52a94b9.
+// Test-only baseline: do not update to match new behavior.
 import { f32, f64, i32, instantiate, select, state, type EveryNSamples, type Node } from '@unworklet/core';
-import { spectralFft, spectralForEach } from './spectral-fft.js';
-
-/** Internal graph-construction-only bin view. Never a runtime JS callback. */
-export interface StftSpectrum {
-  real(index: number | Node<'i32'>): Node<'f64'>;
-  imag(index: number | Node<'i32'>): Node<'f64'>;
-}
+import { spectralFft, spectralForEach } from '../../src/spectral-fft.js';
 
 /** Internal construction only. Public wrappers choose their reviewed capacity. */
-export function createStftIdentity(config: { size: number; hopSize: number }, maximumSize: number, processSpectrum?: (spectrum: StftSpectrum) => StftSpectrum) {
+export function createStftIdentity(config: { size: number; hopSize: number }, maximumSize: number) {
   const { size, hopSize } = config;
   if (!Number.isInteger(size) || size < 8 || size > maximumSize || !Number.isInteger(Math.log2(size)) ||
       (hopSize !== size / 2 && hopSize !== size / 4)) {
@@ -51,9 +47,7 @@ export function createStftIdentity(config: { size: number; hopSize: number }, ma
           windowReal.write(cosine.mul(cosineStep).sub(sine.mul(sineStep)));
           windowImag.write(cosine.mul(sineStep).add(sine.mul(cosineStep)));
         });
-        const analysis = fft.transform(n => select(valid.read().gte(i32(size).sub(n)), history.read(cursor.read().add(n).mod(size)), f64(0)).mul(window.read(n)), () => f64(0), false);
-        // The absent hook captures exactly the pre-hook identity graph and state.
-        const spectrum = processSpectrum ? processSpectrum(analysis) : analysis;
+        const spectrum = fft.transform(n => select(valid.read().gte(i32(size).sub(n)), history.read(cursor.read().add(n).mod(size)), f64(0)).mul(window.read(n)), () => f64(0), false);
         spectralForEach(size, n => { real.write(n, spectrum.real(n)); imag.write(n, spectrum.imag(n)); });
         const frame = fft.transform(n => real.read(n), n => imag.read(n), true);
         spectralForEach(size, n => {

@@ -105,9 +105,11 @@ accepts `tick({ gate, trigger, reset, rate })` and returns
   their own tighter phase/control bounds. Player/grain activity masks enforce their own silence.
 
 Loop interpolation smooths fractional lookup but **does not make a discontinuous
-loop seamless**. Loop crossfades, automatic zero-crossing search, time-stretching,
-bandlimited rate conversion and seamless dynamic asset replacement are not in this
-candidate. A high-frequency sine played at double rate demonstrably aliases.
+loop seamless**. For an explicit tail/head overlap, use the separate
+[crossfaded loop candidate](loop-crossfade.md), whose effective period is shortened
+from `L` to `L-F`. `samplePlayer` itself is unchanged. Automatic zero-crossing search,
+time-stretching, bandlimited rate conversion and seamless dynamic asset replacement
+are not provided. A high-frequency sine played at double rate demonstrably aliases.
 
 ## Multisample mapping
 
