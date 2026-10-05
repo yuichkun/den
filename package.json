@@ -159,6 +159,22 @@
     "./curve-shaper": {
       "types": "./dist/curve-shaper.d.ts",
       "import": "./dist/curve-shaper.js"
+    },
+    "./oversampled-drive": {
+      "types": "./dist/oversampled-drive.d.ts",
+      "import": "./dist/oversampled-drive.js"
+    },
+    "./dual-head-delay": {
+      "types": "./dist/dual-head-delay.d.ts",
+      "import": "./dist/dual-head-delay.js"
+    },
+    "./mpe-expression": {
+      "types": "./dist/mpe-expression.d.ts",
+      "import": "./dist/mpe-expression.js"
+    },
+    "./windowed-pitch-shift": {
+      "types": "./dist/windowed-pitch-shift.d.ts",
+      "import": "./dist/windowed-pitch-shift.js"
     }
   },
   "engines": {

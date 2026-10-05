@@ -15,22 +15,28 @@ listening feedback, approved-golden status, or any runtime clearance.
 | PM/FM, fixed additive/unison banks, modal/comb resonators | `/source`, `/resonator` | Independent sideband/alias, recurrence/convolution, bounded-control, linearity/state and three-rate public-package checks; the rejected output-normalized comb transient remains an executable counterexample |
 | Musical clock/sequence, MSEG, held/random modulation, fixed MIDI arp | `/modulation` | Independent rational-clock, BigInt PRNG, curve, reset/seek/state, unsigned native MIDI timestamp/order and public-package checks; external MIDI delivery is unverified |
 | Resident sample, mapped multisample, bounded grains | `/sample` | Native PCM ingress, loaded-length boundaries, independent playback/grain/replacement/state oracles and maximum fixed-capacity public-package proof; loaded runtime cost is not inferred from unloaded driver profiles |
-| Resident wavetable, pulse/triangle, seeded noise | `/wavetable`, `/virtual-analog` | Independent interpolation/quadrature/Fourier/PRNG, tiny/full-range/state and three-rate packed evidence; no automatic bandlimit or harmonic mipmaps |
+| Resident wavetable and prepared pitch bands, pulse/triangle, seeded noise | `/wavetable`, `/virtual-analog` | Independent interpolation/quadrature/Fourier/PRNG, tiny/full-range/state and three-rate packed evidence; host-prepared harmonic truncation and native band/frame morph are covered; interpolation images and fast-control aliasing remain |
 | Sustain/expression policy, glide, 12-TET tuning | `/performance` | Independent native MIDI identity/ordering/pedal/controller and tuning/glide oracles; fixed four-voice/eight-identity bound, no general MPE |
-| Small FFT/STFT identity and fixed partitioned convolution | `/spectral`, `/convolution` | Independent DFT/WOLA/direct-FIR, arbitrary reset/snapshot and nested native scheduler proofs; public N<=64/B<=32/IR<=128 remains a feasibility boundary |
+| FFT/STFT identity and small fixed partitioned convolution | `/spectral`, `/convolution` | Independent DFT/WOLA/direct-FIR, arbitrary reset/snapshot and nested native scheduler proofs; public STFT N<=1024 now has persistent hop-phase proof; convolution B<=32/IR<=128 remains a feasibility boundary |
 | Explicit-feedback character filter | `/character-filter` | Independent small-signal/DC/nonlinear feedback, all-state bounds, alias, tiny-state and packed evidence; not analog-circuit equivalence |
 | Hilbert additive-Hz frequency shift | `/frequency-shifter` | Independent FIR/sideband/phase/state and packed checks in the documented useful band; delayed bypass and retained alias/headroom limits |
 | Lookahead sample-peak limiter and compensated three-band dynamics | `/lookahead-limiter`, `/multiband-dynamics` | Independent sliding-window ceiling, latency/reset/full-range/state and complex allpass reconstruction; neither true-peak nor general real-time clearance |
-| Editable piecewise-linear curves | `/curve-shaper` | 2..17 native audio-rate ordinates, independent interval quadrature, corrected tiny-knot behavior and same-schema state; higher-order AA/oversampling remain separate |
+| Editable piecewise-linear curves | `/curve-shaper` | 2..17 native audio-rate ordinates, independent interval quadrature, corrected tiny-knot behavior and same-schema state; higher-order AA remains separate; fixed oversampling has its own entry below |
+| Fixed 2×/4× oversampled drive | `/oversampled-drive` | Independent literal zero-stuff/FIR/decimation, curve/phase/state and packed proof; matched filtered dry, 32-sample bulk delay, precursors and high-treble loss are explicit |
+| Dual-head delay-time transitions | `/dual-head-delay` | Independent absolute-history crossfade/queue/timing/reset/state oracles, maximum fixed capacity and packed tests; fixed heads do not imply click-free or general pitch/time behavior |
+| Bounded input pitch shift | `/windowed-pitch-shift` | Two complementary moving windows, independent coherent-frequency/alias/cancellation/latency/state oracles and packed tests; arbitrary tones may color or cancel, no general time stretch |
+| Manual lower-zone expression routing | `/mpe-expression` | Native MIDI member/master bend/pressure/CC74 routing, independent identity/controller/snapshot/audio proof; no full MPE pedal/RPN/hardware claim |
 | Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
 Contracts, controls and limitations are detailed in [filters](catalog-filters.md),
 [dynamics](dynamics.md), [drive](drive.md), [modulation/reverb](catalog-modulation-fx.md),
 [sources/resonators](sources.md), [control modulation](control-modulation.md),
-[samples](sample.md), [wavetable](wavetable.md), [VA/noise](virtual-analog.md),
+[samples](sample.md), [wavetable](wavetable.md), [prepared pitch bands](wavetable-bands.md), [VA/noise](virtual-analog.md),
 [performance](performance.md), [spectral framing](spectral.md), [convolution](convolution.md),
 [character filter](character-filter.md), [frequency shift](frequency-shifter.md),
 [limiter/multiband](lookahead-multiband.md), [editable curves](curve-shaper.md)
+[fixed oversampling](oversampled-drive.md), [dual-head transitions](dual-head-delay.md),
+[windowed pitch shift](windowed-pitch-shift.md), [lower-zone expression](mpe-expression.md),
 and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
 loader, asset or test framework is introduced. Dependencies stay at unworklet 0.4.1. The only initial-DSP source exception is
@@ -91,17 +97,17 @@ merge; this document itself does not certify that a pending run has completed.
 
 | Original group | Current boundary / remaining work |
 | --- | --- |
-| 1. Wavetable / VA / unison | Sine/saw/unison plus resident wavetable, pulse/triangle and seeded-noise candidates. Automatic mipmaps, richer table materials and higher-order antialiasing remain |
+| 1. Wavetable / VA / unison | Sine/saw/unison plus resident wavetable, pulse/triangle and seeded-noise candidates. Host-prepared pitch-band tables are included with explicit interpolation-image limits; richer table materials and higher-order antialiasing remain |
 | 2. FM / PM / additive / resonators | Bounded candidates included above with independent tuning/sideband/decay and alias evidence. General antialiasing or maximum-capacity real-time support is not implied |
 | 3. Sample / multisample / granular | Bounded resident PCM, one-shot/loop/reverse/slice, first-match multisample and seeded fixed-pool grains included. Loop crossfade, stereo/live recording, read/write-age rules and streaming remain |
-| 4. Voice / envelope / expression | Initial voice/ADSR plus bounded sustain, channel/key pressure, bend/CC74, glide and 12-TET tuning included. MPE and arbitrary tuning systems remain |
+| 4. Voice / note / expression | Existing voice policy and sustain/glide/tuning wrapper plus manually configured lower-zone member/master expression routing. Full MPE zone/RPN negotiation, master pedals and hardware delivery remain |
 | 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. No transport synchronization, chord capture, or external host/device delivery claim |
 | 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |
-| 7. Drive / reduction / AA | Fixed curves, applicable first-order ADAA and bounded editable piecewise-linear LUT included. Oversampled-drive feasibility is a separate active lane; arbitrary curves and higher-order AA remain |
-| 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Dual-head delay-time transitions are a separate active lane, not general pitch/time processing |
+| 7. Drive / waveshaping / reduction | Direct/ADAA fixed curves, native editable 2..17-point curves and fixed 2×/4× memoryless oversampling included, with filtered-dry/bandwidth/phase tradeoffs. General arbitrary-graph oversampling and higher-order AA remain |
+| 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
 | 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Musical long-IR support, hybrid/freeze/shimmer remain |
-| 11. Pitch / time / STFT | Small FFT/STFT identity and bounded scheduling included only as feasibility proof. Larger musical frames, spectral processing, pitch/time and WSOLA/phase-vocoder capabilities remain |
+| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Spectral transforms, independent time stretch, WSOLA and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
 
@@ -113,3 +119,23 @@ kept separate from the useful, verified candidate surface.
 The grouped [catalog audition](catalog-audition.md) exposes the four A/B musical
 examples separately from the initial sounds. Its functional browser checks and
 visible unity-default gain do not promote runtime or human-listening acceptance.
+
+## Transition and expression browser boundary
+
+`tests/transitions-browser.test.mjs` builds a small five-output public composition
+(two-times drive, fixed-head delay, 2048-sample pitch windows and N256 STFT) plus
+a separate one-voice/two-member MIDI composition. Native controls must produce
+the independent FIR phase/gain, fixed-delay phase, coherent doubled/halved pitch,
+STFT identity and member/master pitch/amplitude equations. Reset silences the
+DSP graph; native snapshot restoration is checked as a parameter path, while
+exact buffer/history/hop-phase continuation remains proved offline. Expression
+restore must clear transient notes and gestures, silence orphan DSP, then accept
+a fresh member note. This is 48-kHz functional evidence, not maximum-capacity,
+all-device deadline, arbitrary-input pitch quality or full MPE acceptance.
+
+The transition browser gate also loads a small two-frame prepared pitch-band
+asset, checks independent low-harmonic interpolation gains and high-pitch folded
+harmonic rejection, edits the native frame, rejects short asset playback, and
+restores PCM/parameters before a held-reset phase check. The cycle-local reader
+precision repair is shared by both wavetable readers; rejected prior readers and
+actual tiny-phase/full-range counterexamples remain in nonshipping tests.

@@ -145,3 +145,8 @@ Method reference: Werner & Azelborn, [Antialiasing Piecewise Polynomial
 Waveshapers, DAFx 2023](https://www.dafx.de/paper-archive/2023/DAFx23_paper_61.pdf).
 This implementation derives the four simple primitives above and validates them
 independently; no reference implementation or vendor audio was copied.
+
+The separate [fixed oversampled drive](oversampled-drive.md) candidate now covers
+a bounded 2×/4× memoryless composition. Its filtered dry path, FIR precursors,
+32-sample bulk delay and high-treble loss are explicit; this does not add general
+arbitrary-graph oversampling or higher-order ADAA to this module.
