@@ -10,9 +10,9 @@ const run = (args, cwd) => execFileSync('npm', ['--cache', join(tmpdir(), 'den-n
 });
 
 // The deployment and entry test use the same isolated, packed-package consumer.
-export function buildConsumer({ stageSite = true } = {}) {
+export function buildConsumer({ stageSite = true, fixture = 'tests/consumer' } = {}) {
   const consumer = mkdtempSync(join(tmpdir(), 'den-consumer-'));
-  cpSync(join(root, 'tests/consumer'), consumer, { recursive: true });
+  cpSync(join(root, fixture), consumer, { recursive: true });
   const [pack] = JSON.parse(run(['pack', '--json', '--pack-destination', consumer], root));
   copyFileSync(join(consumer, pack.filename), join(consumer, 'den.tgz'));
   const lock = JSON.parse(readFileSync(join(consumer, 'package-lock.json'), 'utf8'));

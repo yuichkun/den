@@ -9,7 +9,8 @@ jobs:
   entry:
     name: entry
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Packed 4×3 sound/FX matrix adds long-LFO offline and browser lifecycle coverage.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:

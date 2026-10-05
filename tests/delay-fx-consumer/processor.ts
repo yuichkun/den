@@ -1,5 +1,5 @@
 import { audioInput, audioOutput, defineProcessor, forSample, instantiate, param, state } from '@unworklet/core';
-import { delayFx } from './node_modules/@denaudio/den/dist/delay-fx.js';
+import { delayFx } from '@denaudio/den/delay-fx';
 export const processor = defineProcessor(ctx => {
   const input = audioInput({ channels: 2, name: 'main' });
   const output = audioOutput({ channels: 2, name: 'main' });

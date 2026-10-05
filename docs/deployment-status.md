@@ -1,5 +1,31 @@
 # Consumer deployment
 
+The versioned build for the initial candidate is `npm run build:site`:
+
+- `/`: integrated Diagnostic / Bass / Percussion / Pad × three Delay settings
+- `/diagnostics.html`: silent package gain/snapshot check
+- `/audition.html`: retained Envelope/LFO module audition
+
+The build packs the same source into two isolated locked consumers, requires
+identical package integrity, typechecks/builds both, and copies only their Vite
+outputs into `site-dist`. Distinct outputs with the same asset name cause a hard
+failure. The deployment smoke test serves those exact bytes, not the source tree.
+`build:consumer` and `build:integration` remain available for focused local work.
+The repository's Vercel build command is now `build:site`; install remains
+`npm ci --include=dev`, framework is none, and output remains `site-dist`.
+
+This replaces the former branch-only integration preview override. It does not
+change the Vercel project, production branch, authentication, sharing, permissions
+or response headers. Review and exact-head CI precede main integration; the
+existing Vercel check must pass on the final head. A successful build or deploy
+is not runtime clearance, physical-device certification, or golden approval.
+See [current acceptance boundaries](initial-acceptance.md).
+
+## Historical entry-gate deployment repair
+
+The following records the original G0 repair and its then-current `build:consumer`
+route. That route is preserved at `/diagnostics.html` by the current site build.
+
 The failure on `3ea862b1cb7b9fa37afa892e51606ea0556a35ae` is confirmed by the
 [deployment log](https://vercel.com/escentier/den/7XCUWxMzapFEBzsQhipQ7UhakxXd):
 

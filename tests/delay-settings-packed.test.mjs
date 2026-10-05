@@ -18,11 +18,11 @@ test('packed delay settings render both candidates against independent reference
   lock.packages['node_modules/@denaudio/den'].integrity = pack.integrity;
   writeFileSync(join(consumer, 'package-lock.json'), JSON.stringify(lock));
   run('npm', ['ci', '--include=dev', '--ignore-scripts'], consumer);
-  // Physical packed modules until the integration owner adds public exports.
-  writeFileSync(join(consumer, 'fixture.mjs'), readFileSync(join(root, 'tests/fixtures/delay-settings.mjs'), 'utf8').replace('../../dist/delay-fx.js', './node_modules/@denaudio/den/dist/delay-fx.js'));
+  // Exercise the package export boundary.
+  writeFileSync(join(consumer, 'fixture.mjs'), readFileSync(join(root, 'tests/fixtures/delay-settings.mjs'), 'utf8').replace('../../dist/delay-fx.js', '@denaudio/den/delay-fx'));
   writeFileSync(join(consumer, 'settings-render.mjs'), `
 import { writeFileSync } from 'node:fs';
-import { chorusSettings, rhythmicDelaySettings } from './node_modules/@denaudio/den/dist/delay-settings.js';
+import { chorusSettings, rhythmicDelaySettings } from '@denaudio/den/delay-settings';
 import { inputs, render, reference, close } from './fixture.mjs';
 const results=[];
 for (const sampleRate of [44100,48000,96000]) {
@@ -42,5 +42,5 @@ writeFileSync('settings-results.json',JSON.stringify(results,null,2));
   const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex');
   copyFileSync(join(consumer, 'den.tgz'), join(artifacts, 'den.tgz'));
   copyFileSync(join(consumer, 'package-lock.json'), join(artifacts, 'consumer-package-lock.json'));
-  writeFileSync(join(artifacts, 'packed-verification.json'), JSON.stringify({ status: 'pass', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), packageSHA256: hash(join(artifacts, 'den.tgz')), consumerLockSHA256: hash(join(artifacts, 'consumer-package-lock.json')), results: JSON.parse(readFileSync(join(consumer, 'settings-results.json'), 'utf8')), limitation: 'Physical packed module imports; public export remains integration-owned; offline rendering only.' }, null, 2));
+  writeFileSync(join(artifacts, 'packed-verification.json'), JSON.stringify({ status: 'pass', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), packageSHA256: hash(join(artifacts, 'den.tgz')), consumerLockSHA256: hash(join(artifacts, 'consumer-package-lock.json')), results: JSON.parse(readFileSync(join(consumer, 'settings-results.json'), 'utf8')), limitation: 'Public package imports; offline rendering only.' }, null, 2));
 });

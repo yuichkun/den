@@ -107,8 +107,8 @@ The fixture rejects an intentionally wrong waveform. No audio golden is used.
 
 `tests/delay-packed.test.mjs` packs the package, installs it into an isolated locked
 consumer, checks declarations strictly, renders offline at 44100/48000/96000, and
-builds and renders Chromium at **48000 only**. It uses the physical installed
-`dist/delay-readhead.js` entry while public exports await integration. It neither
+builds and renders Chromium at **48000 only**. It imports the public
+`@denaudio/den/delay-readhead` subpath. It neither
 imports repository source nor edits an installed dependency. The existing entry
 test retains the other-rate browser rejection probes.
 
@@ -116,11 +116,6 @@ Artifacts in `artifacts/delay/` are CANDIDATE: raw WAVs, static waveforms, the p
 tarball/consumer lock, browser samples, and a manifest linking source/settings/input
 and file hashes. CI uploads these through the existing artifact step.
 
-Minimal proposed integration patch (not applied in this lane):
-
-- `src/index.ts`: `export { delayReadhead, type DelayReadheadConfig } from './delay-readhead.js';`
-- Optionally expose `./delay-readhead` with types `./dist/delay-readhead.d.ts` and
-  import `./dist/delay-readhead.js` in `package.json`.
-- Once approved, replace the packed fixture's physical import with the chosen
-  public import; package/lock, shared consumer, and shared contract edits remain
-  owned by integration.
+The integration owner exposes `./delay-readhead` with its declarations and ESM
+implementation. The packed fixture exercises that public import; package/lock,
+shared consumers and shared contracts stay under one integration owner.

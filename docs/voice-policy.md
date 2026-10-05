@@ -1,6 +1,6 @@
 # Voice policy integration (GEN-616)
 
-`src/voice-policy.ts` provides a construction-time fixed-capacity unworklet subgraph. It allocates voices and emits control values; it contains no oscillator, envelope, filter, audio mixing, or MIDI transport. The public package export is reserved for the integration owner.
+`src/voice-policy.ts` provides a construction-time fixed-capacity unworklet subgraph. It allocates voices and emits control values; it contains no oscillator, envelope, filter, audio mixing, or MIDI transport. The public package subpath is `@denaudio/den/voice-policy`. The isolated entry consumer checks its types and renders note-on/note-off gate behavior at 44.1/48/96 kHz.
 
 Instantiate with a required configuration and an explicit instance name (the same workaround for unworklet #104 used by the entry gate). Call `bindMidi` once in declaration scope with an existing `event.midi({ from: 'main', name: 'midi' })` input. The host sends through unworklet's existing node MIDI API. Alternatively, invoke the graph methods from existing graph event handlers. Arguments are unworklet nodes, not host numbers.
 
