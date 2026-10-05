@@ -28,6 +28,8 @@ const measurements=[];
 for(const [name,setting] of Object.entries(settings)) {
   const processor=createInstrument(setting.config);
   for(const sampleRate of [44100,48000,96000]) {
+    // The exact Pad steal input has independent ownership/ADSR control-probe
+    // oracles in instrument-settings.spec.ts; here retain its stock-DSP PCM.
     for(const [kind,fixture] of Object.entries({phrase:phrases[name],maximum:stress[name],...(name==='pad'?{steal}:{})})) {
       const {frames,midi,windows}=expand(fixture,sampleRate);
       const options={sampleRate,duration:(frames-0.5)/sampleRate,events:midi,params:Object.fromEntries(Object.entries(setting.parameters).map(([key,value])=>[key,[value]]))};

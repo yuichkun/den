@@ -271,3 +271,94 @@ for (const rate of rates) {
     }
   }, 60000);
 }
+
+for (const rate of rates) {
+  test(`Pad steal fixture reuses released ownership, steals oldest held and ignores obsolete off64 at ${rate}`, async () => {
+    const p = expectedPad;
+    // Exact steal timeline from sound-candidates-consumer/fixtures.mjs, including
+    // FIFO off60/on72 at q375 and its per-rate quantum-boundary time mapping.
+    const q = (value: number) => Math.round(value * rate / 48000) * 128;
+    const reuseAt = q(375), stealAt = q(750), obsoleteOffAt = q(1000), releaseAt = q(1250);
+    const input = [...[60, 64, 67, 71].map(note => at(0, on(note))),
+      at(reuseAt, off(60)), at(reuseAt, on(72)), at(stealAt, on(74)), at(obsoleteOffAt, off(64)),
+      ...[67, 71, 72, 74].map(note => at(releaseAt, off(note)))];
+    type Levels = { amp: number; filter: number };
+    const zero: Levels = { amp: 0, filter: 0 };
+    const levels = (n: number, begin = 0, end = releaseAt, start = zero): Levels => ({
+      amp: envelope(p, 'amp', rate, n, begin, end, start.amp),
+      filter: envelope(p, 'filter', rate, n, begin, end, start.filter),
+    });
+    // Explicit ownership, not an allocator simulation or captured rendered state:
+    // slot 0: 60 -> 72; slot 1: 64 -> 74; slots 2/3 retain 67/71.
+    // q375's two MIDI events precede the same first DSP sample, so no release
+    // sample occurs between off60 and on72. Both retriggers use the old emitted
+    // amp AND filter levels, even though oscillator/filter histories restart.
+    const from60 = levels(reuseAt - 1);
+    const from64 = levels(stealAt - 1);
+    const from72 = levels(stealAt - 1, reuseAt, releaseAt, from60);
+    const fromReleased60 = levels(stealAt - 1, 0, reuseAt);
+    expect(from60.amp).toBeGreaterThan(0.9);
+    expect(from60.filter).toBeGreaterThan(0.7);
+    expect(from64.amp).toBeGreaterThan(0.69);
+    expect(from64.filter).toBeGreaterThan(0.8);
+
+    for (const probe of ['dc', 'frequency', 'cutoff'] as const) {
+      const result = await render(probeConfig(padConfig, probe), padParameters, rate, q(3000), input);
+      const contribution = (n: number, note: number, begin = 0, end = releaseAt, start = zero) => {
+        const level = levels(n, begin, end, start);
+        const control = probe === 'frequency' ? pitchHz(p, rate, n, note, 0) / 1000
+          : probe === 'cutoff' ? cutoffHz(p, rate, n, level.filter) / 20000 : 1;
+        return level.amp * control;
+      };
+      const reference = (n: number, wrong?: 'released-slot' | 'oldest-held' | 'obsolete-off' | 'zero-retrigger') => {
+        const start60 = wrong === 'zero-retrigger' ? zero : from60;
+        const start64 = wrong === 'zero-retrigger' ? zero : from64;
+        let slot0 = n < reuseAt ? contribution(n, 60) : contribution(n, 72, reuseAt, releaseAt, start60);
+        let slot1 = n < stealAt ? contribution(n, 64) : contribution(n, 74, stealAt,
+          wrong === 'obsolete-off' ? obsoleteOffAt : releaseAt, start64);
+        if (wrong === 'released-slot') {
+          // Wrong alternative: q375 steals held 64 instead of reusing released
+          // 60, then q750 reuses 60's remaining release tail for 74.
+          slot0 = n < stealAt ? contribution(n, 60, 0, reuseAt)
+            : contribution(n, 74, stealAt, releaseAt, fromReleased60);
+          slot1 = n < reuseAt ? contribution(n, 64)
+            : contribution(n, 72, reuseAt, releaseAt, from60);
+        } else if (wrong === 'oldest-held') {
+          // Wrong alternative: q750 steals slot 0's newer 72, leaving 64 held.
+          if (n >= stealAt) slot0 = contribution(n, 74, stealAt, releaseAt, from72);
+          slot1 = contribution(n, 64, 0, obsoleteOffAt);
+        }
+        return (slot0 + slot1 + contribution(n, 67) + contribution(n, 71)) *
+          Math.fround(p.gain) * tremolo(p, rate, n);
+      };
+      close(result.outputs.main[0], n => reference(n));
+      // Each negative is tested only after its disputed transition, avoiding
+      // accidental rejection from an unrelated portion of the phrase.
+      for (const [wrong, begin, end] of [
+        ['released-slot', reuseAt, stealAt],
+        ['oldest-held', stealAt, obsoleteOffAt],
+        ['obsolete-off', obsoleteOffAt, releaseAt],
+        ['zero-retrigger', reuseAt, stealAt],
+      ] as const) {
+        expect(() => close(result.outputs.main[0].subarray(begin, end), n => reference(n + begin, wrong)), wrong).toThrow();
+      }
+      if (probe === 'dc') {
+        // Remove the analytically known unaffected voices to expose each new
+        // owner's first attack step. The same fixed 2e-6 budget also applies
+        // here in envelope units; gains are not raised for the probe.
+        const summedLevel = (n: number) => result.outputs.main[0][n] /
+          (Math.fround(p.gain) * tremolo(p, rate, n));
+        const attackFrames = frames(p.ampAttack, rate);
+        const first72 = summedLevel(reuseAt) - 3 * levels(reuseAt).amp;
+        const first74 = summedLevel(stealAt) - levels(stealAt, reuseAt, releaseAt, from60).amp - 2 * levels(stealAt).amp;
+        expect(Math.abs(first72 - (from60.amp + (1 - from60.amp) / attackFrames))).toBeLessThan(2e-6);
+        expect(Math.abs(first74 - (from64.amp + (1 - from64.amp) / attackFrames))).toBeLessThan(2e-6);
+        expect(first72).toBeGreaterThan(0.9);
+        expect(first74).toBeGreaterThan(0.69);
+      }
+      const silenceAt = releaseAt + frames(p.ampRelease, rate) - 1;
+      expect(result.outputs.main[0][silenceAt - 1]).toBeGreaterThan(0);
+      expect(result.outputs.main[0].slice(silenceAt).every(x => x === 0)).toBe(true);
+    }
+  }, 60000);
+}
