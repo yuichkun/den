@@ -5,6 +5,8 @@ import { oscillator } from './oscillator.js';
 import { filter } from './filter.js';
 import { voicePolicy, type VoicePolicyConfig } from './voice-policy.js';
 
+export { bassConfig, bassParameters, percussionConfig, percussionParameters, padConfig, padParameters } from './instrument-settings.js';
+
 export interface InstrumentConfig extends VoicePolicyConfig {
   waveform?: 'sine' | 'saw';
   /** Compatible unworklet subgraphs, instantiated independently for each voice. */

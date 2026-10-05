@@ -78,3 +78,11 @@ legacy packages, documentation, scripts, and configuration are removed in this
 branch's diff; their history remains in Git. Existing MIT/Apache-2.0 legal texts
 and contributor attribution are retained as license notices, not implementation.
 The public package is currently version `0.0.0`; no registry release is intended.
+
+## Initial instrument sound candidates
+
+[The Bass, Percussion and Pad settings](docs/instrument-settings.md) are plain
+construction options and complete AudioParam maps for the same instrument
+engine, exported by `@denaudio/den/instrument`. Their reproducible dry phrases,
+maximum-velocity inputs and packed consumer checks remain CANDIDATE. They do
+not imply runtime clearance or listening/golden approval.
