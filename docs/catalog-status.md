@@ -29,6 +29,8 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Framewise spectral gate | `/spectral-gate` | Independent dense-DFT/bin-mask/WOLA, frame-sampled controls, phase/state and public-package checks; no-hook STFT identity is byte-identical and processed tails require2N drain |
 | Prepared-spectrum convolution | `/prepared-convolution` | Certified unchanged host packet, fixed B128/P64 and8192 taps, independent direct/quantized FIR, native load/reset/state and public-package proof; quantization, preload and deadline limits remain |
 | Crossfaded resident loops | `/loop-crossfade` | Independent forward/reverse/fractional/overlap/replacement/state proof; effective period is L-F, no unchanged-duration or arbitrary-content seamlessness claim |
+| Native bounded take recorder | `/resident-recorder` | Independent sample-by-sample append/pause/full/reset, loaded-prefix/readback, finite-range, maximum-capacity and native snapshot/public-package proof; no device capture or streaming layer |
+| Controlled FDN frozen tail | `/freeze-reverb` | Independent recurrence, input suppression, bounded transition, frozen-energy drift, native history restore and public-package proof; finite-precision and runtime limits remain |
 | Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
 Contracts, controls and limitations are detailed in [filters](catalog-filters.md),
@@ -40,7 +42,9 @@ Contracts, controls and limitations are detailed in [filters](catalog-filters.md
 [limiter/multiband](lookahead-multiband.md), [editable curves](curve-shaper.md)
 [fixed oversampling](oversampled-drive.md), [dual-head transitions](dual-head-delay.md),
 [windowed pitch shift](windowed-pitch-shift.md), [lower-zone expression](mpe-expression.md),
-and [musical examples](musical-examples.md).
+[spectral gating](spectral-gate.md), [prepared convolution](prepared-convolution.md),
+[crossfaded loops](loop-crossfade.md), [take recording](resident-recorder.md),
+[frozen tails](freeze-reverb.md), and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
 loader, asset or test framework is introduced. Dependencies stay at unworklet 0.4.1. The only initial-DSP source exception is
 a narrowly tested one-sample read-head construction-boundary correction; existing
@@ -102,14 +106,14 @@ merge; this document itself does not certify that a pending run has completed.
 | --- | --- |
 | 1. Wavetable / VA / unison | Sine/saw/unison plus resident wavetable, pulse/triangle and seeded-noise candidates. Host-prepared pitch-band tables are included with explicit interpolation-image limits; richer table materials and higher-order antialiasing remain |
 | 2. FM / PM / additive / resonators | Bounded candidates included above with independent tuning/sideband/decay and alias evidence. General antialiasing or maximum-capacity real-time support is not implied |
-| 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Live recording, streaming and general stretch remain |
+| 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Bounded native graph-input take recording is included; microphone/device capture, rolling recording, streaming and general stretch remain |
 | 4. Voice / note / expression | Existing voice policy and sustain/glide/tuning wrapper plus manually configured lower-zone member/master expression routing. Full MPE zone/RPN negotiation, master pedals and hardware delivery remain |
 | 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. No transport synchronization, chord capture, or external host/device delivery claim |
 | 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |
 | 7. Drive / waveshaping / reduction | Direct/ADAA fixed curves, native editable 2..17-point curves and fixed 2×/4× memoryless oversampling included, with filtered-dry/bandwidth/phase tradeoffs. General arbitrary-graph oversampling and higher-order AA remain |
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
-| 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Arbitrary long-room support, hybrid/freeze/shimmer remain |
+| 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Controlled four-line FDN freeze/thaw is included with finite-precision limits. Arbitrary long-room support, hybrid and shimmer remain |
 | 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Independent time stretch, WSOLA and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
@@ -172,3 +176,66 @@ input; native header/number scans do not certify arbitrary supplied spectra.
 Preload while audible playback is gated off. Its cold/warm deadline misses remain
 recorded. A loop overlap changes the effective duration and can cancel or smear
 material; no antialiasing, universal seam removal, recording or streaming follows.
+
+
+## Native take and frozen-tail browser boundary
+
+`tests/capture-freeze-browser.test.mjs` adds two small actual 48 kHz worklets.
+The recorder receives a synthetic native signal, not a microphone. A graph-side
+length limit makes 64/128-frame capture and pause deterministic; a limit above
+capacity proves the recorder's own 256-frame hard stop. The test checks segment
+boundaries, playback through the existing sample player, overwrite/reset, restored
+PCM and functional player readback, and loaded-prefix/recorded-suffix interpolation. A browser
+Analyser window covers complete 256-frame periods for the playback mean.
+
+Two independently instantiated frozen-tail subgraphs receive identical signals
+until only one receives a new disturbance. Their nonzero outputs remain exactly
+paired while fully frozen, separate again after thaw/reset, and recover a saved
+paired nonzero history through native in-place restoration after every saved
+control has actually rendered. The pre-restore pair must still differ, proving
+that control synchronization did not reset away the mutation. Freeze amount and
+frozen flags, unforced thaw decay, held reset and empty-tail freezing are checked
+separately. The browser windows do not claim indefinite energy conservation or
+sample-aligned waveform continuation; independent offline energy/state oracles
+remain the evidence for those narrower numerical properties.
+
+The installed consumer also renders both compositions at 44.1/48/96 kHz before
+bundling. Browser execution must pass on the exact final head in hosted CI. These
+checks introduce no capture permission, device bridge, storage service or runtime
+clearance. Logical clearing of either storage does not securely erase old bytes.
+
+The initial hosted PR38 and stacked PR39 gates exposed a real live-restore
+ordering limitation: restored state can process under old AudioParams before
+the host restores those values. Both measured paired-left residual
+0.2498931884765625. An independent native one-quantum stale-control reproduction
+matched that exact value; rendering saved controls before restoration recovers
+bit-identical histories at all three rates, including poisoned transient scratch.
+The deterministic negative-gap regression remains in the packed gate. The raw
+browser attempt is retained as an observation, not required to race on every
+schedule. This is documented caller coordination, not atomic restore support.
+
+
+The inherited transitions browser probe exposed the same non-atomic control
+boundary with a different lasting effect. At a 48 kHz / 375 Hz coherent input,
+one stale ratio=.5 quantum advances the two-window pitch phase by 1/32, moving
+read ages by 64 samples and permanently inverting the later unity-ratio output.
+Independent native restoration with odd stale-quantum counts reproduces the
+observed real-bin +0.006133459294852017 instead of -0.006133459294851527; even
+gaps can appear correct. The negative-gap regression retains both cases.
+
+The transitions fixture now renders all five saved ratio/time/gain/mix/reset
+controls before restore and verifies them exactly through native telemetry,
+including the small f32 delay-seconds value. It does not reset or retrigger the
+pitch effect to hide phase state; all original complex phase/gain assertions
+remain. MPE transient-state and instrument observer-clock findings stay separate.
+
+The sustained instrument observer also separates published clock metadata from
+captured samples. A failing and passing hosted 12-second WAV were byte-identical
+despite repeated/skipped `currentFrame` values. The revised observer captures a
+separate native buffer-source ramp and requires exact per-sample progression,
+128-sample block lengths and 576,000 total samples, including silence. Its audio
+oracle now predicts the complete steady interval with the original amplitude,
+continuity and tail tolerances. Negative duplicate/drop/reorder/zero/short-block
+controls verify those assertions. Raw clock anomalies remain explicit
+`CLOCK_METADATA_ANOMALY_REQUIRES_REVIEW` findings; neither this observation fix
+nor a numerical pass clears hardware or real-time acceptance (`NOT_CLEARED`).

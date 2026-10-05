@@ -92,3 +92,21 @@ at 44.1/48/96 kHz offline. The isolated packed consumer checks public declaratio
 native per-sample ratio controls and fixed maximum allocation. Local timing is
 diagnostic only. No browser/hardware realtime deadline, human listening approval
 or golden-audio status follows from these tests.
+
+## Live state and control restoration
+
+Pinned core 0.4.1 copies worklet state before the host restores AudioParam values.
+Restoring saved phase while an old ratio is still rendering can advance that
+phase before unity ratio arrives; unity then holds the changed phase indefinitely.
+For W2048 and an old ratio .5, one 128-sample quantum changes phase by 1/32 and
+read age by 64 samples. A coherent 375 Hz input at 48 kHz therefore changes sign.
+An even gap can coincidentally preserve that particular tone's phase; a passing
+window is not proof of an atomic operation.
+
+The tested browser composition first sets every saved control and confirms it
+rendered, then restores without reset or retrigger. Native telemetry is checked
+exactly and the original complex-phase assertion remains. This caller protocol
+uses the existing native API, not an upstream fix or a general live-restore
+guarantee for arbitrary changing automation/input. Exact same-schema offline
+continuation and the deterministic stale-gap counterexample remain separate
+evidence. See [shared contracts](contracts.md).

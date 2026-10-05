@@ -15,13 +15,13 @@ export default defineProcessor(({sampleRate})=>{
  const gain=param.f32({default:1,min:0,max:32,automationRate:'a-rate'}).named('gain');
  const mix=param.f32({default:1,min:0,max:1,automationRate:'a-rate'}).named('mix');
  const reset=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('reset');
- const out=audioOutput({name:'main',channels:5});
+ const out=audioOutput({name:'main',channels:10});
  return{process(){forSample((i,everyNSamples)=>{
   const clear=reset.at(i).gte(.5),x=source.tick(f32(375),clear).mul(.125);
   const d=drive.tick(x,gain.at(i),mix.at(i),clear);
   const t=delay.tick(x,time.at(i),clear).output;
   const p=pitch.tick(x,{ratio:ratio.at(i),retrigger:clear,reset:clear}).output;
   const s=spectral.tick(x,clear,everyNSamples);
-  [x,d,t,p,s].forEach((value,ch)=>out.ch(ch).at(i).write(value));
+  [x,d,t,p,s,ratio.at(i),time.at(i),gain.at(i),mix.at(i),reset.at(i)].forEach((value,ch)=>out.ch(ch).at(i).write(value));
  });}};
 });
