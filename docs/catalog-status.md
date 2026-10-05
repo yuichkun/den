@@ -18,12 +18,20 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Resident wavetable, pulse/triangle, seeded noise | `/wavetable`, `/virtual-analog` | Independent interpolation/quadrature/Fourier/PRNG, tiny/full-range/state and three-rate packed evidence; no automatic bandlimit or harmonic mipmaps |
 | Sustain/expression policy, glide, 12-TET tuning | `/performance` | Independent native MIDI identity/ordering/pedal/controller and tuning/glide oracles; fixed four-voice/eight-identity bound, no general MPE |
 | Small FFT/STFT identity and fixed partitioned convolution | `/spectral`, `/convolution` | Independent DFT/WOLA/direct-FIR, arbitrary reset/snapshot and nested native scheduler proofs; public N<=64/B<=32/IR<=128 remains a feasibility boundary |
+| Explicit-feedback character filter | `/character-filter` | Independent small-signal/DC/nonlinear feedback, all-state bounds, alias, tiny-state and packed evidence; not analog-circuit equivalence |
+| Hilbert additive-Hz frequency shift | `/frequency-shifter` | Independent FIR/sideband/phase/state and packed checks in the documented useful band; delayed bypass and retained alias/headroom limits |
+| Lookahead sample-peak limiter and compensated three-band dynamics | `/lookahead-limiter`, `/multiband-dynamics` | Independent sliding-window ceiling, latency/reset/full-range/state and complex allpass reconstruction; neither true-peak nor general real-time clearance |
+| Editable piecewise-linear curves | `/curve-shaper` | 2..17 native audio-rate ordinates, independent interval quadrature, corrected tiny-knot behavior and same-schema state; higher-order AA/oversampling remain separate |
+| Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
 Contracts, controls and limitations are detailed in [filters](catalog-filters.md),
 [dynamics](dynamics.md), [drive](drive.md), [modulation/reverb](catalog-modulation-fx.md),
 [sources/resonators](sources.md), [control modulation](control-modulation.md),
 [samples](sample.md), [wavetable](wavetable.md), [VA/noise](virtual-analog.md),
-[performance](performance.md), [spectral framing](spectral.md) and [convolution](convolution.md).
+[performance](performance.md), [spectral framing](spectral.md), [convolution](convolution.md),
+[character filter](character-filter.md), [frequency shift](frequency-shifter.md),
+[limiter/multiband](lookahead-multiband.md), [editable curves](curve-shaper.md)
+and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
 loader, asset or test framework is introduced. Dependencies stay at unworklet 0.4.1. The only initial-DSP source exception is
 a narrowly tested one-sample read-head construction-boundary correction; existing
@@ -57,8 +65,18 @@ frequency-bin retuning, sustain release, transient-note snapshot behavior and
 panic. A separate small wavetable/VA graph checks asset completeness, frequency
 edits, discrete pulse/triangle Fourier amplitudes and seeded-noise reset.
 
+`tests/advanced-browser.test.mjs` adds actual 48-kHz signed-shift frequency bins,
+useful-band image rejection, linked sample-ceiling edits, and independent complex
+APlo×APhi reconstruction. Wet compression is checked separately from the aligned
+dry output. Editable-curve tests check the linear two-tap transfer and a changed
+ordinate's analytical DC value. Browser reset and parameter restoration are
+functional checks; exact timing/state continuity remain independently proved
+offline. The character-filter packed gate separately exercises native drive,
+resonance/pole edits and noninitial history recovery in an actual browser.
+
 The resource limits remain explicit. Sample max32-grain and combined source
-profiles have exceeded the quantum budget. Native-loop spectral optimization
+profiles have exceeded the quantum budget; the full multiband fixture also retains
+measured deadline misses despite its graph-size reduction. Native-loop spectral optimization
 reduces graph expansion, but historical cold-start and large-frame watchdog
 failures are retained. No maximum-capacity, long-IR, larger-frame or hardware
 real-time clearance follows from these small browser compositions.
@@ -78,14 +96,14 @@ merge; this document itself does not certify that a pending run has completed.
 | 3. Sample / multisample / granular | Bounded resident PCM, one-shot/loop/reverse/slice, first-match multisample and seeded fixed-pool grains included. Loop crossfade, stereo/live recording, read/write-age rules and streaming remain |
 | 4. Voice / envelope / expression | Initial voice/ADSR plus bounded sustain, channel/key pressure, bend/CC74, glide and 12-TET tuning included. MPE and arbitrary tuning systems remain |
 | 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. No transport synchronization, chord capture, or external host/device delivery claim |
-| 6. Filters / EQ / formants / crossover | Clean candidate modules above. Nonlinear character filtering is an active separate lane; broader resonator variants remain distinct |
-| 7. Drive / reduction / AA | Fixed curves and applicable first-order ADAA above. Oversampling, arbitrary user curves/LUT and higher-order AA are not claimed |
-| 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. A bounded quadrature frequency shifter is an active separate lane. Dual-head pitch-preserving transitions remain |
-| 9. Dynamics / limiter / multiband | Single-band candidates above. Bounded lookahead/sample-peak limiting and compensated multiband are active separate work; true-peak certification is not inferred |
+| 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |
+| 7. Drive / reduction / AA | Fixed curves, applicable first-order ADAA and bounded editable piecewise-linear LUT included. Oversampled-drive feasibility is a separate active lane; arbitrary curves and higher-order AA remain |
+| 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Dual-head delay-time transitions are a separate active lane, not general pitch/time processing |
+| 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
 | 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Musical long-IR support, hybrid/freeze/shimmer remain |
 | 11. Pitch / time / STFT | Small FFT/STFT identity and bounded scheduling included only as feasibility proof. Larger musical frames, spectral processing, pitch/time and WSOLA/phase-vocoder capabilities remain |
-| 12. Concrete chains / blend | Initial instrument→Delay and packed drive→dynamics examples. Musical chains and latency/phase/tail interactions expand with reviewed modules |
-| 13. Sounds / configurations / materials | Initial five settings remain intact. New meaningful sound examples/materials require their own provenance and later grouped listening evaluation |
+| 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
+| 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped browser audition is separate pending UI work, and new human listening/golden approval is not implied |
 
 A missing advanced technique does not stop independently implementable catalog
 work. A module name does not count as completed capability without its stated

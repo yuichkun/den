@@ -135,7 +135,8 @@ applies independent numerical checks, and records source/audio/package hashes.
 All generated audio and manifests remain **CANDIDATE**, requiring separate human
 approval. The lane has no local browser/realtime performance proof.
 
-Remaining catalog work: user-editable/LUT curves, higher-order ADAA, verified
+Bounded user-editable piecewise-linear curves are now a separate
+[curve-shaper candidate](curve-shaper.md). Remaining work: higher-order ADAA, verified
 oversampling wrappers, configurable multistage coloration engines, performance
 and listening comparison. Composing several current instances is possible but
 does not establish an oversampling or multistage-quality guarantee.

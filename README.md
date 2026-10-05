@@ -78,7 +78,8 @@ Snapshots require the same processor/schema/sample rate. See the
 The [catalog coverage record](docs/catalog-status.md) lists additive clean filter/EQ,
 formant/crossover, dynamics, drive/reduction, modulation/reverb, source/resonator
 control/sequence/arpeggiator, sample/granular, wavetable/VA, sustain/expression
-and bounded spectral/convolution candidates,
+bounded spectral/convolution, character/frequency-shift, limiter/multiband,
+editable-curve and musical-example candidates,
 with their public imports, independent tests and remaining work. These modules
 have separate acceptance evidence; the initial five sounds' feedback does not
 approve new audio automatically.

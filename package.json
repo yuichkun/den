@@ -16,6 +16,10 @@
     "docs"
   ],
   "exports": {
+    "./character-filter": {
+      "types": "./dist/character-filter.d.ts",
+      "import": "./dist/character-filter.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
@@ -135,6 +139,26 @@
     "./convolution": {
       "types": "./dist/convolution.d.ts",
       "import": "./dist/convolution.js"
+    },
+    "./frequency-shifter": {
+      "types": "./dist/frequency-shifter.d.ts",
+      "import": "./dist/frequency-shifter.js"
+    },
+    "./lookahead-limiter": {
+      "types": "./dist/lookahead-limiter.d.ts",
+      "import": "./dist/lookahead-limiter.js"
+    },
+    "./multiband-dynamics": {
+      "types": "./dist/multiband-dynamics.d.ts",
+      "import": "./dist/multiband-dynamics.js"
+    },
+    "./musical-examples": {
+      "types": "./dist/musical-examples.d.ts",
+      "import": "./dist/musical-examples.js"
+    },
+    "./curve-shaper": {
+      "types": "./dist/curve-shaper.d.ts",
+      "import": "./dist/curve-shaper.js"
     }
   },
   "engines": {
