@@ -1,88 +1,88 @@
 # den
 
-Composable DSP modules and instrument/effect engines built on unworklet. This
-branch establishes the package entry gate; the MIDI instrument and delay FX are
-not implemented yet.
+Composable DSP modules, one MIDI instrument engine and one stereo Delay FX
+engine built on unworklet. The initial candidate includes Bass, Percussion and
+Pad from the same instrument, plus Chorus and Rhythmic delay settings from the
+same Delay engine. Audio remains **CANDIDATE**, not an approved golden.
 
 ## Setup and verification
 
 Use Node **24.19.0** (npm **11.9.0**). No Rust, Cargo, wasm-pack, Vite+, or external
-WASM compiler installation is required. Binaryen comes from unworklet.
+WASM compiler is required. Binaryen comes from unworklet.
 
 ```sh
 npm ci
 npm exec -- playwright install --with-deps chromium
 npm run check
 npm test
+npm run build:site
 ```
 
-In a restricted environment with an existing Chromium installation:
+With an existing Chromium installation, use `CHROMIUM_PATH=/usr/bin/chromium npm test`.
+The tests build declarations/ESM, run independent numerical references, pack the
+package, install it in clean locked consumers, build actual worklet/WASM assets,
+and exercise real browser MIDI, AudioParams, snapshots and UI lifecycle. Generated
+source/audio/waveform manifests and failures are retained in `artifacts/`; CI
+uploads them. No command publishes to a registry.
 
-```sh
-npm ci --cache /tmp/den-npm-cache
-CHROMIUM_PATH=/usr/bin/chromium npm test
-```
+## Try the initial candidate
 
-`npm test` builds the declarations/ESM, runs numerical and dependency probes, packs
-the package, and installs that tarball in a fresh OS temporary directory with its
-own locked dependencies. It checks a strict TypeScript consumer, performs a Vite
-production build using unworklet's plugin, renders offline, and exercises real
-Chromium AudioParams and snapshots. The browser is silent (a zero-gain sink).
-The temporary consumer is retained for diagnosis. Test output goes to ignored
-`artifacts/`; CI uploads it. No command publishes to a registry. `npm run build:consumer` produces `site-dist/`
-from this same packed consumer for Vercel; its page offers a silent 48-kHz browser
-check. See [deployment setup](docs/deployment-status.md).
+`npm run build:site` writes the deployment to `site-dist/`:
 
-## Package boundary
+- `/`: Diagnostic / Bass / Percussion / Pad with Diagnostic delay / Chorus / Rhythmic delay
+- `/diagnostics.html`: silent package gain and snapshot check
+- `/audition.html`: earlier Envelope/LFO diagnostic listening room
 
-The ESM-only `@denaudio/den` package exposes `gateCell`, a representative editable
-TypeScript subgraph. `@denaudio/den/gate` exposes `gate`, a mono one-sample memory
-and gain fixture. Neither is a production oscillator, envelope, or delay engine.
-The package requires **@unworklet/core 0.4.1** as a peer. The checked-in lockfiles
-pin the exercised compiler, renderer, plugin, and test dependencies.
+Serve that directory over HTTP locally, or use the existing Vercel deployment.
+Select a sound and effect while stopped, then press Start audio. Hold the keys
+or the sound-specific hold button; Release leaves the tail, Clear resets notes
+and delay history, and Stop closes audio. Start with low device volume. The
+shared Master control is 0–1 with no normalization or limiter.
+
+The site is a usable initial candidate, not a cleared general-release runtime.
+Known intermittent frame-clock/underrun observations remain **NOT_CLEARED**.
+Browser coverage is **48 kHz only**; 44.1/96 kHz offline success is not browser
+support. Existing positive candidate listening feedback is recorded separately
+from generated test output and exact-hash golden approval in the
+[acceptance record](docs/initial-acceptance.md).
+
+## Public package boundary
+
+The ESM-only `@denaudio/den` requires **@unworklet/core 0.4.1** as a peer. All
+exercised compiler, renderer, plugin and test dependencies are locked. Import
+editable construction functions/subgraphs through these public subpaths:
+
+- `@denaudio/den/envelope`, `/lfo`, `/filter`, `/oscillator`, `/voice-policy`
+- `@denaudio/den/instrument`: `createInstrument`, diagnostic processor and the three sound settings
+- `@denaudio/den/instrument-example`: custom oscillator/filter replacement example
+- `@denaudio/den/delay-readhead`, `/delay-fx`, `/delay-settings`
+- `@denaudio/den` and `/gate`: minimal composition and package diagnostics
 
 ```ts
-import { gateCell } from '@denaudio/den';
-import { instantiate } from '@unworklet/core';
-// Within a defineProcessor declaration body:
-const cell = instantiate(gateCell, { scale: 1 }, { name: 'cell' });
-// Within forSample: cell.tick(inputSample, gainSample)
+import { createInstrument, bassConfig, bassParameters } from '@denaudio/den/instrument';
+// Re-export this processor from a consumer module imported with ?worklet.
+export default createInstrument(bassConfig);
+// Pass bassParameters as createNode's initial AudioParam map.
 ```
 
-For the browser, re-export `gate` from a consumer processor module and import
-that module with `?worklet`; use the existing `@unworklet/unplugin` Vite plugin and
-`createNode`. The repository includes the clean consumer under `tests/consumer`;
-the published package includes the usage constraints in `docs/`. No den loader
-is needed.
-The supported plugin path is currently **48 kHz browser only**: real 44.1/96 kHz
-contexts are tested and rejected by unworklet 0.4.1. Three-rate success applies
-to **offline** rendering only; see the known limitation in the findings.
-This gate exercises explicit TS subgraphs, not `.uwk` sugar or browser HMR.
+Use the existing `@unworklet/unplugin` Vite plugin and `createNode`; den adds no
+loader, parameter, MIDI, routing, snapshot or serialization framework. Settings
+are plain engine construction options and complete native parameter maps.
+Snapshots require the same processor/schema/sample rate. See the
+[instrument contract](docs/instrument.md), [sound settings](docs/instrument-settings.md),
+[Delay FX contract](docs/delay-fx.md), [effect settings](docs/delay-settings.md),
+[shared contracts](docs/contracts.md), and [dependency limitations](docs/dependency-findings.md).
 
-Read [lane contracts](docs/contracts.md) before starting dependent DSP work, and
-[dependency findings](docs/dependency-findings.md) before relying on snapshots or
-helpers. The contract requires independent review before parallel DSP integration.
+## Evidence and scope
 
-## Audio evidence
+The [integration notes](docs/integration-candidate.md) describe lifecycle and
+4×3 sound/FX coverage; [headroom evidence](docs/sound-audition-headroom.md) records
+the bounded fixed-input measurements. [Deployment](docs/deployment-status.md)
+uses the same packed consumers as the tests. Candidate audio has independent
+numerical assertions and source/settings/input/audio/static-waveform manifests.
+Golden promotion requires human approval tied to exact source/audio hashes in
+a separate change. CI success does not supply that approval.
 
-The gate produces float WAV candidates, static waveform plots, snapshots, and a
-manifest linking source commit/hashes, package and lockfile hashes, settings,
-input, rates, and verification. These are **CANDIDATE**, not human-approved audio
-or golden baselines. This fixture has no musical quality claim. Golden promotion
-requires hearing approval tied to exact source/audio hashes in a separate change.
-
-## Repository transition
-
-This is a fresh TS/unworklet foundation. The retired Rust/WASM implementation,
-legacy packages, documentation, scripts, and configuration are removed in this
-branch's diff; their history remains in Git. Existing MIT/Apache-2.0 legal texts
-and contributor attribution are retained as license notices, not implementation.
-The public package is currently version `0.0.0`; no registry release is intended.
-
-## Initial instrument sound candidates
-
-[The Bass, Percussion and Pad settings](docs/instrument-settings.md) are plain
-construction options and complete AudioParam maps for the same instrument
-engine, exported by `@denaudio/den/instrument`. Their reproducible dry phrases,
-maximum-velocity inputs and packed consumer checks remain CANDIDATE. They do
-not imply runtime clearance or listening/golden approval.
+This is a fresh TS/unworklet implementation. The retired Rust/WASM contents are
+preserved only in Git history. MIT/Apache-2.0 notices and attribution remain.
+Package version is `0.0.0`; no registry release is intended.

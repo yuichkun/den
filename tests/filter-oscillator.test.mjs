@@ -20,10 +20,10 @@ test('packed DSP files render in an isolated locked consumer; capture candidate 
   lock.packages['node_modules/@denaudio/den'].integrity = pack.integrity;
   writeFileSync(join(consumer, 'package-lock.json'), JSON.stringify(lock, null, 2));
   run('npm', ['ci', '--include=dev', '--ignore-scripts'], consumer);
-  // Use shipped module paths pending the separately coordinated root export patch.
+  // Exercise the public package boundary, not physical installed-file paths.
   writeFileSync(join(consumer, 'dsp.ts'), `
-import { filter } from './node_modules/@denaudio/den/dist/filter.js';
-import { oscillator } from './node_modules/@denaudio/den/dist/oscillator.js';
+import { filter } from '@denaudio/den/filter';
+import { oscillator } from '@denaudio/den/oscillator';
 import { defineProcessor, audioOutput, instantiate, forSample, f32, bool } from '@unworklet/core';
 import { renderOffline } from '@unworklet/offline';
 import { writeFileSync } from 'node:fs';
@@ -74,6 +74,6 @@ for (const sampleRate of [44100, 48000, 96000]) {
     settings: { waveform: 'sine', frequencyHz: 440, initialPhase: 0, cutoffHz: 1000, q: Math.fround(Math.SQRT1_2), initialFilterState: [0, 0], reset: false },
     input: null, midi: [], seed: null, preset: null, format: 'mono IEEE754 f32 native little-endian', files,
     checks: 'packed declarations and isolated offline rendering against analytic sine plus independent direct-form biquad, absolute sample error <2e-6',
-    limitations: ['not human approved', 'module-file imports pending integration root exports', 'browser proof remains the separate 48 kHz entry gate'],
+    limitations: ['not human approved', 'browser proof remains the separate 48 kHz entry gate'],
   }, null, 2));
 });

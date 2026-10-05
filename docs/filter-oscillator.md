@@ -119,15 +119,8 @@ package integrity, dependency lock hash, rates and all fixture settings.
 Snapshot tests are same-schema/rate only. Nothing is an approved golden.
 The separate existing browser gate stays at 48000 Hz.
 
-The packed test currently imports the shipped `dist/filter.js` and
-`dist/oscillator.js` module files. Public root exports remain an integration
-change; the minimal proposed addition to `src/index.ts` is:
-
-```ts
-export { filter, type FilterConfig } from './filter.js';
-export { oscillator, type OscillatorConfig } from './oscillator.js';
-```
-
-No package or lockfile change is necessary for these root exports. After that
-patch, integration should switch the packed consumer to `@denaudio/den` imports
-and compose these modules with the instrument and delay fixtures.
+The packed test imports `@denaudio/den/filter` and `@denaudio/den/oscillator`
+through their public package subpaths. It checks strict declarations and renders
+both modules together from an isolated, locked installation. No installed-file
+path escape is required. These are the same shared implementations used by the
+instrument and Delay FX.

@@ -2,9 +2,17 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { gate } from '@denaudio/den/gate';
 import { renderOffline, encodeWav } from '@unworklet/offline';
-import { composed } from './contract.ts';
+import { composed, voiceContract } from './contract.ts';
 import { inspect } from '@unworklet/core';
 for (const sampleRate of [44100, 48000, 96000]) {
+  const voice = await renderOffline(voiceContract, {sampleRate,duration:(256-.5)/sampleRate,events:[
+    {name:'midi',atSample:0,payload:{type:'noteOn',note:60,velocity:100,channel:0}},
+    {name:'midi',atSample:128,payload:{type:'noteOff',note:60,velocity:0,channel:0}},
+  ]});
+  assert.equal(voice.outputs.main[0].length,256);
+  assert.equal(voice.diagnostics.scrubbedSamples,0);
+  assert(voice.outputs.main[0].slice(0,128).every(x=>x===1));
+  assert(voice.outputs.main[0].slice(128).every(x=>x===0));
   const composedResult = await renderOffline(composed,{sampleRate,duration:128/sampleRate});
   assert.equal(composedResult.outputs.main[0][0],0);
   assert(composedResult.outputs.main[0].slice(1).every(x=>x===0.5));

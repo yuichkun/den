@@ -26,8 +26,8 @@ test('packed envelope/LFO declarations and offline rendering in an isolated cons
   // modules now, without claiming their pending public subpaths already exist.
   writeFileSync(join(consumer, 'modulation-contract.ts'), `
 import { instantiate, f32, bool } from '@unworklet/core';
-import { envelope, type EnvelopeControls } from './node_modules/@denaudio/den/dist/envelope.js';
-import { lfo, modulatePitch, modulateCutoff, modulateDelay } from './node_modules/@denaudio/den/dist/lfo.js';
+import { envelope, type EnvelopeControls } from '@denaudio/den/envelope';
+import { lfo, modulatePitch, modulateCutoff, modulateDelay } from '@denaudio/den/lfo';
 export function compose(c: EnvelopeControls) {
   const env = instantiate(envelope, {sampleRate:48000}, {name:'env'});
   const oscillator = instantiate(lfo, {sampleRate:48000}, {name:'lfo'});
@@ -42,8 +42,8 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { defineProcessor, instantiate, audioOutput, forSample, f32, bool, select, state } from '@unworklet/core';
 import { renderOffline } from '@unworklet/offline';
-import { envelope } from './node_modules/@denaudio/den/dist/envelope.js';
-import { lfo } from './node_modules/@denaudio/den/dist/lfo.js';
+import { envelope } from '@denaudio/den/envelope';
+import { lfo } from '@denaudio/den/lfo';
 const evidence = [];
 for (const sampleRate of [44100,48000,96000]) {
   const processor = defineProcessor(() => {

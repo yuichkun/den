@@ -23,3 +23,14 @@ export const auditionContract = defineProcessor(() => {
     output.ch(0).at(i).write(osc.tick(hz,bool(false)).mul(e.level));
   });}};
 });
+
+// The public voice-policy subpath is independently reusable outside the engine.
+import { voicePolicy, type VoicePolicyConfig } from '@denaudio/den/voice-policy';
+import { event } from '@unworklet/core';
+const voiceConfig: VoicePolicyConfig = {mode:'mono',heldCapacity:8};
+export const voiceContract = defineProcessor(() => {
+  const policy = instantiate(voicePolicy,voiceConfig,{name:'voices'});
+  policy.bindMidi(event.midi({from:'main',name:'midi'}));
+  const output = audioOutput({channels:1,name:'main'});
+  return {process(){forSample(i=>output.ch(0).at(i).write(f32(policy.voices[0].read().gate)));}};
+});
