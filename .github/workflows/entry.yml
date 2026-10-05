@@ -29,3 +29,45 @@ jobs:
         with:
           name: entry-candidate-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/
+  catalog-smoke:
+    name: catalog-smoke
+    runs-on: ubuntu-latest
+    # Reuse the exact packed-site/lifecycle gate for early feedback while the
+    # unchanged full entry suite runs. This is additional, not a replacement.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm exec -- playwright install --with-deps chromium
+      - run: npm run check
+      - run: node --test --test-concurrency=1 tests/catalog-audition.test.mjs
+      - name: Verify canonical catalog gate actually completed
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readdirSync, readFileSync } from 'node:fs';
+          const root = 'artifacts/catalog-audition';
+          const manifests = readdirSync(root).map(dir => JSON.parse(readFileSync(`${root}/${dir}/manifest.json`, 'utf8')));
+          assert.equal(manifests.length, 1);
+          const result = manifests[0];
+          assert.equal(result.sourceCommit, process.env.EXPECTED_HEAD);
+          assert.equal(result.sourceDirty, false);
+          assert.equal(result.failure, undefined);
+          assert.equal(result.rows.length, 8);
+          assert(result.checks.some(check => typeof check === 'object' && check.check === 'trusted native touch target/identity sequence'));
+          assert(result.checks.some(check => typeof check === 'string' && check.startsWith('eight A/B actual stereo auditions')));
+          console.log('Canonical catalog gate completed: eight A/B rows and native touch/lifecycle evidence on exact head.');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catalog-smoke-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/catalog-audition/

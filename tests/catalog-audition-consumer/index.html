@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>den · catalog listening room</title><link rel="stylesheet" href="./style.css">
+<main>
+<header><p class="eyebrow">DEN / CATALOG 01</p><span class="badge">CANDIDATE</span></header>
+<section class="intro"><h1>Four small<br>listening rooms.</h1><p>Original materials, complete A/B settings, and editable DSP. Nothing plays until you start it.</p></section>
+<p class="notice">Start with low device volume. These are new candidates, not listening-approved goldens. General real-time and device stability remain unverified.</p>
+<section aria-label="Choose a material" class="cards">
+<button class="card" data-example="glass" aria-pressed="true"><small>01 / TWO VOICES</small><strong>Glass dyad</strong><span>Resident wavetable · 220 + 330 Hz</span></button>
+<button class="card" data-example="hit" aria-pressed="false"><small>02 / STRUCK TONE</small><strong>FM / modal hit</strong><span>FM excitation · three resonant modes</span></button>
+<button class="card" data-example="grain" aria-pressed="false"><small>03 / TWO GRAINS</small><strong>Grain cloud</strong><span>Original short PCM · seeded windows</span></button>
+<button class="card" data-example="echo" aria-pressed="false"><small>04 / EFFECT CHAIN</small><strong>Shaped echo</strong><span>Soft ADAA · low-pass · stereo repeats</span></button>
+</section>
+<section class="desk" aria-label="Audition controls">
+<div class="desk-title"><h2 id="material-title">Glass dyad</h2><div class="variants" role="group" aria-label="Choose variation"><button data-variant="A" aria-pressed="true">A</button><button data-variant="B" aria-pressed="false">B</button></div></div>
+<p id="material-description"></p><p id="variation-description" class="detail"></p>
+<div class="transport"><button id="start" class="primary">Start audio</button><button id="release" disabled>Release</button><button id="clear" disabled>Clear</button><button id="stop" disabled>Stop audio</button></div>
+<p id="status" role="status" aria-live="polite">Audio is off. Choose a material and variation.</p>
+<div id="triggers" class="triggers" aria-label="Press and hold controls"></div>
+<p id="play-hint" class="detail"></p>
+<label class="volume">Master volume <output id="volume-value">1.00×</output><input id="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
+<p class="detail">One visible master gain, no normalization or limiter. A/B changes are available only while stopped.</p>
+<canvas id="waveform" width="960" height="180" aria-label="Stereo candidate waveforms, fixed minus one to plus one scale"></canvas>
+<div class="meter"><span id="peak">L — / R —</span><span>Fixed scale −1 … +1</span></div>
+</section>
+<details><summary>What you are hearing</summary><p id="construction"></p><pre id="settings"></pre><p id="asset-state">No asset loaded.</p><p id="provenance"></p><p>Browser audition is 48 kHz. The separate offline evidence covers 44.1 / 48 / 96 kHz, repeatability, same-schema state, headroom and full tails. A passing test is not human sound approval.</p></details>
+<footer><p>The original instrument / FX settings remain unchanged. This is a grouped catalog audition, not a patcher or the den-kit prototype.</p></footer>
+</main><script type="module" src="./main.js"></script></html>

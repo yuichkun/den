@@ -3,13 +3,14 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildConsumer } from './build-consumer.mjs';
 
-// Both routes are built from the same packed package in isolated locked consumers.
+// All routes are built from the same packed package in isolated locked consumers.
 // Keep the silent entry gate and the earlier module audition alongside the
 // initial instrument/FX candidate. No hosting/project/access settings are changed.
 export function buildSite() {
   const diagnostic = buildConsumer();
   const integration = buildConsumer({fixture: 'tests/integration-consumer', stageSite: false});
-  if (diagnostic.pack.integrity !== integration.pack.integrity) {
+  const catalog = buildConsumer({fixture: 'tests/catalog-audition-consumer', stageSite: false});
+  if (diagnostic.pack.integrity !== integration.pack.integrity || diagnostic.pack.integrity !== catalog.pack.integrity) {
     throw new Error('Site consumers were built from different package bytes');
   }
   const output = diagnostic.output;
@@ -28,6 +29,8 @@ export function buildSite() {
     }
   };
   copy(integration.output, output);
+  renameSync(join(catalog.output, 'index.html'), join(catalog.output, 'catalog.html'));
+  copy(catalog.output, output);
   // Standalone consumers retain their own root navigation; only staged site
   // pages know that the silent gate moved away from the root.
   const auditionPath = join(output, 'audition.html');
@@ -38,8 +41,12 @@ export function buildSite() {
   const indexPath = join(output, 'index.html');
   const index = readFileSync(indexPath, 'utf8');
   if (!index.includes('</main>')) throw new Error('Missing integration page main element');
-  writeFileSync(indexPath, index.replace('</main>', '<p><a href="/diagnostics.html">Silent package check</a> · <a href="/audition.html">Envelope / LFO diagnostic</a></p></main>'));
-  return {output, diagnostic, integration};
+  writeFileSync(indexPath, index.replace('</main>', '<p><a href="/diagnostics.html">Silent package check</a> · <a href="/audition.html">Envelope / LFO diagnostic</a> · <a href="/catalog.html">Catalog A/B audition</a></p></main>'));
+  const catalogPath = join(output, 'catalog.html');
+  const catalogHtml = readFileSync(catalogPath, 'utf8');
+  if (!catalogHtml.includes('</main>')) throw new Error('Missing catalog page main element');
+  writeFileSync(catalogPath, catalogHtml.replace('</main>', '<p><a href="/">Initial sound / FX candidate</a> · <a href="/diagnostics.html">Silent package check</a> · <a href="/audition.html">Envelope / LFO diagnostic</a></p></main>'));
+  return {output, diagnostic, integration, catalog};
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

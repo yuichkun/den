@@ -15,14 +15,15 @@ test('deployed site keeps instrument/FX, silent gate and module audition usable'
   const manifest = {status: 'CANDIDATE', runtimeGate: 'NOT_CLEARED', sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], {cwd: root, encoding: 'utf8'}).trim() !== '', checks: []};
   let server, browser;
   try {
-    const {output, diagnostic, integration} = buildSite();
+    const {output, diagnostic, integration, catalog} = buildSite();
     manifest.packageIntegrity = diagnostic.pack.integrity;
     assert.equal(diagnostic.pack.integrity, integration.pack.integrity);
+    assert.equal(diagnostic.pack.integrity, catalog.pack.integrity);
     const config = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
     assert.equal(config.buildCommand, 'npm run build:site');
     assert.equal(config.outputDirectory, 'site-dist');
-    for (const path of ['index.html', 'diagnostics.html', 'audition.html']) assert(readFileSync(join(output, path)).length > 0);
-    manifest.html = Object.fromEntries(['index.html', 'diagnostics.html', 'audition.html'].map(path => [path, createHash('sha256').update(readFileSync(join(output, path))).digest('hex')]));
+    for (const path of ['index.html', 'diagnostics.html', 'audition.html', 'catalog.html']) assert(readFileSync(join(output, path)).length > 0);
+    manifest.html = Object.fromEntries(['index.html', 'diagnostics.html', 'audition.html', 'catalog.html'].map(path => [path, createHash('sha256').update(readFileSync(join(output, path))).digest('hex')]));
     manifest.wasm = readdirSync(join(output, 'assets')).filter(path => path.endsWith('.wasm'));
     server = await preview({root, configFile: false, build: {outDir: output}, preview: {host: '127.0.0.1', port: 0}});
     browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox']});
@@ -58,6 +59,13 @@ test('deployed site keeps instrument/FX, silent gate and module audition usable'
     assert.deepEqual(errors, []); assert.deepEqual(failed, []);
     await page.goto(url); assert.equal(await page.locator('#instrument').inputValue(), 'diagnostic');
     await page.screenshot({path: join(artifacts, 'initial-candidate.png'), fullPage: true});
+    await page.locator('a[href="/catalog.html"]').click();
+    await page.waitForFunction(() => !!window.denCatalog);
+    assert.equal((await page.evaluate(() => window.denCatalog.state())).started, 0);
+    assert.equal(await page.locator('[data-example]').count(), 4);
+    await page.getByRole('link', {name: 'Initial sound / FX candidate', exact: true}).click();
+    assert.equal(new URL(page.url()).pathname, '/');
+    manifest.checks.push('catalog route has no autoplay and returns to the unchanged initial candidate');
     manifest.checks.push('fresh root navigation has stopped default state, no page/asset errors');
   } catch (error) {manifest.failure = String(error); throw error;}
   finally {
