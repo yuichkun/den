@@ -39,6 +39,22 @@ test('integration candidate: public packed imports, MIDI → instrument → ster
   const response=await page.goto(server.resolvedUrls.local[0]);const headers=await response.allHeaders();manifest.delivery={server:"Vite preview, configFile:false",coop:headers["cross-origin-opener-policy"]??null,coep:headers["cross-origin-embedder-policy"]??null,...await page.evaluate(()=>({crossOriginIsolated,sharedArrayBuffer:typeof SharedArrayBuffer}))};manifest.gainAutomation=await verifyGainAutomation(page);assert.equal(await page.locator('#volume').inputValue(),'1');assert.equal(await page.locator('#volume').getAttribute('max'),'2');assert.equal(await page.evaluate(()=>window.__contexts.length),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   await page.evaluate(()=>window.__failContext=true);await page.locator('#start').tap();assert.match(await page.locator('#status').textContent(),/constructor probe/);await page.evaluate(()=>window.__failContext=false);
   await page.locator('#start').tap();await ready();manifest.delivery.nodeTransports=await page.evaluate(()=>window.__transports.slice());assert.equal(manifest.delivery.crossOriginIsolated,false);assert.deepEqual(manifest.delivery.nodeTransports,['postMessage','postMessage'],'exercise both nodes through the production-observed fallback');assert.equal(await peak(),0);
+  // UI-only samples exercise the real draw path; the audio graph stays intact.
+  await page.evaluate(()=>{
+   const analyser=window.__analysers.at(-1),original=analyser.getFloatTimeDomainData.bind(analyser);
+   const pen=document.getElementById('waveform').getContext('2d'),begin=pen.beginPath.bind(pen),move=pen.moveTo.bind(pen),line=pen.lineTo.bind(pen);
+   window.__restoreDisplay=()=>{analyser.getFloatTimeDomainData=original;pen.beginPath=begin;pen.moveTo=move;pen.lineTo=line;};
+   pen.beginPath=()=>{window.__displayCoordinates=[];begin();};
+   pen.moveTo=(x,y)=>{window.__displayCoordinates.push([x,y]);move(x,y);};pen.lineTo=(x,y)=>{window.__displayCoordinates.push([x,y]);line(x,y);};
+   analyser.getFloatTimeDomainData=data=>{for(let i=0;i<data.length;i++)data[i]=.6259036660194397*Math.sin(2*Math.PI*i/256);data.set([1,-1,0,.6259036660194397,-.6259036660194397]);};
+  });
+  await page.waitForFunction(()=>window.__displayCoordinates?.length===2048);
+  const display=await page.evaluate(()=>({width:document.getElementById('waveform').width,height:document.getElementById('waveform').height,points:window.__displayCoordinates}));
+  assert(display.points.every(([x,y])=>x>=0&&x<display.width&&y>=2&&y<=display.height-2));
+  assert.equal(display.points[0][1],2);assert.equal(display.points[1][1],display.height-2);assert.equal(display.points[2][1],display.height/2);
+  assert(Math.abs(display.points[3][1]-(display.height/2-.6259036660194397*(display.height/2-2)))<1e-6);
+  manifest.waveformScale={range:[-1,1],paddingPixels:2,measuredPeak:.6259036660194397,peakY:display.points[3][1],coordinatesInBounds:true};
+  await page.screenshot({path:join(artifacts,'waveform-full-scale.png'),fullPage:true});await page.evaluate(()=>window.__restoreDisplay());
   await set('volume',2);await set('feedback',.5);await set('mix',1);await advance(.3);
   // Test-only observer taps the actual native source and FX nodes. Product route remains intact.
   await page.evaluate(async()=>{
