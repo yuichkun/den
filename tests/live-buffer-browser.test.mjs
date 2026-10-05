@@ -38,6 +38,7 @@ test('packed live buffer: actual native wrap, pause, read ordering and guarded h
     check('partial',{0:.375,1:.375,2:1,3:3,4:0,5:0,6:3,7:3,8:.375,9:0,15:.5625,16:.9375,17:1});
     check('fractional',{0:.34375,1:.34375,2:1,3:3,5:0,6:3,7:3});
     check('expired',{0:0,1:0,2:0,3:3,5:0,6:3,7:3,17:0});
+    check('writePrepared',{0:.375,1:.375,2:1,3:3,4:0,5:0,6:3,7:3,10:0,11:0,12:0,13:20,14:.25,15:.5625,16:.9375});
     check('wrapped',{0:1.4375,1:1.4375,2:1,3:8,4:1,5:0,6:20,7:20,8:1.4375,9:1,15:15.4375,16:16.875});
     check('beforeSave',{0:1.40625,1:1.40625,2:1,3:8,4:1,6:20,7:20,15:15.4375,16:16.875});
     for(const name of ['heldClear','heldReset'])check(name,{0:0,1:0,2:0,3:0,4:0,5:0,6:0,8:0,9:0,15:0,16:0,17:0});
@@ -46,6 +47,7 @@ test('packed live buffer: actual native wrap, pause, read ordering and guarded h
     assert.equal(r.restored.ok,true);assert.deepEqual(r.afterRestore,r.beforeSave,'native full history/cursor/checksums restored while controls remain stable');
     assert.equal(r.restoredAges.length,8);
     for(let age=0;age<8;age++){const stage=r.restoredAges[age];assert(stage.every(x=>x.finite));for(const channel of[0,1]){const expected=1.4375-age/16;assert.equal(stage[channel].minimum,expected);assert.equal(stage[channel].maximum,expected);}assert.equal(stage[2].mean,1);assert.equal(stage[3].mean,8);assert.equal(stage[6].mean,20);assert.equal(stage[7].mean,20);}
+    check('continuePrepared',{0:1.4375,1:1.4375,2:1,3:8,4:1,5:0,6:20,7:20,10:0,11:0,12:0,13:21,14:.25,15:15.4375,16:16.875});
     check('continued',{0:1.5,1:1.5,2:1,3:8,4:1,5:0,6:21,7:21,8:1.5,9:1.0625,15:16.875,16:18.375});
     check('resetReleased',{0:.3125,1:.3125,2:1,3:2,4:0,5:0,6:2,8:.3125,9:0,15:.25,16:.5625});
     manifest.checks.browser='PASS';

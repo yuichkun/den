@@ -20,7 +20,8 @@ window.runLiveBuffer = async () => {
     set({ record: 1 }); result.partial = await read();
     set({ record: 0, age: .5 }); result.fractional = await read();
     set({ age: 3 }); result.expired = await read();
-    set({ age: 0, limit: 20, record: 1 }); result.wrapped = await read();
+    set({ age: 0, limit: 20 }); result.writePrepared = await read();
+    set({ record: 1 }); result.wrapped = await read();
     set({ record: 0, age: .5 }); result.beforeSave = await read(); const saved = await node.snapshot();
     set({ reset: 1, base: -.5, limit: 4, record: 1 }); result.heldClear = await read();
     set({ reset: 0 }); result.mutated = await read();
@@ -31,7 +32,8 @@ window.runLiveBuffer = async () => {
     result.restored = await node.restore(saved); result.afterRestore = await read();
     result.restoredAges = [];
     for (let age = 0; age < 8; age++) { set({ age }); result.restoredAges.push(await read()); }
-    set({ age: 0, limit: 21, record: 1 }); result.continued = await read();
+    set({ age: 0, limit: 21 }); result.continuePrepared = await read();
+    set({ record: 1 }); result.continued = await read();
     set({ reset: 1, limit: 2 }); result.heldReset = await read();
     set({ reset: 0 }); result.resetReleased = await read();
     return { ...result, errors };
