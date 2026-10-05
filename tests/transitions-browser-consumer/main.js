@@ -10,8 +10,8 @@ window.runTransitions = async () => {
   wave=await createNode(ctx,waveProcessor);
   for(const n of [node,mpe,wave])n.onError(e=>errors.push({code:e.code,message:String(e.message??'')}));
   const mute=new GainNode(ctx,{gain:0});mute.connect(ctx.destination);
-  const splitter=new ChannelSplitterNode(ctx,{numberOfOutputs:5});node.outputs.main.connect(splitter);
-  const analysers=Array.from({length:5},(_,ch)=>{const a=new AnalyserNode(ctx,{fftSize:256});splitter.connect(a,ch);a.connect(mute);return a;});
+  const splitter=new ChannelSplitterNode(ctx,{numberOfOutputs:10});node.outputs.main.connect(splitter);
+  const analysers=Array.from({length:10},(_,ch)=>{const a=new AnalyserNode(ctx,{fftSize:256});splitter.connect(a,ch);a.connect(mute);return a;});
   const mpeAnalysers=['main','frequency','level'].map(key=>{const a=new AnalyserNode(ctx,{fftSize:256});mpe.outputs[key].connect(a);a.connect(mute);return a;});
   const waveSplit=new ChannelSplitterNode(ctx,{numberOfOutputs:2});wave.outputs.main.connect(waveSplit);
   const waveAnalysers=[0,1].map(ch=>{const a=new AnalyserNode(ctx,{fftSize:256});waveSplit.connect(a,ch);a.connect(mute);return a;});
@@ -26,6 +26,10 @@ window.runTransitions = async () => {
   const initial=await read(),saved=await node.snapshot();
   node.params.ratio.value=2;node.params.time.value=24/48000;node.params.gain.value=2;const up=await read();
   node.params.ratio.value=.5;node.params.mix.value=0;const downDry=await read();
+  // State restore and host AudioParam restoration are not atomic in 0.4.1.
+  // Render every saved control first, without resetting/retriggering pitch state.
+  node.params.ratio.value=1;node.params.time.value=Math.fround(8/48000);node.params.gain.value=1;node.params.mix.value=1;node.params.reset.value=0;
+  const controlsPrepared=await read();
   const restored=await node.restore(saved),afterRestore=await read();
   node.params.reset.value=1;const reset=await read();
   const send=(channel,payload)=>mpe.midi.midi.send({channel,...payload}),cc=(channel,controller,value)=>send(channel,{type:'cc',controller,value});
@@ -51,6 +55,6 @@ window.runTransitions = async () => {
   wave.params.frequency.value=12000;wave.params.reset.value=1;await read(waveAnalysers);wave.params.reset.value=0;const high=await read(waveAnalysers);wave.params.frame.value=1;const morphed=await read(waveAnalysers),waveSaved=await wave.snapshot();
   wave.events.load.emit({data:new Float32Array([1])});const short=await read(waveAnalysers);
   const waveRestored=await wave.restore(waveSaved),waveAfterRestore=await read(waveAnalysers);wave.params.reset.value=1;const waveReset=await read(waveAnalysers);
-  return{wave:{absent,low,high,morphed,short,restored:waveRestored,afterRestore:waveAfterRestore,reset:waveReset},sampleRate:ctx.sampleRate,initial,up,downDry,restored,afterRestore,reset,mpe:{quiet,note,member,summed,expressive,sustained,liveRestored,liveHeld,released,restored:mpeRestored,afterRestore:mpeAfterRestore,inherited,resetBeforeRestore,coldRestored,cold,fresh,panic},errors};
+  return{wave:{absent,low,high,morphed,short,restored:waveRestored,afterRestore:waveAfterRestore,reset:waveReset},sampleRate:ctx.sampleRate,initial,up,downDry,controlsPrepared,restored,afterRestore,reset,mpe:{quiet,note,member,summed,expressive,sustained,liveRestored,liveHeld,released,restored:mpeRestored,afterRestore:mpeAfterRestore,inherited,resetBeforeRestore,coldRestored,cold,fresh,panic},errors};
  }finally{node?.dispose();mpe?.dispose();wave?.dispose();await ctx.close();}
 };
