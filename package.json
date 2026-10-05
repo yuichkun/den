@@ -207,6 +207,10 @@
     "./spectral-freeze": {
       "types": "./dist/spectral-freeze.d.ts",
       "import": "./dist/spectral-freeze.js"
+    },
+    "./filterbank-vocoder": {
+      "types": "./dist/filterbank-vocoder.d.ts",
+      "import": "./dist/filterbank-vocoder.js"
     }
   },
   "engines": {
