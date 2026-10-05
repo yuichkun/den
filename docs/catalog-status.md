@@ -244,3 +244,29 @@ bit-identical histories at all three rates, including poisoned transient scratch
 The deterministic negative-gap regression remains in the packed gate. The raw
 browser attempt is retained as an observation, not required to race on every
 schedule. This is documented caller coordination, not atomic restore support.
+
+
+The inherited transitions browser probe exposed the same non-atomic control
+boundary with a different lasting effect. At a 48 kHz / 375 Hz coherent input,
+one stale ratio=.5 quantum advances the two-window pitch phase by 1/32, moving
+read ages by 64 samples and permanently inverting the later unity-ratio output.
+Independent native restoration with odd stale-quantum counts reproduces the
+observed real-bin +0.006133459294852017 instead of -0.006133459294851527; even
+gaps can appear correct. The negative-gap regression retains both cases.
+
+The transitions fixture now renders all five saved ratio/time/gain/mix/reset
+controls before restore and verifies them exactly through native telemetry,
+including the small f32 delay-seconds value. It does not reset or retrigger the
+pitch effect to hide phase state; all original complex phase/gain assertions
+remain. MPE transient-state and instrument observer-clock findings stay separate.
+
+The sustained instrument observer also separates published clock metadata from
+captured samples. A failing and passing hosted 12-second WAV were byte-identical
+despite repeated/skipped `currentFrame` values. The revised observer captures a
+separate native buffer-source ramp and requires exact per-sample progression,
+128-sample block lengths and 576,000 total samples, including silence. Its audio
+oracle now predicts the complete steady interval with the original amplitude,
+continuity and tail tolerances. Negative duplicate/drop/reorder/zero/short-block
+controls verify those assertions. Raw clock anomalies remain explicit
+`CLOCK_METADATA_ANOMALY_REQUIRES_REVIEW` findings; neither this observation fix
+nor a numerical pass clears hardware or real-time acceptance (`NOT_CLEARED`).

@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { chromium } from 'playwright';
 import { encodeWav } from '@unworklet/offline';
+import {validateInstrumentCapture,sineResidual} from './instrument-observer-contract.mjs';
 const root = resolve(import.meta.dirname, '..');
 const run = (command, args, cwd) => execFileSync(command, command === 'npm' ? ['--cache', join(tmpdir(), 'den-npm-cache'), ...args] : args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -70,6 +71,8 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     const measurementDir=join(root,'artifacts/instrument');mkdirSync(measurementDir,{recursive:true});
     writeFileSync(join(measurementDir,'sustained-browser-trace.json.gz'),gzipSync(traceText));
     writeFileSync(join(measurementDir,'sustained-browser.wav'),encodeWav([Float32Array.from(sustained.audio)],48000));
+    writeFileSync(join(measurementDir,'sustained-reference.f32'),Buffer.from(Float32Array.from(sustained.reference).buffer));
+    writeFileSync(join(measurementDir,'sustained-observer-raw.json'),JSON.stringify({...sustained,audio:undefined,reference:undefined},null,2));
     const renders=trace.traceEvents.filter(e=>e.name==='RealtimeAudioDestinationHandler::Render'&&e.ph==='X'&&e.args?.frames===128);
     const budgetUs=128/48000*1e6;
     const summarize=events=>{
@@ -89,6 +92,8 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     writeFileSync(join(measurementDir,'sustained-timing.json'),JSON.stringify({realtimeStatus,...timing},null,2));
     assert.equal(sustained.sampleRate,48000);
     assert.equal(sustained.audio.length,12*48000);
+    const observation=validateInstrumentCapture(sustained);
+    console.log('Native instrument observation:',JSON.stringify(observation));
     console.log('Sustained observer frame gaps:',JSON.stringify(sustained.gaps));
     assert.deepEqual(sustained.errors.filter(e=>JSON.parse(e).code!=='sab-unavailable'),[]);
     assert(sustained.audio.every(Number.isFinite));
@@ -105,23 +110,24 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     const numerator=b0*Math.hypot(1+2*Math.cos(omega)+Math.cos(2*omega),-2*Math.sin(omega)-Math.sin(2*omega));
     const denominator=Math.hypot(1+a1*Math.cos(omega)+a2*Math.cos(2*omega),-a1*Math.sin(omega)-a2*Math.sin(2*omega));
     assert(Math.abs(amplitude-4*0.02*numerator/denominator)<2e-5);
-    let maxResidual=0,maxStep=0;
-    for(let n=0;n<7*48000;n++)maxResidual=Math.max(maxResidual,Math.abs(sustained.audio[n]-cosine*Math.cos(omega*n)-sine*Math.sin(omega*n)));
+    let end=sustained.audio.length-1;while(end>=0&&sustained.audio[end]===0)end--;
+    assert(end>8*48000&&end<10*48000);
+    const steadyEnd=end-48000+1;
+    const maxResidual=sineResidual(sustained.audio,cosine,sine,omega,0,steadyEnd);
+    let maxStep=0;
     for(let n=1;n<sustained.audio.length;n++)maxStep=Math.max(maxStep,Math.abs(sustained.audio[n]-sustained.audio[n-1]));
     assert(maxResidual<2e-5,`sustained continuity residual ${maxResidual}`);
     assert(maxStep<amplitude*2*Math.sin(omega/2)+amplitude/48000+2e-5,`discontinuity ${maxStep}`);
     assert(sustained.audio.slice(10*48000).every(x=>x===0));
     // Exactly one contiguous one-second decay, using independently specified
     // duration and the observed termination boundary (delivery is block based).
-    let end=sustained.audio.length-1;while(end>=0&&sustained.audio[end]===0)end--;
-    assert(end>8*48000&&end<10*48000);
     let tailResidual=0;
     for(let n=end-48000+1;n<=end;n++) {
       const level=(end+1-n)/48000;
       tailResidual=Math.max(tailResidual,Math.abs(sustained.audio[n]-(cosine*Math.cos(omega*n)+sine*Math.sin(omega*n))*level));
     }
     assert(tailResidual<2e-5,`release continuity residual ${tailResidual}`);
-    console.log('Sustained raw signal:',JSON.stringify({maxResidual,tailResidual,amplitude,maxStep,frameGaps:sustained.gaps}));
+    console.log('Sustained raw signal:',JSON.stringify({maxResidual,tailResidual,amplitude,maxStep,predictedSteadyFrames:steadyEnd,frameGaps:sustained.gaps,observation}));
     const artifacts = join(root, 'artifacts/instrument'); mkdirSync(artifacts, { recursive: true });
     const files = {};
     for (const file of ['den.tgz', 'package-lock.json', 'instrument-evidence.json', ...[44100, 48000, 96000].flatMap(rate => [`instrument-${rate}.wav`, `instrument-${rate}.svg`])]) {
@@ -129,9 +135,9 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     }
     writeFileSync(join(artifacts, 'browser.json'), JSON.stringify(result, null, 2)); files['browser.json'] = hash(join(artifacts, 'browser.json'));
     writeFileSync(join(artifacts,'sustained-browser.wav'),encodeWav([Float32Array.from(sustained.audio)],48000));
-    for(const file of ['sustained-browser.wav','sustained-browser-trace.json.gz','sustained-timing.json'])files[file]=hash(join(artifacts,file));
+    for(const file of ['sustained-browser.wav','sustained-browser-trace.json.gz','sustained-timing.json','sustained-reference.f32','sustained-observer-raw.json'])files[file]=hash(join(artifacts,file));
     const evidence = JSON.parse(readFileSync(join(consumer, 'instrument-evidence.json'), 'utf8'));
-    const sustainedEvidence={...sustained,audio:undefined,realtimeStatus,timing,amplitude,maxResidual,maxStep,tailResidual,releaseEndFrame:end,
+    const sustainedEvidence={...sustained,audio:undefined,reference:undefined,observation,runtimeStatus:'NOT_CLEARED',realtimeStatus,timing,amplitude,maxResidual,maxStep,tailResidual,predictedSteadyFrames:steadyEnd,releaseEndFrame:end,
       settings:{mode:'poly',capacity:4,heldCapacity:128,waveform:'sine',note:69,voices:4,velocity:127},
       parameters:{...evidence.parameters,gain:0.02,ampAttack:0,ampDecay:0,ampSustain:1,ampRelease:1,cutoff:1000,resonance:0.5,pitchEnvelopeDepth:0,filterEnvelopeDepth:0,lfoAmpDepth:0,lfoPitchDepth:0,lfoFilterDepth:0},
       limitation:'Raw graph continuity and Chrome render-quantum timing are measured, not hardware loopback. Quantum overruns are retained as a separate readiness finding even when numerical tests pass.'};
@@ -141,16 +147,18 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
     writeFileSync(join(artifacts,'sustained-browser.svg'),`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 260"><title>CANDIDATE: 12-second real-time instrument capture</title><text x="40" y="25">CANDIDATE: 4 voices, 48 kHz, 12 seconds; vertical scale ±0.1</text><path d="M40 30V230H1240M40 130H1240" stroke="gray" fill="none"/><polyline points="${points}" fill="none" stroke="blue"/></svg>`);
     files['sustained-browser.svg']=hash(join(artifacts,'sustained-browser.svg'));
     writeFileSync(join(artifacts, 'manifest.json'), JSON.stringify({
-      ...evidence, realtimeStatus, sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(),
+      ...evidence, runtimeStatus:'NOT_CLEARED',clockMetadataStatus:observation.clockMetadataStatus,realtimeStatus, sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(),
       sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '',
-      sourceHashes: Object.fromEntries(['src/instrument.ts','src/instrument-example.ts','src/envelope.ts','src/lfo.ts','src/filter.ts','src/oscillator.ts','src/voice-policy.ts','tests/instrument.spec.ts','tests/instrument-packed.test.mjs','tests/instrument-consumer/processor.ts','tests/instrument-consumer/sustained-processor.ts','tests/instrument-consumer/main.js','tests/instrument-consumer/render.mjs','package-lock.json'].map(file => [file,hash(join(root,file))])),
+      sourceHashes: Object.fromEntries(['src/instrument.ts','src/instrument-example.ts','src/envelope.ts','src/lfo.ts','src/filter.ts','src/oscillator.ts','src/voice-policy.ts','tests/instrument.spec.ts','tests/instrument-packed.test.mjs','tests/instrument-observer-contract.mjs','tests/instrument-observer.test.mjs','tests/instrument-consumer/processor.ts','tests/instrument-consumer/sustained-processor.ts','tests/instrument-consumer/main.js','tests/instrument-consumer/render.mjs','package-lock.json'].map(file => [file,hash(join(root,file))])),
       unworklet:'0.4.1', channels:2, offlineSampleRates:[44100,48000,96000], browserSampleRates:[48000],
       verification:'Independent DSP and voice tests; packed TypeScript/build/offline render; browser MIDI, polyphony, release, gain/cutoff edits, bypass, reset',
       limitations:['Not human approved','Public packed subpath import; browser coverage is 48 kHz only','MIDI dispatch is quantum-boundary'],files,
     },null,2));
-    // Preserve all raw evidence and independent continuity metrics before the
-    // frame-clock gate fails; a timestamp anomaly is not automatically PCM loss.
-    assert.deepEqual(sustained.gaps,[]);
+    // Raw published currentFrame anomalies remain explicit review findings.
+    // Acceptance above uses a separate native reference input, exact block/
+    // sample progression, full steady PCM prediction and the unchanged tail,
+    // amplitude and step tolerances. This is not hardware/runtime clearance.
+    assert.equal(observation.referenceProgression,'EXACT_NATIVE_BUFFER_SOURCE');
   } finally {
     await browser?.close();
     await new Promise((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve()));
