@@ -17,28 +17,39 @@ Web Audio path is MIDI → instrument → delay → master gain → analyser →
 MIDI remains the existing unworklet quantum-boundary interface. No new MIDI,
 parameter, snapshot, serialization, routing or preset framework is introduced.
 
-This one diagnostic uses four sine voices, engine gain 0.05, fixed 1 kHz/Q=0.5
-low-pass, no pitch/filter/LFO depth, and 10 ms attack/200 ms release. The UI exposes
-note/chord holds, an effect selector, delay mix, feedback (0–0.5), and output volume (0–2,
-default 1). Diagnostic delay taps are fixed at 125/187.5 ms, with one-second
-allocation. Chorus and rhythmic delay use the exported GEN-621 constants
-unchanged: chorus has flat feedback tone, 18 ms taps with 0.65 Hz/3 ms modulation,
-and defaults to feedback 0/mix .45; rhythmic delay uses 120 BPM dotted-eighth/
-quarter taps, 3.2 kHz feedback low-pass, feedback .48/mix .35. Both allocate two
-seconds. Selection is disabled during loading, playback and teardown; changing
-while stopped sets the candidate defaults, and the next Start creates its
-processor. No live topology or preset framework is introduced.
-At most four active voices contribute. For this fixed positive low-pass response,
-a .2 voice-sum bound and feedback ≤.5 give a .4 delay bound before the maximum master gain of 2,
-or .8 absolute peak (apart from floating rounding). Tests inspect every sample
-of both channels for musical chords and coherent maximum-velocity four-voice
-input at maximum feedback and master; RMS alone is not an acceptance criterion.
-The same bound covers flat tone with convex interpolated taps and the fixed
-Q=.5 feedback low-pass of the two settings. Tests compare each adapter with the
-existing independent GEN-621 reference for both chords at default settings and
-maximum feedback/full wet, and save a candidate WAV for each setting.
-This bound is for these restricted settings, not arbitrary engine replacements.
-The displayed analyser monitor is mono; stereo peak assertions use both channels.
+The sound selector offers Diagnostic, Bass, Percussion and Pad. The three sound
+candidates are the unchanged public `createInstrument` configurations and all 22
+native parameters from PR28, merged into this candidate branch at
+`e87e51f25052d0ad474efe1a928f80908cf3bcaf`. Source SHA-256 checks pin their audio
+identity. These remain sound candidates: no golden promotion, physical browser
+playback acceptance, or runtime clearance is recorded by this integration.
+
+Diagnostic retains four sine voices, gain .05, fixed 1 kHz/Q=.5 low-pass and
+10 ms attack/200 ms release. Bass is mono last-held legato and Percussion mono
+retriggered; both show low-register keys and a single C2 hold/trigger button.
+Their controls do not promise a chord. Pad has four saw voices with a slow
+attack/release, and C3/G3/C4/E4 keys plus their chord. Every selector is disabled
+during loading, playback and teardown. Active synthetic changes are ignored,
+without resetting held notes, parameters or the graph. Stopped sound selection
+updates the labels/notes only; Start creates the selected public processor with
+its exact native initial parameters. FX selection restores that FX's mix and
+feedback defaults.
+
+The stereo effects remain Diagnostic delay, Chorus and Rhythmic delay.
+Diagnostic taps are 125/187.5 ms with one-second allocation. Chorus and rhythmic
+use the exported GEN-621 constants: 18 ms chorus taps with .65 Hz/3 ms modulation
+and feedback 0/mix .45; rhythmic uses 120 BPM dotted-eighth/quarter taps, 3.2 kHz
+feedback low-pass and feedback .48/mix .35. Both allocate two seconds. Feedback
+is limited to 0–.5 and wet mix to 0–1. No effect was added.
+
+Output gain now spans 0–1, default 1. The previous diagnostic-only 2× ceiling
+was reduced visibly in the UI because its .8 bound cannot be transferred to
+saw/modulated sources. All raw instrument parameters and gain values remain
+unchanged; there is no normalization, limiter or hidden per-sound compensation.
+See [the sound/FX headroom evidence](sound-audition-headroom.md) for the distinct
+bounds and measured 4×3 matrix. Both stereo channels must be finite, unscrubbed,
+unclipped and within the explicit fixture bounds. The analyser display remains
+a mono monitor with fixed −1 to +1 scale.
 
 Start unlocks a fresh 48 kHz AudioContext in a real gesture. Holds may begin during
 asynchronous loading and retain their latest intent. Release sends note-offs and
@@ -78,26 +89,20 @@ response-header inspection from this workspace was blocked by the network proxy
 This establishes fallback coverage, not identical phone scheduling or physical
 audio behavior. No hosting/header settings are changed.
 
-## Output level revision
+## Verification coverage
 
-The master gain now defaults to unity (1) and permits up to 2. Compared with
-the preceding .035 default/.1 maximum, these are +29.12 dB and +26.02 dB
-respectively. Voice gain (.05), MIDI velocity, envelopes, filters and all FX
-parameters are unchanged. The change removes the extra attenuation after the
-instrument/FX chain; it does not add limiting, normalization or a new DSP mode.
+The packed numerical matrix covers all four sounds and three FX at dry, default,
+and maximum wet/feedback. Poly cases include coherent four-voice stress; Pad
+runs beyond a full slow-LFO cycle. Existing independent diagnostic oscillator,
+filter and delay references remain, and the new matrix compares each FX against
+an independent per-sample reference using its actual input.
 
-Four voices bound the pre-FX input by .2. Feedback ≤.5 bounds the restricted FX
-output by .4; master ≤2 therefore bounds output by .8, leaving 1.94 dB below
-full scale. The numerical test retains the preceding .04 bound when normalized
-to the old .1 master and separately rejects any output sample at full scale.
-It measures six-second maximum-velocity chord and coherent-four-voice holds,
-release tails, both stereo channels, peak/RMS and clipping across all settings.
-Browser tests observe actual post-master output at zero/unity/maximum, reject
-out-of-range controls, measure rapid gain changes/release/reset, and verify the
-unchanged 15 ms target smoothing and 20 ms Stop fade. Reset remains the existing
-immediate engine/history clear and may have a waveform step; this revision
-does not claim click-free reset or change its DSP semantics.
-
-New renders remain CANDIDATE,
-previous frame-gap/underrun evidence is retained, and runtime NOT_CLEARED plus
-physical listening UNVERIFIED remain in force pending further validation.
+Packed browser checks exercise all twelve selected graphs, all 22 native initial
+parameters, mono/poly note labels, stopped-only selectors, no autoplay, mobile
+layout, default/dry/max-wet-feedback stereo peaks, mute, release, reset and clean
+restart. Existing startup-failure, partial-load cancellation, touch cancellation,
+keyboard renewal, context cleanup, and 15 ms target/20 ms Stop-fade checks remain.
+Screenshots and measurement JSON are retained with candidate artifacts. Browser
+CI is required; a local numerical pass is not a browser pass. Runtime remains
+NOT_CLEARED and generated evidence remains CANDIDATE. Main and the production
+branch/project settings remain unchanged.

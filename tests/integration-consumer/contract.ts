@@ -1,10 +1,13 @@
 import {chorusSettings,rhythmicDelaySettings,type DelaySettings} from '@denaudio/den/delay-settings';
 export const settings:readonly DelaySettings[]=[chorusSettings,rhythmicDelaySettings];
-import { createInstrument, type InstrumentConfig } from '@denaudio/den/instrument';
+import { createInstrument, bassConfig, bassParameters, percussionConfig, percussionParameters, padConfig, padParameters, diagnosticInstrumentParameters, type InstrumentConfig } from '@denaudio/den/instrument';
 import { delayFx, type DelayFxConfig, type DelayFxControls } from '@denaudio/den/delay-fx';
 import { defineProcessor, instantiate, audioOutput, forSample, f32, bool } from '@unworklet/core';
 const config: InstrumentConfig={mode:'poly',capacity:4};
 export const instrument=createInstrument(config);
+// The integration uses exactly the public configuration and all native controls.
+const sounds:readonly {config:InstrumentConfig;parameters:{[K in keyof typeof diagnosticInstrumentParameters]:number}}[]=[{config:bassConfig,parameters:bassParameters},{config:percussionConfig,parameters:percussionParameters},{config:padConfig,parameters:padParameters}];
+export const soundProcessors=sounds.map(sound=>createInstrument(sound.config));
 export const delay=defineProcessor(({sampleRate})=>{
   const config:DelayFxConfig={sampleRate,maxDelaySeconds:1};
   const fx=instantiate(delayFx,config,{name:'fx'}),out=audioOutput({channels:2,name:'main'});

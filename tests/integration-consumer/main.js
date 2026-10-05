@@ -1,18 +1,24 @@
 import { createNode } from '@unworklet/core';
 import instrumentProcessor from './instrument.js?worklet';
+import bassProcessor from './bass.js?worklet';
+import percussionProcessor from './percussion.js?worklet';
+import padProcessor from './pad.js?worklet';
+const instruments={diagnostic:instrumentProcessor,bass:bassProcessor,percussion:percussionProcessor,pad:padProcessor};
 import delayProcessor from './delay.js?worklet';
 import chorusProcessor from './chorus.js?worklet';
 import rhythmicProcessor from './rhythmic.js?worklet';
 const processors={diagnostic:delayProcessor,chorus:chorusProcessor,rhythmic:rhythmicProcessor};
-import {engineConfig,instrumentInitial,delayInitial,masterDefault,masterMaximum,feedbackMaximum,delayCandidates} from './settings.js';
+import {instrumentCandidates,delayInitial,masterDefault,masterMaximum,feedbackMaximum,delayCandidates} from './settings.js';
 const $=id=>document.getElementById(id), held=new Map(), active=new Set();
-let selected="diagnostic";
+let selected="diagnostic",selectedInstrument="diagnostic";
 let session=null,stopping=false,starts=0,closes=0;
 const controls=()=>({volume:Number($('volume').value),mix:Number($('mix').value),feedback:Number($('feedback').value)});
 function status(message){$('status').textContent=message;}
-function buttons(){ $('effect').disabled=!!session||stopping; $('start').disabled=!!session||stopping; for(const id of ['release','reset','stop'])$(id).disabled=!session||stopping; }
-function show(){const c=controls();for(const[k,v]of Object.entries(c))$(k+'-value').textContent=v.toFixed(3);$('settings').textContent=JSON.stringify({status:'CANDIDATE — runtime and listening unverified',sampleRate:48000,engineConfig,instrumentInitial,effect:selected,delay:{...delayCandidates[selected],parameters:{...delayCandidates[selected].parameters,mix:c.mix,feedback:c.feedback}},outputGain:c.volume},null,2);}
+function buttons(){ $('instrument').disabled=!!session||stopping; $('effect').disabled=!!session||stopping; $('start').disabled=!!session||stopping; for(const id of ['release','reset','stop'])$(id).disabled=!session||stopping; }
+function show(){const c=controls();for(const[k,v]of Object.entries(c))$(k+'-value').textContent=v.toFixed(3);$('settings').textContent=JSON.stringify({status:'CANDIDATE — runtime and listening unverified',sampleRate:48000,instrument:selectedInstrument,engineConfig:instrumentCandidates[selectedInstrument].config,instrumentInitial:instrumentCandidates[selectedInstrument].parameters,effect:selected,delay:{...delayCandidates[selected],parameters:{...delayCandidates[selected].parameters,mix:c.mix,feedback:c.feedback}},outputGain:c.volume},null,2);}
 function apply(){show();const s=session;if(!s?.master)return;const c=controls(),now=s.ctx.currentTime;s.master.gain.setTargetAtTime(Math.max(0,Math.min(masterMaximum,c.volume)),now,.015);s.delay.params.mix.setTargetAtTime(Math.max(0,Math.min(1,c.mix)),now,.015);s.delay.params.feedback.setTargetAtTime(Math.max(0,Math.min(feedbackMaximum,c.feedback)),now,.015);}
+function showInstrument(){const candidate=instrumentCandidates[selectedInstrument];$('voice-mode').textContent=candidate.description;$('chord').textContent=candidate.holdLabel;for(const [i,b]of [...document.querySelectorAll('[data-note]')].entries()){const note=candidate.notes[i];b.dataset.note=String(note);b.firstChild.textContent=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'][note%12]+(Math.floor(note/12)-1)+' ';}}
+$('instrument').addEventListener('change',()=>{if(session||stopping){$('instrument').value=selectedInstrument;return;}const value=$('instrument').value;if(!instruments[value])return;releaseAll();selectedInstrument=value;showInstrument();show();status(`${instrumentCandidates[value].label} selected. Start audio to load it.`);});
 $('effect').addEventListener('change',()=>{if(session||stopping){$('effect').value=selected;return;}const value=$('effect').value;if(!processors[value])return;selected=value;const p=delayCandidates[selected].parameters;$('mix').value=p.mix;$('feedback').value=p.feedback;show();status('Effect selected. Start audio to load it.');});
 for(const id of ['volume','mix','feedback'])$(id).addEventListener('input',apply);
 function send(notes,on){const s=session;if(!s?.ready)return;for(const note of notes)s.instrument.midi.midi.send({type:on?'noteOn':'noteOff',note,velocity:on?100:0,channel:0});}
@@ -24,11 +30,11 @@ function draw(s){if(session!==s||!s.ready)return;const data=new Float32Array(s.a
 async function start(){
   if(session||stopping)return;
   let ctx;try{ctx=new AudioContext({sampleRate:48000});}catch(e){releaseAll();status(`Audio unavailable: ${e.message}`);return;}
-  const s={ctx,ready:false,peak:0,effect:selected};session=s;starts++;buttons();status('Starting candidate…');
+  const s={ctx,ready:false,peak:0,effect:selected,instrumentName:selectedInstrument};session=s;starts++;buttons();status('Starting candidate…');
   try{
     await ctx.resume();if(ctx.sampleRate!==48000)throw Error('This candidate requires a 48 kHz context.');
     if(session!==s)return;
-    const instrument=await createNode(ctx,instrumentProcessor,{initial:instrumentInitial});
+    const instrument=await createNode(ctx,instruments[s.instrumentName],{initial:instrumentCandidates[s.instrumentName].parameters});
     if(session!==s){instrument.dispose();return;}s.instrument=instrument;
     const delay=await createNode(ctx,processors[s.effect],{initial:s.effect==="diagnostic"?delayInitial:{mix:delayCandidates[s.effect].parameters.mix,feedback:delayCandidates[s.effect].parameters.feedback}});
     if(session!==s){delay.dispose();return;}s.delay=delay;
@@ -49,15 +55,15 @@ function reset(){releaseAll();const s=session;if(!s?.ready)return;s.instrument.e
 $('start').addEventListener('click',()=>void start());$('stop').addEventListener('click',()=>void stop());$('release').addEventListener('click',releaseAll);$('reset').addEventListener('click',reset);
 const keys=[...document.querySelectorAll('[data-note]')];keys.forEach((b,i)=>b.id='key-'+i);
 for(const b of [...keys,$('chord')]){
-  const notes=b.id==='chord'?[60,64,67,72]:[Number(b.dataset.note)];
-  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);hold(b.id+':p'+e.pointerId,notes);});
+  const notes=()=>b.id==='chord'?instrumentCandidates[selectedInstrument].chord:[Number(b.dataset.note)];
+  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);hold(b.id+':p'+e.pointerId,notes());});
   for(const type of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(type,e=>release(b.id+':p'+e.pointerId));
-  b.addEventListener('keydown',e=>{if(['Space','Enter'].includes(e.code)){e.preventDefault();if(!e.repeat)hold(b.id+':keyboard',notes);}});
+  b.addEventListener('keydown',e=>{if(['Space','Enter'].includes(e.code)){e.preventDefault();if(!e.repeat)hold(b.id+':keyboard',notes());}});
   b.addEventListener('keyup',e=>{if(['Space','Enter'].includes(e.code)){e.preventDefault();release(b.id+':keyboard');}});
   b.addEventListener('blur',()=>release(b.id+':keyboard'));
 }
 document.addEventListener('keydown',e=>{if(e.target.matches('input,button,select')||e.repeat)return;const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)hold(b.id+':shortcut',[Number(b.dataset.note)]);});
 document.addEventListener('keyup',e=>{const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)release(b.id+':shortcut');});
 window.addEventListener('blur',releaseAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)void stop();});window.addEventListener('pagehide',()=>void stop());
-window.denIntegration={state:()=>({selected,activeEffect:session?.effect??null,stopping,ready:!!session?.ready,starting:!!session&&!session.ready,contextState:session?.ctx.state??'closed',held:held.size,starts,closes,peak:session?.peak??0,controls:controls()})};
-$('volume').max=String(masterMaximum);$('volume').value=String(masterDefault);show();buttons();
+window.denIntegration={state:()=>({selected,selectedInstrument,activeInstrument:session?.instrumentName??null,activeEffect:session?.effect??null,stopping,ready:!!session?.ready,starting:!!session&&!session.ready,contextState:session?.ctx.state??'closed',held:held.size,starts,closes,peak:session?.peak??0,controls:controls()})};
+$('volume').max=String(masterMaximum);$('volume').value=String(masterDefault);showInstrument();show();buttons();
