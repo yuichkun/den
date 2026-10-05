@@ -4,7 +4,7 @@ import delayProcessor from './delay.js?worklet';
 import chorusProcessor from './chorus.js?worklet';
 import rhythmicProcessor from './rhythmic.js?worklet';
 const processors={diagnostic:delayProcessor,chorus:chorusProcessor,rhythmic:rhythmicProcessor};
-import {engineConfig,instrumentInitial,delayInitial,masterMaximum,feedbackMaximum,delayCandidates} from './settings.js';
+import {engineConfig,instrumentInitial,delayInitial,masterDefault,masterMaximum,feedbackMaximum,delayCandidates} from './settings.js';
 const $=id=>document.getElementById(id), held=new Map(), active=new Set();
 let selected="diagnostic";
 let session=null,stopping=false,starts=0,closes=0;
@@ -60,4 +60,4 @@ document.addEventListener('keydown',e=>{if(e.target.matches('input,button,select
 document.addEventListener('keyup',e=>{const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)release(b.id+':shortcut');});
 window.addEventListener('blur',releaseAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)void stop();});window.addEventListener('pagehide',()=>void stop());
 window.denIntegration={state:()=>({selected,activeEffect:session?.effect??null,stopping,ready:!!session?.ready,starting:!!session&&!session.ready,contextState:session?.ctx.state??'closed',held:held.size,starts,closes,peak:session?.peak??0,controls:controls()})};
-show();buttons();
+$('volume').max=String(masterMaximum);$('volume').value=String(masterDefault);show();buttons();

@@ -19,8 +19,8 @@ parameter, snapshot, serialization, routing or preset framework is introduced.
 
 This one diagnostic uses four sine voices, engine gain 0.05, fixed 1 kHz/Q=0.5
 low-pass, no pitch/filter/LFO depth, and 10 ms attack/200 ms release. The UI exposes
-note/chord holds, an effect selector, delay mix, feedback (0–0.5), and output volume (0–0.1,
-default 0.035). Diagnostic delay taps are fixed at 125/187.5 ms, with one-second
+note/chord holds, an effect selector, delay mix, feedback (0–0.5), and output volume (0–2,
+default 1). Diagnostic delay taps are fixed at 125/187.5 ms, with one-second
 allocation. Chorus and rhythmic delay use the exported GEN-621 constants
 unchanged: chorus has flat feedback tone, 18 ms taps with 0.65 Hz/3 ms modulation,
 and defaults to feedback 0/mix .45; rhythmic delay uses 120 BPM dotted-eighth/
@@ -29,8 +29,8 @@ seconds. Selection is disabled during loading, playback and teardown; changing
 while stopped sets the candidate defaults, and the next Start creates its
 processor. No live topology or preset framework is introduced.
 At most four active voices contribute. For this fixed positive low-pass response,
-a .2 voice-sum bound and feedback ≤.5 give a .4 delay bound before the .1 master,
-or .04 absolute peak (apart from floating rounding). Tests inspect every sample
+a .2 voice-sum bound and feedback ≤.5 give a .4 delay bound before the maximum master gain of 2,
+or .8 absolute peak (apart from floating rounding). Tests inspect every sample
 of both channels for musical chords and coherent maximum-velocity four-voice
 input at maximum feedback and master; RMS alone is not an acceptance criterion.
 The same bound covers flat tone with convex interpolated taps and the fixed
@@ -77,3 +77,27 @@ response-header inspection from this workspace was blocked by the network proxy
 (CONNECT 403), so upstream hosting/proxy headers are not independently verified.
 This establishes fallback coverage, not identical phone scheduling or physical
 audio behavior. No hosting/header settings are changed.
+
+## Output level revision
+
+The master gain now defaults to unity (1) and permits up to 2. Compared with
+the preceding .035 default/.1 maximum, these are +29.12 dB and +26.02 dB
+respectively. Voice gain (.05), MIDI velocity, envelopes, filters and all FX
+parameters are unchanged. The change removes the extra attenuation after the
+instrument/FX chain; it does not add limiting, normalization or a new DSP mode.
+
+Four voices bound the pre-FX input by .2. Feedback ≤.5 bounds the restricted FX
+output by .4; master ≤2 therefore bounds output by .8, leaving 1.94 dB below
+full scale. The numerical test retains the preceding .04 bound when normalized
+to the old .1 master and separately rejects any output sample at full scale.
+It measures six-second maximum-velocity chord and coherent-four-voice holds,
+release tails, both stereo channels, peak/RMS and clipping across all settings.
+Browser tests observe actual post-master output at zero/unity/maximum, reject
+out-of-range controls, measure rapid gain changes/release/reset, and verify the
+unchanged 15 ms target smoothing and 20 ms Stop fade. Reset remains the existing
+immediate engine/history clear and may have a waveform step; this revision
+does not claim click-free reset or change its DSP semantics.
+
+New renders remain CANDIDATE,
+previous frame-gap/underrun evidence is retained, and runtime NOT_CLEARED plus
+physical listening UNVERIFIED remain in force pending further validation.

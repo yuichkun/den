@@ -8,10 +8,11 @@ import {chorus} from './chorus.js';
 import {rhythmic} from './rhythmic.js';
 import {chorusSettings,rhythmicDelaySettings} from '@denaudio/den/delay-settings';
 import {inputs,reference} from './delay-settings-reference.mjs';
-import {instrumentInitial,engineConfig,masterMaximum,feedbackMaximum} from './settings.js';
+import {instrumentInitial,engineConfig,masterDefault,masterMaximum,feedbackMaximum} from './settings.js';
 import {lowpass,delayReference,compare,peak} from './reference.mjs';
-const sampleRate=48000,frames=147456,offAt=73728,notesCases=[[60,64,67,72],[69,69,69,69]],measurements=[];
+const sampleRate=48000,frames=393216,offAt=288000,notesCases=[[60,64,67,72],[69,69,69,69]],measurements=[];
 const params=Object.fromEntries(Object.entries(instrumentInitial).map(([k,v])=>[k,[v]]));
+const levelStats=channels=>Object.fromEntries([.035,masterDefault,masterMaximum].map(g=>[g,channels.map(v=>({peak:peak(v)*g,rms:Math.sqrt(v.reduce((sum,x)=>sum+x*x,0)/v.length)*g,clipped:v.filter(x=>Math.abs(x*g)>=1).length}))]));
 let candidate;const sources=[];
 for(const notes of notesCases){
  const events=notes.flatMap(note=>[{name:'midi',atSample:0,payload:{type:'noteOn',note,velocity:127,channel:0}},{name:'midi',atSample:offAt,payload:{type:'noteOff',note,velocity:0,channel:0}}]);
@@ -26,9 +27,9 @@ for(const notes of notesCases){
   const error=fx.outputs.main.map((v,ch)=>compare(v,delayReference(source.outputs.main[ch],sampleRate,ch?.1875:.125,feedbackMaximum,mix)));
   const output=fx.outputs.main.map(v=>Float32Array.from(v,x=>x*masterMaximum));const peaks=output.map(peak);
   // Fixed Q=.5 / cutoff1k: nonnegative low-pass response, at most four .05 voices.
-  // Feedback<=.5 gives .2/(1-.5)=.4 before Master<=.1, hence .04 peak.
-  assert(peaks.every(p=>p<=.040001),'absolute peak bound exceeded');assert(peaks.some(p=>p>.001));
-  measurements.push({notes,velocity:127,feedback:feedbackMaximum,mix,master:masterMaximum,sourceError,error,peaks});
+  // Feedback<=.5 gives .2/(1-.5)=.4 before Master<=2, hence .8 peak with 1.94 dB headroom.
+  assert(fx.outputs.main.every(v=>peak(v)*.1<=.040001),'original pre-master bound changed');assert(peaks.every(p=>p<1&&p<=.4*masterMaximum+1e-6),'absolute peak bound exceeded');assert(peaks.some(p=>p>.001));
+  measurements.push({notes,velocity:127,feedback:feedbackMaximum,mix,master:masterMaximum,sourceError,error,peaks,levels:levelStats(fx.outputs.main)});
   if(mix===.35&&notes[0]===60)candidate=output;
  }
 }
@@ -46,8 +47,8 @@ for(const [name,processor,setting] of [['chorus',chorus,chorusSettings],['rhythm
    assert(expected[2].every(v=>v===0)&&expected[3].every(v=>v===0));
    const errors=fx.outputs.main.map((v,ch)=>compare(v,expected[ch],5e-6));
    const output=fx.outputs.main.map(v=>Float32Array.from(v,x=>x*masterMaximum));const peaks=output.map(peak);
-   assert(peaks.every(p=>p<=.040001));assert(peaks.some(p=>p>.001));
-   const row={name,notes,maximum,parameters,config:setting.config,errors,peaks};
+   assert(fx.outputs.main.every(v=>peak(v)*.1<=.040001),'original pre-master bound changed');assert(peaks.every(p=>p<1&&p<=.4*masterMaximum+1e-6));assert(peaks.some(p=>p>.001));
+   const row={name,notes,maximum,parameters,config:setting.config,errors,peaks,levels:levelStats(fx.outputs.main)};
    if(!maximum&&notes[0]===60){const wav=encodeWav(output,sampleRate);writeFileSync('integration-'+name+'.wav',wav);row.wavSha256=createHash('sha256').update(wav).digest('hex');}
    settingMeasurements.push(row);
   }
