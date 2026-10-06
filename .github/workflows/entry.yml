@@ -135,11 +135,28 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm exec -- playwright install --with-deps chromium
-      - name: Verify packed editor and native two-example lifecycle
+      - name: Verify packed editor and all54 native examples
         env:
-          DEN_PLAYGROUND_SCOPE: smoke
           NODE_OPTIONS: --max-old-space-size=1536
         run: node --test --test-concurrency=1 tests/site.test.mjs
+      - name: Verify full playground gate reached its final assertions
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readdirSync, readFileSync } from 'node:fs';
+          const paths = readdirSync('artifacts/playground');
+          assert.equal(paths.length, 1);
+          const result = JSON.parse(readFileSync(`artifacts/playground/${paths[0]}/manifest.json`, 'utf8'));
+          assert.equal(result.sourceCommit, process.env.EXPECTED_HEAD);
+          assert.equal(result.sourceDirty, false);
+          assert.equal(result.scope, 'all-examples');
+          assert.equal(result.failure, undefined);
+          assert.equal(result.completed, true);
+          assert.equal(new Set(result.rows.map(row => row.id)).size, 54);
+          console.log('Exact-head editor/lifecycle and all54 native examples completed.');
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:

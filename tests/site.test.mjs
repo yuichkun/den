@@ -8,7 +8,7 @@ import { preview } from 'vite';
 import { buildSite } from '../scripts/build-site.mjs';
 const root = join(import.meta.dirname, '..');
 const smoke = process.env.DEN_PLAYGROUND_SCOPE === 'smoke';
-test('packed playground: actual editor assistance and native audio lifecycle', { timeout: smoke ? 300000 : 600000 }, async () => {
+test('packed playground: actual editor assistance and native audio lifecycle', { timeout: smoke ? 300000 : 480000 }, async () => {
   const artifacts = join(root, 'artifacts/playground', new Date().toISOString().replaceAll(':', '-')); mkdirSync(artifacts, { recursive: true });
   const manifest = { sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '', scope: smoke ? 'two-example-preview' : 'all-examples', checks: [], rows: [], listening: 'NOT_PERFORMED' };
   let server, browser, page;
@@ -120,6 +120,7 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     assert.match(await page.locator('#run-error').innerText(), /(?:Asset preparation|Native asset acknowledgement) timed out/);
     assert.equal((await state()).created, (await state()).closed); assert.equal((await state()).output.peak, 0);
     await page.click('#reset'); await run('sample');
+    assert.equal(manifest.rows.at(-1).parameters.find(item => item.name === 'gate').value, 1, 'Prepared gate UI shows the scheduled afterReady value');
     manifest.checks.push('mismatched native asset receipt times out while muted, disposes context, and Reset/Run loads audible PCM');
     await page.locator('#modules a[href="?module=filter"]').click();
 
@@ -187,6 +188,8 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     await page.screenshot({ path: join(artifacts, 'mobile-controls.png'), fullPage: true });
     manifest.checks.push('390px mobile module selection, editor, Run/Stop, controls and no horizontal page overflow');
     assert.deepEqual(errors, []);
+    if (!smoke) assert.equal(new Set(manifest.rows.map(row => row.id)).size, provenance.examples.length);
+    manifest.completed = true;
   } catch (error) { manifest.failure = String(error); if (page) await page.screenshot({ path: join(artifacts, 'failure.png') }).catch(() => {}); throw error; }
   finally { writeFileSync(join(artifacts, 'manifest.json'), JSON.stringify(manifest, null, 2)); await browser?.close(); if (server) await new Promise((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve())); }
 });

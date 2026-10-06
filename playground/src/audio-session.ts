@@ -3,6 +3,7 @@ import { makeWorkletNamespaceFromMeta, type WorkletMeta } from '@unworklet/core/
 import CompilerWorker from './compiler.worker.ts?worker';
 import type { SampleSetup } from './sample-setup.ts';
 import type { Diagnostic } from './typescript-project.ts';
+import { scheduleParameter } from './parameter-range.ts';
 export type Phase = 'idle' | 'compiling' | 'preparing' | 'playing' | 'stopping' | 'error';
 type Compiled = { meta: WorkletMeta; setup: SampleSetup; moduleSource: string; wasm: ArrayBuffer; processorName: string; sampleRate: number };
 type Session = {
@@ -88,15 +89,16 @@ export class AudioSession {
       }
       await this.acknowledge(s, data.setup);
       if (!this.live(s)) return;
+      const preparedValues = new Map<string, number>();
       for (const [name, value] of Object.entries(data.setup.afterReady)) {
         if (!Object.hasOwn(node.params, name)) throw new Error(`Unknown AudioParam in afterReady: ${name}`);
-        node.params[name]!.setValueAtTime(value, ctx.currentTime);
+        preparedValues.set(name, scheduleParameter(node.params[name]!, value, ctx.currentTime));
       }
       for (const item of data.setup.midi) {
         if (!Object.hasOwn(node.midi, item.port)) throw new Error(`Unknown native MIDI port: ${item.port}`);
         node.midi[item.port]!.send(item.event);
       }
-      this.parameters = Object.entries(node.params).map(([name, parameter]) => ({ name, min: parameter.minValue, max: parameter.maxValue, value: parameter.value, defaultValue: parameter.defaultValue }));
+      this.parameters = Object.entries(node.params).map(([name, parameter]) => ({ name, min: parameter.minValue, max: parameter.maxValue, value: preparedValues.get(name) ?? parameter.value, defaultValue: parameter.defaultValue }));
       this.applyInput(s);
       s.master.gain.linearRampToValueAtTime(this.volume, ctx.currentTime + .025);
       this.notify('playing', 'Running');
@@ -162,7 +164,7 @@ export class AudioSession {
     this.update();
   }
   setVolume(value: number) { this.volume = Math.max(0, Math.min(1, value)); const s = this.current; if (s?.master && this.phase === 'playing') s.master.gain.setTargetAtTime(this.volume, s.ctx.currentTime, .01); this.update(); }
-  setParameter(name: string, value: number) { const s = this.current, parameter = s?.node?.params[name]; if (!s || !parameter || this.phase !== 'playing' || !Number.isFinite(value)) return; parameter.setValueAtTime(Math.max(parameter.minValue, Math.min(parameter.maxValue, value)), s.ctx.currentTime); const item = this.parameters.find(item => item.name === name); if (item) item.value = parameter.value; }
+  setParameter(name: string, value: number) { const s = this.current, parameter = s?.node?.params[name]; if (!s || !parameter || this.phase !== 'playing' || !Number.isFinite(value)) return; const scheduled = scheduleParameter(parameter, value, s.ctx.currentTime); const item = this.parameters.find(item => item.name === name); if (item) item.value = scheduled; }
   private async fail(s: Session, message: string) { if (!this.live(s)) return; await this.stop(); if (this.current || this.serial !== s.id) return; this.error = message; this.notify('error', 'Run failed'); }
   clearError() { if (this.phase === 'error') { this.error = null; this.notify('idle', 'Run to apply your changes.'); } }
   private dispose(s: Session): Promise<void> {
