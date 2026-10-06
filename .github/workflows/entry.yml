@@ -30,6 +30,13 @@ jobs:
         with:
           name: entry-candidate-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-site-removal-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/site-removal/
+            artifacts/integration/**/manifest.json
   catalog-smoke:
     name: catalog-smoke
     runs-on: ubuntu-latest

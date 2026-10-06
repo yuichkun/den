@@ -7,18 +7,18 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { runCatalogLifecycle } from './catalog-audition-lifecycle.mjs';
-import { buildSite } from '../scripts/build-site.mjs';
+import { buildAuditionFixtureSite } from './site-fixture-build.mjs';
 const root = join(import.meta.dirname, '..');
 const hash = p => createHash('sha256').update(readFileSync(p)).digest('hex');
 
-test('catalog deployed bytes: four A/B candidates, native asset preload, actual stereo gain and lifecycle', { timeout: 240000 }, async () => {
+test('isolated catalog fixture bytes: four A/B candidates, native asset preload, actual stereo gain and lifecycle', { timeout: 240000 }, async () => {
   const artifacts = join(root, 'artifacts/catalog-audition', new Date().toISOString().replaceAll(':', '-')); mkdirSync(artifacts, { recursive: true });
   const manifest = { status: 'CANDIDATE', runtimeStatus: 'NOT_CLEARED', sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '', checks: [], rows: [], limitations: ['Observed browser windows are not all-device runtime certification', 'Independent offline examples retain full-frame headroom and tail evidence', 'No autoplay, microphone, external MIDI permission or golden promotion'] };
   let server, browser;
   try {
-    const built = buildSite();
+    const built = buildAuditionFixtureSite();
     assert.equal(built.catalog.pack.integrity, built.integration.pack.integrity); assert.equal(built.catalog.pack.integrity, built.diagnostic.pack.integrity); manifest.packageIntegrity = built.catalog.pack.integrity;
-    manifest.sources = Object.fromEntries(['package.json', 'scripts/build-site.mjs', 'scripts/build-consumer.mjs', 'tests/catalog-audition.test.mjs', 'tests/catalog-audition-lifecycle.mjs', ...readdirSync(join(root, 'tests/catalog-audition-consumer')).map(x => `tests/catalog-audition-consumer/${x}`)].map(x => [x, hash(join(root, x))]));
+    manifest.sources = Object.fromEntries(['package.json', 'tests/site-fixture-build.mjs', 'scripts/build-consumer.mjs', 'tests/catalog-audition.test.mjs', 'tests/catalog-audition-lifecycle.mjs', ...readdirSync(join(root, 'tests/catalog-audition-consumer')).map(x => `tests/catalog-audition-consumer/${x}`)].map(x => [x, hash(join(root, x))]));
     manifest.htmlSHA256 = hash(join(built.output, 'catalog.html'));
     const buildIdentity = JSON.parse(readFileSync(join(built.catalog.consumer, 'candidate-provenance.json'), 'utf8'));
     assert.equal(buildIdentity.sourceCommit, manifest.sourceCommit); assert.equal(buildIdentity.sourceDirty, manifest.sourceDirty);
