@@ -1,0 +1,1 @@
+[{"id":"spatial-chains","module":"./spatial-chains","title":"Spatial chains","description":"Feedforward pitch shifting into an FIR, early-reflection and FDN reverb chain.","file":"spatial-chains.processor.ts","docs":"spatial-chains-entry.md"}]

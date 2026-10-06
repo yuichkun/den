@@ -1,16 +1,17 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-// Deletion first: remove the previous public UI, routes and generated assets.
-// Audio/library verification fixtures are built independently under tests/.
+import { buildConsumer } from './build-consumer.mjs';
 const root = resolve(import.meta.dirname, '..');
-export function buildSite({ output = join(root, 'site-dist') } = {}) {
+// Public output is exclusively the packed code playground. Historical audio
+// fixtures remain under tests/ and cannot add routes to this deployment.
+export function buildSite({ output = join(root, 'site-dist'), build = buildConsumer } = {}) {
+  const playground = build({ fixture: 'playground', stageSite: false });
   rmSync(output, { recursive: true, force: true });
   mkdirSync(output, { recursive: true });
-  writeFileSync(join(output, 'index.html'), '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>den</title></head><body><main><p>Rebuilding the playground.</p></main></body></html>\n');
-  return { output };
+  cpSync(playground.output, output, { recursive: true });
+  return { output, playground };
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  console.log(`Removed previous public site; minimal root at ${buildSite().output}`);
+  console.log(`Built packed den playground: ${buildSite().output}`);
 }

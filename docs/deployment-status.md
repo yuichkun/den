@@ -1,31 +1,37 @@
-# Public site removal
+# Code playground deployment
 
-The existing website is removed before a new catalog is built. The production
-command remains `npm run build:site`, with output `site-dist/` and no Vercel
-project, access, authentication, domain or security-setting changes.
+The previous public UI was deleted and its production routes and asset URLs
+verified absent before this replacement was started. The new root is an
+English, code-first playground. It is a work-in-progress Preview until the
+replacement PR's exact-head browser, review and CI gates are accepted.
 
-The build deletes the previous output directory and writes only `index.html`,
-a minimal rebuilding notice. It ships no scripts, stylesheets, navigation,
-players, links or audio assets. `/catalog.html`, `/audition.html`,
-`/diagnostics.html`, `/playground.html` and former asset paths are absent and
-must return 404. The previous pages are not redirected or hidden behind links.
+The production command remains `npm run build:site`, with output `site-dist/`
+and no Vercel project, access, authentication, domain or security-setting
+changes. The builder packs the current repository source, installs the isolated
+`playground/` consumer from its lockfile, checks its types and exhaustive public
+export/example coverage, and replaces the public output with its built files.
+Actual package, declaration and example hashes are emitted in `provenance.json`.
 
-Library/DSP sources, exports and repository history are preserved. Historical
-browser surfaces are test fixtures only. `tests/site-fixture-build.mjs` builds
-them into a temporary directory from identical locked packed consumers;
-`tests/site-fixture.test.mjs` retains their earlier integration checks, and the
-canonical catalog lifecycle test still exercises all eight musical-example
-variations, native state, output, cancellation, keyboard and touch behavior.
-The production build does not call that fixture helper.
+`/catalog.html`, `/audition.html`, `/diagnostics.html`, `/playground.html` and
+former asset paths remain absent. No old product page is redirected or hidden
+behind the editor. The only public application route is `/`, with `?module=`
+selecting a bundled example without autoplay.
 
-`tests/site-removal.test.mjs` poisons an output directory with former pages and
-assets and verifies they are physically removed. `tests/site.test.mjs` serves
-the actual minimal output, checks the old routes return 404, and records the
-root's absence of former controls/scripts/assets. Review, exact-head CI and
-actual production verification are required before declaring removal complete.
-No replacement interface is included in this deletion change.
+Library/DSP sources, exports and history are preserved. Historical browser
+surfaces remain test fixtures only. `tests/site-fixture-build.mjs` builds them
+outside public output, preserving all earlier numerical, native state, MIDI,
+keyboard/touch and interrupted-audio assertions. The production build never
+calls that fixture helper.
+
+`tests/site-removal.test.mjs` poisons the public directory with old routes and
+assets and verifies they are physically removed. `tests/site.test.mjs` tests the
+actual packed replacement: Monaco assistance, editable sources, native audio,
+Run/Stop/retry/cancellation, navigation/search and mobile layout. Its dedicated
+Preview job runs a bounded generator/effect slice for early feedback; full
+entry runs every example. Screenshots and manifests retain the exact source
+and packed-package identity. Browser checks and listening approval are separate.
 
 All development commands (`build:consumer`, `build:integration`, `build:catalog`
-and the manual realtime probe) now use isolated temporary output.
-`buildConsumer({stageSite: true})` is rejected before packing/installing, so a
-test helper cannot repopulate public `site-dist`. Only `build:site` owns it.
+and the manual realtime probe) use isolated temporary output.
+`buildConsumer({stageSite: true})` is rejected before packing/installing.
+Only `build:site` owns public `site-dist`.

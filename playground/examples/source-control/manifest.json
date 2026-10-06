@@ -1,0 +1,186 @@
+[
+  {
+    "id": "root",
+    "module": ".",
+    "title": "Root composition",
+    "description": "Compose the package's one-sample memory and gain fixture.",
+    "file": "root.processor.ts",
+    "docs": "contracts.md"
+  },
+  {
+    "id": "gate",
+    "module": "./gate",
+    "title": "Gate fixture",
+    "description": "Run the complete mono memory/gain processor.",
+    "file": "gate.processor.ts",
+    "docs": "contracts.md"
+  },
+  {
+    "id": "envelope",
+    "module": "./envelope",
+    "title": "Envelope",
+    "description": "An ADSR shapes repeating saw notes.",
+    "file": "envelope.processor.ts",
+    "docs": "control-modulation.md"
+  },
+  {
+    "id": "lfo",
+    "module": "./lfo",
+    "title": "LFO",
+    "description": "Apply sine modulation as pitch vibrato in semitones.",
+    "file": "lfo.processor.ts",
+    "docs": "control-modulation.md"
+  },
+  {
+    "id": "oscillator",
+    "module": "./oscillator",
+    "title": "Oscillator",
+    "description": "A band-limited saw with a native frequency AudioParam.",
+    "file": "oscillator.processor.ts",
+    "docs": "filter-oscillator.md"
+  },
+  {
+    "id": "voice-policy",
+    "module": "./voice-policy",
+    "title": "Voice policy",
+    "description": "Native MIDI allocation drives an oscillator and envelope.",
+    "file": "voice-policy.processor.ts",
+    "docs": "voice-policy.md"
+  },
+  {
+    "id": "instrument",
+    "module": "./instrument",
+    "title": "Instrument",
+    "description": "Play the mono instrument with native MIDI and bass parameters.",
+    "file": "instrument.processor.ts",
+    "docs": "instrument.md"
+  },
+  {
+    "id": "instrument-example",
+    "module": "./instrument-example",
+    "title": "Replacement parts",
+    "description": "Compose the example oscillator and filter using their public contracts.",
+    "file": "instrument-example.processor.ts",
+    "docs": "instrument.md"
+  },
+  {
+    "id": "source",
+    "module": "./source",
+    "title": "Phase modulation",
+    "description": "A two-oscillator PM tone with editable depth in radians.",
+    "file": "source.processor.ts",
+    "docs": "sources.md"
+  },
+  {
+    "id": "resonator",
+    "module": "./resonator",
+    "title": "Modal resonator",
+    "description": "Periodic impulses excite a three-mode bell.",
+    "file": "resonator.processor.ts",
+    "docs": "sources.md"
+  },
+  {
+    "id": "modulation",
+    "module": "./modulation",
+    "title": "Step sequence",
+    "description": "Tempo-synchronized pitch and gates drive a four-step phrase.",
+    "file": "modulation.processor.ts",
+    "docs": "control-modulation.md"
+  },
+  {
+    "id": "performance",
+    "module": "./performance",
+    "title": "Pitch glide",
+    "description": "Glide in semitones before converting to tuned frequency.",
+    "file": "performance.processor.ts",
+    "docs": "performance.md"
+  },
+  {
+    "id": "sample",
+    "module": "./sample",
+    "title": "Resident sample",
+    "description": "Load visible synthetic PCM and loop it at signed speed.",
+    "file": "sample.processor.ts",
+    "docs": "sample.md"
+  },
+  {
+    "id": "wavetable",
+    "module": "./wavetable",
+    "title": "Wavetable",
+    "description": "Morph two visible harmonic cycles in a resident table.",
+    "file": "wavetable.processor.ts",
+    "docs": "wavetable.md"
+  },
+  {
+    "id": "virtual-analog",
+    "module": "./virtual-analog",
+    "title": "Virtual analog",
+    "description": "A pulse source with slow pulse-width modulation.",
+    "file": "virtual-analog.processor.ts",
+    "docs": "virtual-analog.md"
+  },
+  {
+    "id": "musical-examples",
+    "module": "./musical-examples",
+    "title": "Glass dyad",
+    "description": "Load the public table helper and play two native-parameter voices.",
+    "file": "musical-examples.processor.ts",
+    "docs": "musical-examples.md"
+  },
+  {
+    "id": "mpe-expression",
+    "module": "./mpe-expression",
+    "title": "MPE expression",
+    "description": "Native member-channel bend, pressure, and timbre shape a voice.",
+    "file": "mpe-expression.processor.ts",
+    "docs": "mpe-expression.md"
+  },
+  {
+    "id": "loop-crossfade",
+    "module": "./loop-crossfade",
+    "title": "Loop crossfade",
+    "description": "Overlap the seam of a non-periodic resident slice.",
+    "file": "loop-crossfade.processor.ts",
+    "docs": "loop-crossfade.md"
+  },
+  {
+    "id": "resident-recorder",
+    "module": "./resident-recorder",
+    "title": "Resident recorder",
+    "description": "Capture a short native-source take and replay it as a loop.",
+    "file": "resident-recorder.processor.ts",
+    "docs": "resident-recorder.md"
+  },
+  {
+    "id": "live-buffer",
+    "module": "./live-buffer",
+    "title": "Live buffer",
+    "description": "Read a fractional accepted-write age from rolling history.",
+    "file": "live-buffer.processor.ts",
+    "docs": "live-buffer.md"
+  },
+  {
+    "id": "live-granular",
+    "module": "./live-granular",
+    "title": "Live granular",
+    "description": "Launch overlapping grains from the actual live writer history.",
+    "file": "live-granular.processor.ts",
+    "docs": "live-granular.md"
+  },
+  {
+    "id": "pitch-quantizer",
+    "module": "./pitch-quantizer",
+    "title": "Pitch quantizer",
+    "description": "Turn a continuous sweep into a pentatonic pitch line.",
+    "file": "pitch-quantizer.processor.ts",
+    "docs": "pitch-quantizer.md"
+  },
+  {
+    "id": "musical-controls",
+    "module": "./musical-controls",
+    "title": "Musical controls",
+    "description": "A tempo LFO gates a curved ADSR and audible saw voice.",
+    "file": "musical-controls.processor.ts",
+    "docs": "musical-controls-contract.md"
+  }
+]

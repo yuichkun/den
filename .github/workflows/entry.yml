@@ -9,10 +9,11 @@ jobs:
   entry:
     name: entry
     runs-on: ubuntu-latest
-    # PR36's final run took22m04s. The new spectral/IR/loop focused and
-    # packed/browser gates add about2-3minutes of measured work. Only this
-    # aggregate job budget changes; every test/audio/runtime threshold remains.
-    timeout-minutes: 30
+    # Main 3548edf7 completed in 28m30s before the new all54 playground gate.
+    # c60cfac0 passed all76 Node tests at 29m46s, then the 30m job cap cut off
+    # the trailing realtime captures. Allow aggregate headroom only; all test
+    # timeouts, PCM/underrun assertions, commands and completion gates stay fixed.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,9 +34,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: public-site-removal-${{ github.event.pull_request.head.sha || github.sha }}
+          name: playground-ui-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            artifacts/site-removal/
+            artifacts/playground/
             artifacts/integration/**/manifest.json
   catalog-smoke:
     name: catalog-smoke
@@ -120,3 +121,45 @@ jobs:
             artifacts/catalog-audition/
             artifacts/capture-freeze-browser/
             artifacts/transitions-browser/
+
+  playground-preview:
+    name: playground-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm exec -- playwright install --with-deps chromium
+      - name: Verify packed editor and all54 native examples
+        env:
+          NODE_OPTIONS: --max-old-space-size=1536
+        run: node --test --test-concurrency=1 tests/site.test.mjs
+      - name: Verify full playground gate reached its final assertions
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readdirSync, readFileSync } from 'node:fs';
+          const paths = readdirSync('artifacts/playground');
+          assert.equal(paths.length, 1);
+          const result = JSON.parse(readFileSync(`artifacts/playground/${paths[0]}/manifest.json`, 'utf8'));
+          assert.equal(result.sourceCommit, process.env.EXPECTED_HEAD);
+          assert.equal(result.sourceDirty, false);
+          assert.equal(result.scope, 'all-examples');
+          assert.equal(result.failure, undefined);
+          assert.equal(result.completed, true);
+          assert.equal(new Set(result.rows.map(row => row.id)).size, 54);
+          console.log('Exact-head editor/lifecycle and all54 native examples completed.');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playground-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/playground/
