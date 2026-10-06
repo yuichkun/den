@@ -12,7 +12,7 @@ test('public build deletes every former page and asset before writing the minima
   assert.equal(buildSite({ output }).output, output);
   assert.deepEqual(readdirSync(output), ['index.html']);
   const html = readFileSync(join(output, 'index.html'), 'utf8');
-  assert.match(html, /サイトを作り直しています/);
+  assert.match(html, /Rebuilding the playground/);
   assert.doesNotMatch(html, /<(?:script|link|style|a|button|input|select|audio|video|canvas|img)\b/i);
   buildSite({ output });
   assert.deepEqual(readdirSync(output), ['index.html']);

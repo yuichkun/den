@@ -24,7 +24,7 @@ test('public site removal: old pages and assets return404 and root has no former
       const response = await page.request.get(new URL(path, url).href); assert.equal(response.status(), 404, `${path} is removed`);
     }
     await page.goto(url);
-    assert.equal(await page.locator('main').innerText(), 'サイトを作り直しています。');
+    assert.equal(await page.locator('main').innerText(), 'Rebuilding the playground.');
     assert.equal(await page.locator('a,button,input,select,audio,video,canvas,script,link,img').count(), 0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: join(artifacts, 'removed-mobile.png'), fullPage: true });
