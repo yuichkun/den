@@ -126,7 +126,7 @@ merge; this document itself does not certify that a pending run has completed.
 | 7. Drive / waveshaping / reduction | Direct/ADAA fixed curves, native editable 2..17-point curves and fixed 2×/4× memoryless oversampling included, with filtered-dry/bandwidth/phase tradeoffs. General arbitrary-graph oversampling and higher-order AA remain |
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
-| 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Controlled four-line FDN freeze/thaw is included with finite-precision limits. Arbitrary long-room support, hybrid and shimmer remain |
+| 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Controlled four-line FDN freeze/thaw is included with finite-precision limits. Fixed short-convolution/early-reflection plus parallel FDN hybrid and feedforward pitched-tail candidates are included through `/spatial-chains`. Arbitrary long-room support and regenerative shimmer remain |
 | 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Separate bin-centered spectral freeze captures and rotates frames into an explicitly N-periodic texture, not transparent sustain. N<=256 frequency-magnitude blur uses a declared weak-bin phase floor; synchronized cross-synthesis replaces magnitudes only within a fixed carrier-gain cap. A fixed 1–8-band vocoder combines caller-provided modulator/carrier audio with rectified envelopes and explicit gains; speech quality is unverified. A bounded sparse resident WSOLA experiment adds independent duration and local-pitch controls, but general time-stretch quality remains incomplete; transparent/stereo/streaming stretching and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; the grouped browser fixture is test-only, with its own lifecycle/gain gate; former public routes are removed, and new human listening/golden approval is not implied |
@@ -353,3 +353,35 @@ which exceeds the 48 kHz deadline; the measured warm maximum of 1.45 ms is only 
 local diagnostic. Shared framing and FFT source remain unchanged, including the
 unused modulator inverse/output work. All audio is CANDIDATE and runtime remains
 NOT_CLEARED; no transparent speech, phase-vocoder or hardware guarantee follows.
+
+
+## Bounded spatial composition browser boundary
+
+`tests/spatial-browser.test.mjs` exercises actual public hybrid and feedforward
+pitched-tail entries in a muted 48 kHz browser graph. The plain hybrid and two
+identical pitched instances share a coherent native source. Its persistent
+modulo-256 phase telemetry fixes the complex transfer reference without fitted
+phase or amplitude. Independent FIR, fractional reflection and 4-by-4 FDN
+transfer calculations check both stereo channels, immediate dry, unpitched and
+unity-ratio paths. Specifically coherent octave and half-speed cases also check
+shifted magnitudes, including half-sample interpolation loss; these do not imply
+transparent arbitrary pitch changes.
+
+Before saving, input is muted while paired tails remain nonzero. An independent
+excitation then makes the two histories different. All saved controls render
+again with that difference still present, before native whole-graph restore must
+recover exact paired equality and a nonzero tail. This caller coordination is
+required by the pinned core's non-atomic state/AudioParam restoration. Browser
+observations establish functional recovery; exact waveform/state continuation
+is separately checked at six boundaries over all three offline rates. Reset
+has priority over bypass. Immediate dry and bypass outputs are checked directly
+against the native input.
+
+The source is normalized, but the FDN has no unity output bound. Independent
+square-input probes reached peaks 1.13108 and 1.08859 for the two entries. The
+maximum reviewed configuration retained 458,752 bytes of native memory. All six
+reported cold processing measurements, 3.20–5.53 ms, missed their respective
+quantum budgets; warm misses remain in the artifacts too. These code-only
+candidates have no new listening or realtime clearance, no feedback shimmer,
+and no arbitrary long-room claim. The browser composition has its own required
+actual hosted execution in addition to installed-package types/render/build.
