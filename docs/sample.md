@@ -162,8 +162,11 @@ and returns `{ output, activeGrains, onset, dropped, missing }`.
   overlap bound for finite bounded PCM and avoids changing gain as grains appear,
   but sparse pools are correspondingly quieter. It is not loudness normalization.
 
-Live-buffer recording/freeze, read/write-age rules, stereo grains, advanced
-crossfades, spectral synthesis and streaming are separate future work.
+Bounded [take recording](resident-recorder.md), [rolling history](live-buffer.md),
+[live grains with explicit write-age/expiry rules](live-granular.md), and
+[loop crossfades](loop-crossfade.md) are separate public candidates. The live
+history is not a ResidentSample and must not be cast into this reader. Stereo
+grains, broader spectral sources and host streaming remain outside this contract.
 
 ## Evidence and acceptance
 

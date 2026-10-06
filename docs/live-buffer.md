@@ -52,8 +52,9 @@ chronological `read`, or `sourceSampleRate` member, and must not be passed to
 existing `samplePlayer`, `multisamplePlayer` or `granularSource` through a type
 cast. Those readers interpret stable asset positions; rotating chronological
 indexes would silently change an active grain's meaning. Stable captured takes
-remain the separate `residentTakeRecorder` contract. A future live grain engine
-would need its own accepted-write cursor, expiry and read-head-motion policy.
+remain the separate `residentTakeRecorder` contract. The separate
+[`liveGranularSource`](live-granular.md) reader explicitly tracks accepted-write
+motion and expiry, with writer-before-reader order and a shared reset.
 
 ## Writer, ordering and revision
 
