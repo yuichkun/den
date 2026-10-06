@@ -32,7 +32,7 @@ builds the English TypeScript playground at `/`. Its Monaco editor resolves real
 package declarations for completion, hover, signatures and diagnostics. Every
 public import has an editable audio example. Run compiles in a cancellable
 worker, creates a native node, and exposes its AudioParams; Stop disposes it.
-See the [source format and host contract](playground/README.md).
+See the [source format and host contract](https://github.com/yuichkun/den/blob/3042e73435986fa2804f5811604e784d93470c1f/playground/README.md).
 
 The earlier public website was deleted before this replacement. Old
 `catalog.html`, `audition.html`, `diagnostics.html` and `playground.html` routes
