@@ -81,6 +81,7 @@ const clockCore = defineSubgraph((config: MusicalClockConfig) => {
   checkClock(config);
   const threshold = config.sampleRate * (config.mode === 'tempo' ? 60 : 1);
   const division = config.mode === 'tempo' ? config.stepsPerBeat ?? 1 : 1;
+  const lastPosition = config.steps - 2 ** (Math.ceil(Math.log2(config.steps)) - 53);
   const position = state.f64(0).named('positionScaled');
   const error = state.f64(0).named('errorScaled');
   const step = state.i32(0).named('step');
@@ -96,7 +97,7 @@ const clockCore = defineSubgraph((config: MusicalClockConfig) => {
     tick(c: MusicalClockControls) {
       const seek = c.seek.and(previousSeek.read().not()).and(c.reset.not());
       const request = f64(c.position.clamp(-1048576, 1048576));
-      const wrapped = request.sub(request.div(config.steps).floor().mul(config.steps));
+      const wrapped = request.sub(request.div(config.steps).floor().mul(config.steps)).min(lastPosition);
       const targetStep = wrapped.floor();
       const oldStep = select(c.reset, i32(0), select(seek, i32(targetStep), step.read()));
       current.write(select(c.reset, f64(0), select(seek, wrapped.sub(targetStep).mul(threshold * SCALE), position.read())));

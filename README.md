@@ -79,7 +79,7 @@ control/sequence/arpeggiator, sample/granular, wavetable/VA, sustain/expression
 bounded spectral/convolution, character/frequency-shift, limiter/multiband,
 editable-curve, fixed oversampling, dual-head delay, windowed pitch-shift,
 manual lower-zone expression, framewise spectral gate, prepared convolution,
-crossfaded loops, bounded native take recording, rolling accepted-write history and live grains, freeze/thaw tails, experimental resident WSOLA, musical pitch quantization, bin-centered spectral freeze, frequency-magnitude blur, gain-capped cross-synthesis, fixed filter-bank vocoder, hybrid spatial chains with feedforward pitched tails and musical-example candidates,
+crossfaded loops, bounded native take recording, rolling accepted-write history and live grains, freeze/thaw tails, experimental resident WSOLA, musical pitch quantization, bin-centered spectral freeze, frequency-magnitude blur, gain-capped cross-synthesis, fixed filter-bank vocoder, segment-relative curved envelopes and tempo multiwave LFOs, hybrid spatial chains with feedforward pitched tails and musical-example candidates,
 with their public imports, independent tests and remaining work. These modules
 have separate acceptance evidence; the initial five sounds' feedback does not
 approve new audio automatically.

@@ -227,6 +227,10 @@
     "./spatial-chains": {
       "types": "./dist/spatial-chains.d.ts",
       "import": "./dist/spatial-chains.js"
+    },
+    "./musical-controls": {
+      "types": "./dist/musical-controls.d.ts",
+      "import": "./dist/musical-controls.js"
     }
   },
   "engines": {
