@@ -121,7 +121,7 @@ merge; this document itself does not certify that a pending run has completed.
 | 2. FM / PM / additive / resonators | Bounded candidates included above with independent tuning/sideband/decay and alias evidence. General antialiasing or maximum-capacity real-time support is not implied |
 | 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Bounded native take recording, a distinct rolling accepted-write-age history, and a fixed-pool live-grain reader with explicit trigger/expiry are included. Microphone/device capture, host streaming, overdub, wider live-grain scheduling and general stretch remain |
 | 4. Voice / note / expression | Existing voice policy and sustain/glide/tuning wrapper plus manually configured lower-zone member/master expression routing. Full MPE zone/RPN negotiation, master pedals and hardware delivery remain |
-| 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. Bounded octave-periodic pitch-control quantization with explicit hysteresis is included. No transport synchronization, chord capture, or external host/device delivery claim |
+| 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. Bounded octave-periodic pitch-control quantization with explicit hysteresis, segment-relative curved ADSR and free/tempo multiwave LFOs are included. No transport synchronization, chord capture, or external host/device delivery claim |
 | 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |
 | 7. Drive / waveshaping / reduction | Direct/ADAA fixed curves, native editable 2..17-point curves and fixed 2×/4× memoryless oversampling included, with filtered-dry/bandwidth/phase tradeoffs. General arbitrary-graph oversampling and higher-order AA remain |
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
@@ -385,3 +385,47 @@ quantum budgets; warm misses remain in the artifacts too. These code-only
 candidates have no new listening or realtime clearance, no feedback shimmer,
 and no arbitrary long-room claim. The browser composition has its own required
 actual hosted execution in addition to installed-package types/render/build.
+
+
+## Curved envelope and musical LFO browser boundary
+
+`/musical-controls` adds a segment-relative curved ADSR and fixed sine, triangle,
+saw and square LFOs, with free Hz or tempo/division control. Segment settings
+latch at their declared entry points; zero durations, retrigger origins and
+reset-consuming-gate behavior are explicit. LFO waveform phase is canonical
+f32, waveforms are non-bandlimited, and live offset/seek changes may jump.
+
+A narrow shared musical-clock repair keeps negative tiny seek positions below
+the upper cycle boundary. The pre-fix native counterexample is retained.
+Independent review checked all 64 cycle lengths, 52,864 native seek cases,
+persistent-position restoration and byte-identical ordinary pre/post-fix output
+and state. The change does not quantize all seeks or alter the pinned runtime.
+
+`tests/musical-browser.test.mjs` requires actual 48 kHz native processing. A
+persistent frame counter identifies every sample in a repeating curved ADSR
+schedule with a nonzero retrigger origin. Independent event-time references
+check the whole observed attack, decay, sustain and release sequence at positive,
+negative and zero bends, including exact done flags. Four free LFOs and a
+half-beat tempo LFO are checked against their phase waveforms and per-sample
+frequency increments before and after native parameter edits.
+
+Held nonzero phase is saved, moved to another phase, and then all saved controls
+render while the phase remains different. Native whole-graph restore must
+recover the original held phase and waveform. Tiny negative seeks and a
+three-step clock test canonical upper bounds through the actual browser node.
+This is coordinated restoration under core 0.4.1, not atomic state/parameter
+restoration. Exact ADSR history and six native-quantum-boundary continuations remain
+separately verified at all three offline rates.
+
+Component packed measurements retained cold processing up to 4.81 ms and a
+4.56 ms warm maximum for the four-LFO graph; these are local diagnostic misses,
+not deadline clearance. All outputs are CANDIDATE. No host transport, device
+timing, new listening approval or general realtime claim follows.
+
+The integration fixture originally requested snapshots after 300 and 12034
+samples. Pinned `renderOffline` rounds duration up to a complete 128-sample
+quantum, so those requested boundaries were invalid. A retained native probe
+shows 300 requested frames return 384, with restored counter 384. The corrected
+splits are 128, 384, 4096, 7296, 10240 and 12032; the last lies inside held reset.
+Exact bitwise output/state equality remains required, with a bounded first-
+mismatch diagnostic instead of formatting an entire unequal audio array.
