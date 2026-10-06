@@ -25,31 +25,40 @@ and exercise real browser MIDI, AudioParams, snapshots and UI lifecycle. Generat
 source/audio/waveform manifests and failures are retained in `artifacts/`; CI
 uploads them. No command publishes to a registry.
 
-## Try the initial candidate
+## Browse and try the catalog
 
-`npm run build:site` writes the deployment to `site-dist/`:
+`npm run build:site` writes exactly three public pages to `site-dist/`:
 
-- `/`: Diagnostic / Bass / Percussion / Pad with Diagnostic delay / Chorus / Rhythmic delay
-- `/diagnostics.html`: silent package gain and snapshot check
-- `/audition.html`: earlier Envelope/LFO diagnostic listening room
-- `/catalog.html`: four new musical materials with complete A/B settings
+- `/`: searchable module catalog, grouped into sources, effects and controls
+- `/catalog.html`: four complete musical studies with A/B settings
+- `/playground.html`: Diagnostic / Bass / Percussion / Pad with Diagnostic delay / Chorus / Rhythmic delay
 
-Serve that directory over HTTP locally, or use the existing Vercel deployment.
-Select a sound and effect while stopped, then press Start audio. Hold the keys
-or the sound-specific hold button; Release leaves the tail, Clear resets notes
-and delay history, and Stop closes audio. Start with low device volume. The
-shared Master control is 0–1 with no normalization or limiter.
+Catalog cards separate code-only building blocks from actual browser audition
+examples. Each group links its real public imports and contract. Inventory
+metadata in `site/catalog-data.mjs` is checked against all `package.json`
+exports and existing documentation at build time; new exports require an explicit
+classification. Search, category and audition filters survive reload and browser
+Back/Forward. Direct listening links select a material or instrument without
+starting audio.
 
-The site is a usable initial candidate, not a cleared general-release runtime.
-Known intermittent frame-clock/underrun observations remain **NOT_CLEARED**.
-Browser coverage is **48 kHz only**; 44.1/96 kHz offline success is not browser
-support. Existing positive candidate listening feedback is recorded separately
-from generated test output and exact-hash golden approval in the
-[acceptance record](docs/initial-acceptance.md).
+Serve the output over HTTP locally, or use the existing Vercel deployment.
+Choose a sound and effect while stopped, then press Start audio. Hold a play
+control; Release leaves the tail, Clear resets notes and history, and Stop closes
+audio. Start with low device volume. The visible master remains 0–1 with no
+normalization or limiter. Existing DSP settings and audio lifecycle are preserved.
 
-The [catalog audition](docs/catalog-audition.md) has its own explicit Start,
-independent hold controls and visible unity-default master. Stop before changing
-materials or A/B settings. These new candidates have no inherited listening approval.
+Silent package checks and the old Envelope/LFO diagnostic are **test-only**:
+`tests/entry.test.mjs`, `tests/audition.test.mjs` and the realtime suite still build
+and exercise those isolated fixtures. Their pages and assets are not deployed;
+there are no public `/diagnostics.html` or `/audition.html` routes.
+
+The site is a candidate, not a cleared general-release runtime. Known intermittent
+frame-clock/underrun observations remain **NOT_CLEARED**. Browser coverage is
+**48 kHz only**; 44.1/96 kHz offline success is not browser support. Listening
+feedback and exact-hash golden approval are recorded separately in the
+[acceptance record](docs/initial-acceptance.md). New candidates do not inherit
+listening approval. See the [catalog audition contract](docs/catalog-audition.md)
+for native asset receipt and interrupted/repeated audio lifecycle details.
 
 ## Public package boundary
 

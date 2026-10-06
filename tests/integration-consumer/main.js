@@ -66,4 +66,10 @@ document.addEventListener('keydown',e=>{if(e.target.matches('input,button,select
 document.addEventListener('keyup',e=>{const b=keys.find(b=>b.dataset.key===e.key.toLowerCase());if(b)release(b.id+':shortcut');});
 window.addEventListener('blur',releaseAll);document.addEventListener('visibilitychange',()=>{if(document.hidden)void stop();});window.addEventListener('pagehide',()=>void stop());
 window.denIntegration={state:()=>({selected,selectedInstrument,activeInstrument:session?.instrumentName??null,activeEffect:session?.effect??null,stopping,ready:!!session?.ready,starting:!!session&&!session.ready,contextState:session?.ctx.state??'closed',held:held.size,starts,closes,peak:session?.peak??0,controls:controls()})};
+// Deep links select existing settings only; they never start audio.
+const requested = new URLSearchParams(location.search);
+for (const [name, choices] of [['instrument', instruments], ['effect', processors]]) {
+  const value = requested.get(name);
+  if (value && Object.hasOwn(choices, value)) { $(name).value = value; $(name).dispatchEvent(new Event('change')); }
+}
 $('volume').max=String(masterMaximum);$('volume').value=String(masterDefault);showInstrument();show();buttons();

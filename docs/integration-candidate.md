@@ -69,19 +69,22 @@ actual connected instrument/FX outputs. It retains candidate WAV, settings,
 source/package/WASM hashes, every numerical peak, browser results and failures
 under `artifacts/integration`. Generated evidence is never an approved golden.
 `npm run build:integration` produces a standalone integration-only local build.
-The permanent `npm run build:site` route packs the same source into two clean
-locked consumers and stages their checked assets into `site-dist`: integration
-at `/`, the silent gate at `/diagnostics.html`, and the earlier Envelope/LFO
-module audition at `/audition.html`. Both package integrities must match and
-conflicting asset names fail the build. Vercel uses this versioned `build:site`
-command, not a branch-only build override. Building does not itself deploy.
+The permanent `npm run build:site` packs the same source into two clean locked
+consumers and stages the instrument/FX page at `/playground.html` and musical
+A/B studies at `/catalog.html`, with a searchable static catalog at `/`.
+Both package integrities must match and conflicting asset names fail the build.
+The old silent and Envelope/LFO developer pages remain standalone test fixtures;
+they and their exclusive assets are not copied to the public site.
 
-`tests/site.test.mjs` serves the staged deployment bytes and verifies both
-selected sound/FX graphs, the silent gain/snapshot gate, preserved audition,
-fresh navigation, and missing-asset/page-error absence. The full matrix and
-interrupted/repeated lifecycle checks remain in `tests/integration.test.mjs`.
-No production branch/project, authentication, access, or header setting change
-is needed. Merge and deployment follow independent review and exact-head CI.
+`tests/site.test.mjs` serves the staged deployment bytes and verifies public
+route removal, catalog search/filter/history, source-to-audition deep links,
+mobile/desktop overflow and actual repeated sound/FX playback/stop. Standalone
+entry/audition tests retain their gain/snapshot and audio lifecycle assertions.
+The full instrument matrix and interrupted/repeated checks remain in
+`tests/integration.test.mjs`; the canonical A/B/touch lifecycle gate remains in
+`tests/catalog-audition.test.mjs`. No production branch/project, authentication,
+access or header setting change is needed. Merge and deployment follow
+independent review and exact-head CI.
 
 The packed and realtime browser gates use Vite preview with `configFile:false`,
 without COOP/COEP headers. The integration manifest records response isolation

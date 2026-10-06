@@ -230,12 +230,12 @@ export async function runCatalogLifecycle(browser, url) {
     // because the old document is no longer inspectable after it unloads.
     await start('echo');
     const closes = await page.evaluate(() => Number(sessionStorage.getItem('catalogNativeCloseCalls') || 0));
-    await page.getByRole('link', { name: 'Initial sound / FX candidate', exact: true }).click();
-    assert.equal(new URL(page.url()).pathname, '/');
+    await page.getByRole('link', { name: '楽器を弾く', exact: true }).click();
+    assert.equal(new URL(page.url()).pathname, '/playground.html');
     assert.equal(await page.evaluate(() => Number(sessionStorage.getItem('catalogNativeCloseCalls') || 0)), closes + 1, 'navigation must close the native context');
     await page.goBack(); await page.waitForFunction(() => !!window.denCatalog);
     assert.equal((await state()).phase, 'idle'); assert(await nativeClosed());
-    await page.goForward(); assert.equal(new URL(page.url()).pathname, '/');
+    await page.goForward(); assert.equal(new URL(page.url()).pathname, '/playground.html');
     checks.push('visibility, actual route navigation and browser Back/Forward leave audio off');
     assert.deepEqual(errors, [], 'no unhandled browser errors in interrupted lifecycle flows');
     return checks;

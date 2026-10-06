@@ -1,10 +1,15 @@
 # Catalog A/B audition
 
-`npm run build:site` stages `/catalog.html` beside the initial instrument/FX page,
-the silent diagnostics and the earlier Envelope/LFO audition. `npm run
-build:catalog` builds this page alone at `/`; only the combined staging step adds
-sibling navigation. All three isolated consumers install identical packed den
-bytes with locked dependencies. The original five settings are unchanged.
+`npm run build:site` stages `/catalog.html` as the A/B listening page beside
+the catalog home and `/playground.html` instrument/FX page. The two audio
+consumers install identical packed den bytes with locked dependencies. The
+original five settings are unchanged. Developer diagnostics are test-only and
+are not copied into the public output.
+
+`npm run build:catalog` builds this page alone at `/`; only the combined staging
+step adds sibling navigation. The catalog home links a material with
+`?example=glass|hit|grain|echo`; a recognized value selects that material, while
+an unknown value uses Glass dyad. No deep link starts audio.
 
 ## Four candidate materials
 

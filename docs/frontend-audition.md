@@ -1,6 +1,11 @@
 # Mobile listening room
 
-`/audition.html` is the first audible candidate in the existing Vercel consumer. The home page retains its silent entry check and links to the listening room. Build with `npm run build:consumer`; both pages come from a clean installation of the packed package, with the consumer lock's candidate integrity updated by the existing build helper.
+This is a **test-only** Envelope/LFO fixture, formerly a public preview.
+It is no longer staged by `npm run build:site`; the public catalog does not
+include its HTML or assets. `npm run build:consumer` still builds the isolated
+silent entry check and `/audition.html` fixture for development and automated
+verification. Both come from a clean installation of the packed package, with
+the consumer lock's candidate integrity updated by the existing build helper.
 
 The composition uses public `@denaudio/den/envelope`, `/lfo`, and `/oscillator` subpaths. It is one sine oscillator, one linear envelope, and pitch modulation via the existing LFO/depth function. Native unworklet AudioParams carry control changes. It is a module audition, not the full configurable MIDI instrument or delay FX. Oscillator dependency PR #18 and envelope/LFO PR #17 are merged. Delay/voice work is deliberately outside this first frontend slice.
 

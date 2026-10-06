@@ -17,7 +17,7 @@ test('catalog deployed bytes: four A/B candidates, native asset preload, actual 
   let server, browser;
   try {
     const built = buildSite();
-    assert.equal(built.catalog.pack.integrity, built.integration.pack.integrity); assert.equal(built.catalog.pack.integrity, built.diagnostic.pack.integrity); manifest.packageIntegrity = built.catalog.pack.integrity;
+    assert.equal(built.catalog.pack.integrity, built.integration.pack.integrity); manifest.packageIntegrity = built.catalog.pack.integrity;
     manifest.sources = Object.fromEntries(['package.json', 'scripts/build-site.mjs', 'scripts/build-consumer.mjs', 'tests/catalog-audition.test.mjs', 'tests/catalog-audition-lifecycle.mjs', ...readdirSync(join(root, 'tests/catalog-audition-consumer')).map(x => `tests/catalog-audition-consumer/${x}`)].map(x => [x, hash(join(root, x))]));
     manifest.htmlSHA256 = hash(join(built.output, 'catalog.html'));
     const buildIdentity = JSON.parse(readFileSync(join(built.catalog.consumer, 'candidate-provenance.json'), 'utf8'));
@@ -82,7 +82,7 @@ test('catalog deployed bytes: four A/B candidates, native asset preload, actual 
     await page.waitForFunction(() => window.denCatalog.state().phase === 'idle'); assert.equal((await state()).closed, (await state()).started);
     assert.deepEqual((await state()).errors.filter(x => x.code !== 'sab-unavailable'), []);
     await page.setViewportSize({ width: 1280, height: 900 }); await page.screenshot({ path: join(artifacts, 'catalog-desktop.png'), fullPage: true });
-    await page.getByRole('link', { name: 'Initial sound / FX candidate', exact: true }).click();
+    await page.getByRole('link', { name: '楽器を弾く', exact: true }).click();
     assert.equal(await page.locator('#instrument option').count(), 4); assert.equal(await page.locator('#effect option').count(), 3);
     manifest.checks.push(...await runCatalogLifecycle(browser, url));
     assert.deepEqual(pageErrors, []); assert.deepEqual(failed, []);

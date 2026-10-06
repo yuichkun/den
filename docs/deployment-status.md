@@ -1,31 +1,39 @@
-# Consumer deployment
+# Catalog deployment
 
-The versioned build for the initial candidate is `npm run build:site`:
+The versioned production build is `npm run build:site`. Its public map is:
 
-- `/`: integrated Diagnostic / Bass / Percussion / Pad × three Delay settings
-- `/diagnostics.html`: silent package gain/snapshot check
-- `/audition.html`: retained Envelope/LFO module audition
-- `/catalog.html`: four musical materials with A/B settings
+- `/`: searchable source/effect/control catalog, with actual audition links
+- `/catalog.html`: four musical A/B studies
+- `/playground.html`: the existing instrument and stereo FX playground
 
-The build packs the same source into three isolated locked consumers, requires
-identical package integrity, typechecks/builds each, and copies only their Vite
-outputs into `site-dist`. Distinct outputs with the same asset name cause a hard
-failure. The deployment smoke test serves those exact bytes, not the source tree.
-`build:consumer` and `build:integration` remain available for focused local work.
-The repository's Vercel build command is now `build:site`; install remains
-`npm ci --include=dev`, framework is none, and output remains `site-dist`.
+`/diagnostics.html` and `/audition.html` are removed from the public output,
+including their exclusive assets. They are not hidden links or redirects. Silent
+package/snapshot and Envelope/LFO behavior remain covered by the independent
+entry, audition and realtime tests, using their original isolated consumers.
 
-This replaces the former branch-only integration preview override. It does not
-change the Vercel project, production branch, authentication, sharing, permissions
-or response headers. Review and exact-head CI precede main integration; the
-existing Vercel check must pass on the final head. A successful build or deploy
-is not runtime clearance, physical-device certification, or golden approval.
-See [current acceptance boundaries](initial-acceptance.md).
+The build validates catalog metadata against every actual public package export
+and checked-in contract. It builds two isolated locked audio consumers, requires
+identical package integrity, then starts from a clean `site-dist` and copies only
+those consumers' outputs plus the static catalog. Distinct assets with the same
+name cause a hard failure. No diagnostic consumer is built into the public site.
+
+The deployment smoke test serves those exact bytes. It verifies the three-page
+inventory and removed-route 404s; desktop/mobile layout, filtering, empty/reset
+states, keyboard details and browser Back/Forward; safe deep links, no autoplay,
+real nonzero audio, repeated release/stop and closed native contexts. The
+canonical eight-row A/B stereo and interrupted/touch lifecycle gate is retained.
+
+The Vercel project keeps `npm ci --include=dev`, build `npm run build:site`,
+framework none and output `site-dist`. No project, production branch,
+authentication, access, environment or response-header settings are changed.
+Review and exact-head CI precede main integration. A successful build or deploy
+is not runtime clearance, device certification or golden approval. See
+[current acceptance boundaries](initial-acceptance.md).
 
 ## Historical entry-gate deployment repair
 
 The following records the original G0 repair and its then-current `build:consumer`
-route. That route is preserved at `/diagnostics.html` by the current site build.
+route. It is now a test-only fixture and is not staged by the public site build.
 
 The failure on `3ea862b1cb7b9fa37afa892e51606ea0556a35ae` is confirmed by the
 [deployment log](https://vercel.com/escentier/den/7XCUWxMzapFEBzsQhipQ7UhakxXd):
@@ -65,11 +73,13 @@ credential, permission, or check-disabling change is required. See Vercel's
 install/build/output overrides. The deployment must pass on the final reviewed
 commit; a previous failed status is not waived by a local build.
 
-## Grouped catalog audition
+## Public listening routes
 
-The combined build also stages `/catalog.html` from a third isolated consumer of
-the identical package. It imports four musical-example candidates and their A/B
-maps, uses explicit Start and a visible unity-default master, and retains the
-initial candidate routes. See [catalog audition](catalog-audition.md) for native
-asset receipt, cancellation, keyboard/touch behavior and exact browser gates.
-The standalone `build:catalog` output retains its own root without sibling links.
+`/catalog.html` is the A/B listening destination. `/playground.html` is the
+instrument/FX destination. Both use the same shared catalog navigation and
+explicit user gestures to start audio. `?example=` on the A/B page and
+`?instrument=&effect=` on the playground accept only known settings. Invalid
+values fall back to existing defaults and never create audio contexts.
+
+The standalone `build:catalog` and `build:integration` outputs retain their
+fixture roots; only the combined site build adds public navigation.

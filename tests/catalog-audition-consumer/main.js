@@ -18,7 +18,8 @@ const examples = {
   grain: { title: 'Grain cloud', description: 'Two seeded grains over an original short tone cluster. Gate release lets active windows finish.', variants: [grainCloudParameters, grainCloudReverseParameters], labels: ['A · Forward cloud', 'B · Reverse cloud'], processor: grainProcessor, asset: makeGrainCloudSample, length: 4096, construction: 'Two-grain pool · original 4096-frame 48 kHz PCM · seed 1741 · no streaming or time stretching.', triggers: [['texture', 'Hold texture', 'Space', ['gate']]] },
   echo: { title: 'Shaped echo', description: 'Soft first-order ADAA, a Q0.5 low-pass, and asymmetric stereo repeats.', variants: [shapedEchoParameters, shapedEchoDarkParameters], labels: ['A · Open repeats', 'B · Darker repeats'], processor: echoProcessor, construction: 'Audition input: native 220 Hz sine with visible fixed 0.25 amplitude before processing. ADAA has a half-sample phase tradeoff; delay/filters add their documented phase and tails.', triggers: [['source', 'Hold source', 'Space', ['source']]] },
 };
-let selected = 'glass', variant = 'A', phase = 'idle', session = null, generation = 0;
+const requestedExample = new URLSearchParams(location.search).get('example');
+let selected = Object.hasOwn(examples, requestedExample) ? requestedExample : 'glass', variant = 'A', phase = 'idle', session = null, generation = 0;
 let lastAsset = null, lastError = null, peakSeen = 0, animation = null;
 const intents = new Map(), virtualTimers = new Set(), diagnostics = [], lifecycle = { started: 0, settled: 0, disposed: 0, closed: 0 };
 let virtualSerial = 0;
