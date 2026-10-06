@@ -1,0 +1,242 @@
+[
+  {
+    "id": "character-filter",
+    "module": "./character-filter",
+    "title": "Character filter",
+    "description": "Four saturating poles with resonance and drive.",
+    "file": "character-filter.processor.ts",
+    "docs": "character-filter.md"
+  },
+  {
+    "id": "delay-fx",
+    "module": "./delay-fx",
+    "title": "Delay FX",
+    "description": "Independent stereo delay times and filtered feedback.",
+    "file": "delay-fx.processor.ts",
+    "docs": "delay-fx.md"
+  },
+  {
+    "id": "delay-settings",
+    "module": "./delay-settings",
+    "title": "Delay settings",
+    "description": "Apply the public chorus settings to a native delay graph.",
+    "file": "delay-settings.processor.ts",
+    "docs": "delay-settings.md"
+  },
+  {
+    "id": "filter",
+    "module": "./filter",
+    "title": "Low-pass filter",
+    "description": "A trapezoidal low-pass with audio-rate cutoff and resonance.",
+    "file": "filter.processor.ts",
+    "docs": "filter-oscillator.md"
+  },
+  {
+    "id": "delay-readhead",
+    "module": "./delay-readhead",
+    "title": "Delay readhead",
+    "description": "Read history before writing an explicit feedback sample.",
+    "file": "delay-readhead.processor.ts",
+    "docs": "delay-readhead.md"
+  },
+  {
+    "id": "state-variable-filter",
+    "module": "./state-variable-filter",
+    "title": "State-variable filter",
+    "description": "Share one state across low-pass and band-pass outputs.",
+    "file": "state-variable-filter.processor.ts",
+    "docs": "catalog-filters.md"
+  },
+  {
+    "id": "biquad-eq",
+    "module": "./biquad-eq",
+    "title": "Biquad EQ",
+    "description": "A peaking equalizer with frequency, Q and gain controls.",
+    "file": "biquad-eq.processor.ts",
+    "docs": "catalog-filters.md"
+  },
+  {
+    "id": "crossover",
+    "module": "./crossover",
+    "title": "Crossover",
+    "description": "Audition the LR4 low and high bands in separate channels.",
+    "file": "crossover.processor.ts",
+    "docs": "catalog-filters.md"
+  },
+  {
+    "id": "formant-bank",
+    "module": "./formant-bank",
+    "title": "Formant bank",
+    "description": "A fixed parallel resonator bank with live frequency scaling.",
+    "file": "formant-bank.processor.ts",
+    "docs": "catalog-filters.md"
+  },
+  {
+    "id": "dynamics",
+    "module": "./dynamics",
+    "title": "Dynamics",
+    "description": "RMS compression with an explicit stereo sidechain.",
+    "file": "dynamics.processor.ts",
+    "docs": "dynamics.md"
+  },
+  {
+    "id": "drive",
+    "module": "./drive",
+    "title": "Drive",
+    "description": "Soft saturation with first-order ADAA and a wet-path DC blocker.",
+    "file": "drive.processor.ts",
+    "docs": "drive.md"
+  },
+  {
+    "id": "modulation-fx",
+    "module": "./modulation-fx",
+    "title": "Modulation FX",
+    "description": "A stereo flanger with opposite-phase delay modulation.",
+    "file": "modulation-fx.processor.ts",
+    "docs": "catalog-modulation-fx.md"
+  },
+  {
+    "id": "stereo-delay",
+    "module": "./stereo-delay",
+    "title": "Stereo delay",
+    "description": "Left-side excitation and cross-feedback ping-pong repeats.",
+    "file": "stereo-delay.processor.ts",
+    "docs": "catalog-modulation-fx.md"
+  },
+  {
+    "id": "reverb",
+    "module": "./reverb",
+    "title": "Reverb",
+    "description": "A damped four-line feedback delay network.",
+    "file": "reverb.processor.ts",
+    "docs": "catalog-modulation-fx.md"
+  },
+  {
+    "id": "spectral",
+    "module": "./spectral",
+    "title": "Spectral identity",
+    "description": "Graph-native FFT and IFFT overlap-add reconstruction.",
+    "file": "spectral.processor.ts",
+    "docs": "spectral.md"
+  },
+  {
+    "id": "convolution",
+    "module": "./convolution",
+    "title": "Convolution",
+    "description": "A fixed short impulse response in partitioned FFT convolution.",
+    "file": "convolution.processor.ts",
+    "docs": "convolution.md"
+  },
+  {
+    "id": "frequency-shifter",
+    "module": "./frequency-shifter",
+    "title": "Frequency shifter",
+    "description": "Add a fixed frequency offset to each spectral component.",
+    "file": "frequency-shifter.processor.ts",
+    "docs": "frequency-shifter.md"
+  },
+  {
+    "id": "lookahead-limiter",
+    "module": "./lookahead-limiter",
+    "title": "Lookahead limiter",
+    "description": "Stereo-linked sample-peak limiting with 128-sample lookahead.",
+    "file": "lookahead-limiter.processor.ts",
+    "docs": "lookahead-multiband.md"
+  },
+  {
+    "id": "multiband-dynamics",
+    "module": "./multiband-dynamics",
+    "title": "Multiband dynamics",
+    "description": "Three phase-compensated bands with independent compression.",
+    "file": "multiband-dynamics.processor.ts",
+    "docs": "lookahead-multiband.md"
+  },
+  {
+    "id": "curve-shaper",
+    "module": "./curve-shaper",
+    "title": "Curve shaper",
+    "description": "Edit the ordinates of a five-knot waveshaping curve.",
+    "file": "curve-shaper.processor.ts",
+    "docs": "curve-shaper.md"
+  },
+  {
+    "id": "oversampled-drive",
+    "module": "./oversampled-drive",
+    "title": "Oversampled drive",
+    "description": "Soft saturation with fixed 2x oversampling.",
+    "file": "oversampled-drive.processor.ts",
+    "docs": "oversampled-drive.md"
+  },
+  {
+    "id": "dual-head-delay",
+    "module": "./dual-head-delay",
+    "title": "Dual-head delay",
+    "description": "Crossfade between fixed read positions when delay time changes.",
+    "file": "dual-head-delay.processor.ts",
+    "docs": "dual-head-delay.md"
+  },
+  {
+    "id": "windowed-pitch-shift",
+    "module": "./windowed-pitch-shift",
+    "title": "Windowed pitch shift",
+    "description": "A live two-window readhead pitch effect.",
+    "file": "windowed-pitch-shift.processor.ts",
+    "docs": "windowed-pitch-shift.md"
+  },
+  {
+    "id": "spectral-gate",
+    "module": "./spectral-gate",
+    "title": "Spectral gate",
+    "description": "Framewise bin attenuation with an explicit linear floor.",
+    "file": "spectral-gate.processor.ts",
+    "docs": "spectral-gate-entry.md"
+  },
+  {
+    "id": "prepared-convolution",
+    "module": "./prepared-convolution",
+    "title": "Prepared convolution",
+    "description": "Prepare a resident impulse spectrum and upload it through a native event.",
+    "file": "prepared-convolution.processor.ts",
+    "docs": "prepared-convolution.md"
+  },
+  {
+    "id": "freeze-reverb",
+    "module": "./freeze-reverb",
+    "title": "Freeze reverb",
+    "description": "Warm up a wet-only delay network, then freeze its stored tail.",
+    "file": "freeze-reverb.processor.ts",
+    "docs": "freeze-reverb.md"
+  },
+  {
+    "id": "resident-time-stretch",
+    "module": "./resident-time-stretch",
+    "title": "Resident time stretch",
+    "description": "Upload resident PCM and vary duration independently of grain-local pitch.",
+    "file": "resident-time-stretch.processor.ts",
+    "docs": "resident-time-stretch.md"
+  },
+  {
+    "id": "spectral-freeze",
+    "module": "./spectral-freeze",
+    "title": "Spectral freeze",
+    "description": "Capture a full frame and hold bin-centered spectral content.",
+    "file": "spectral-freeze.processor.ts",
+    "docs": "spectral-freeze-entry.md"
+  },
+  {
+    "id": "filterbank-vocoder",
+    "module": "./filterbank-vocoder",
+    "title": "Filter-bank vocoder",
+    "description": "Transfer input envelopes onto an explicit saw carrier.",
+    "file": "filterbank-vocoder.processor.ts",
+    "docs": "filterbank-vocoder-entry.md"
+  },
+  {
+    "id": "spectral-texture",
+    "module": "./spectral-texture",
+    "title": "Spectral texture",
+    "description": "Blur framewise magnitudes with a triangular frequency kernel.",
+    "file": "spectral-texture.processor.ts",
+    "docs": "spectral-texture-entry.md"
+  }
+]

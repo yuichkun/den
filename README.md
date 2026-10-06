@@ -25,24 +25,24 @@ and exercise real browser MIDI, AudioParams, snapshots and UI lifecycle. Generat
 source/audio/waveform manifests and failures are retained in `artifacts/`; CI
 uploads them. No command publishes to a registry.
 
-## Public site status
+## Code playground
 
-The previous public website has been removed as the first step of a from-scratch
-replacement. `npm run build:site` clears `site-dist/` and writes only a minimal
-rebuilding notice at `/`. There is no catalog, instrument player, diagnostic
-page, navigation, JavaScript, stylesheet or audio asset in that public output.
-Former page and asset paths return 404.
+`npm run build:site` packs the current den source into an isolated consumer and
+builds the English TypeScript playground at `/`. Its Monaco editor resolves real
+package declarations for completion, hover, signatures and diagnostics. Every
+public import has an editable audio example. Run compiles in a cancellable
+worker, creates a native node, and exposes its AudioParams; Stop disposes it.
+See the [source format and host contract](playground/README.md).
 
-The den library, DSP sources, package exports and Git history are unchanged.
-Historical browser pages remain only in isolated test fixtures. The canonical
-musical-example, instrument, envelope, gain, snapshot, keyboard/touch and
-interrupted-audio assertions still run; `tests/site-fixture-build.mjs` stages
-those fixtures outside the production output. No previous UI is retained as a
-product surface. See [deployment status](docs/deployment-status.md).
+The earlier public website was deleted before this replacement. Old
+`catalog.html`, `audition.html`, `diagnostics.html` and `playground.html` routes
+stay absent. Historical browser surfaces exist only as isolated test fixtures;
+their canonical audio, MIDI, snapshot and interrupted-lifecycle gates remain.
+See [deployment status](docs/deployment-status.md).
 
-Audio remains **CANDIDATE** and runtime remains **NOT_CLEARED**. Test success is
-not listening approval or all-device real-time acceptance. See the
-[acceptance record](docs/initial-acceptance.md).
+This replacement is under review. Generated audio remains **CANDIDATE**;
+passing tests is not listening approval or all-device real-time acceptance.
+See the [acceptance record](docs/initial-acceptance.md).
 
 ## Public package boundary
 

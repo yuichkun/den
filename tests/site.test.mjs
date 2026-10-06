@@ -1,34 +1,102 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
 import { buildSite } from '../scripts/build-site.mjs';
-
 const root = join(import.meta.dirname, '..');
-test('public site removal: old pages and assets return404 and root has no former UI', { timeout: 60000 }, async () => {
-  const artifacts = join(root, 'artifacts/site-removal', new Date().toISOString().replaceAll(':', '-')); mkdirSync(artifacts, { recursive: true });
-  const manifest = { sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '', checks: [] };
-  let server, browser;
+const smoke = process.env.DEN_PLAYGROUND_SCOPE === 'smoke';
+test('packed playground: actual editor assistance and native audio lifecycle', { timeout: smoke ? 300000 : 600000 }, async () => {
+  const artifacts = join(root, 'artifacts/playground', new Date().toISOString().replaceAll(':', '-')); mkdirSync(artifacts, { recursive: true });
+  const manifest = { sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '', scope: smoke ? 'two-example-preview' : 'all-examples', checks: [], rows: [], listening: 'NOT_PERFORMED' };
+  let server, browser, page;
   try {
-    const { output } = buildSite();
-    assert.deepEqual(readdirSync(output), ['index.html']);
-    const config = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')); assert.equal(config.buildCommand, 'npm run build:site'); assert.equal(config.outputDirectory, 'site-dist');
+    const { output, playground } = buildSite();
+    manifest.packageIntegrity = playground.pack.integrity;
+    const provenance = JSON.parse(readFileSync(join(output, 'provenance.json'), 'utf8'));
+    assert.equal(provenance.candidate.sourceCommit, manifest.sourceCommit);
+    assert.equal(provenance.candidate.packageIntegrity, manifest.packageIntegrity);
+    assert.equal(provenance.examples.length, Object.keys(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).exports).length);
+    assert.equal(provenance.examples.length, 54);
     server = await preview({ root, configFile: false, appType: 'mpa', build: { outDir: output }, preview: { host: '127.0.0.1', port: 0 } });
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'tr-TR' });
+    page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
     const url = server.resolvedUrls.local[0];
-    for (const path of ['catalog.html', 'audition.html', 'diagnostics.html', 'playground.html', 'catalog-home.js', 'site.css', 'assets/old.js', 'assets/old.wasm']) {
-      const response = await page.request.get(new URL(path, url).href); assert.equal(response.status(), 404, `${path} is removed`);
-    }
-    await page.goto(url);
-    assert.equal(await page.locator('main').innerText(), 'Rebuilding the playground.');
-    assert.equal(await page.locator('a,button,input,select,audio,video,canvas,script,link,img').count(), 0);
+    for (const path of ['catalog.html', 'audition.html', 'diagnostics.html', 'playground.html', 'catalog-home.js', 'site.css', 'assets/old.js', 'assets/old.wasm']) assert.equal((await page.request.get(new URL(path, url).href)).status(), 404, path);
+    await page.goto(url); await page.waitForFunction(() => !!window.__denPlayground);
+    await page.waitForFunction(() => document.querySelector('#type-status').textContent === 'Types checked.', undefined, { timeout: 45000 });
+    assert.equal(await page.locator('#modules a').count(), 54);
+    assert.equal((await page.evaluate(() => window.__denPlayground.state())).created, 0);
+    await page.screenshot({ path: join(artifacts, 'editor-desktop.png') });
+    const state = () => page.evaluate(() => window.__denPlayground.state());
+    const stop = async () => {
+      await page.click('#stop'); await page.waitForFunction(() => window.__denPlayground.state().phase === 'idle');
+      const result = await state(); assert.equal(result.contextState, 'closed'); assert.equal(result.created, result.closed); assert.equal(result.output.peak, 0);
+    };
+    const run = async id => {
+      await page.locator(`#modules a[href="?module=${id}"]`).click();
+      await page.waitForFunction(() => ['idle', 'error'].includes(window.__denPlayground.state().phase));
+      await page.click('#run');
+      await page.waitForFunction(() => ['playing', 'error'].includes(window.__denPlayground.state().phase), undefined, { timeout: 45000 });
+      let result = await state(); assert.equal(result.phase, 'playing', `${id}: ${result.error}`);
+      // Some generators pulse. Sample the actual post-master graph for up to 2 s.
+      for (let i = 0; i < 20; i++) { await page.waitForTimeout(100); result = await state(); if (result.output.rms > .00005) break; }
+      assert(result.raw.finite && result.output.finite, id);
+      assert(result.output.rms > .00005, `${id} must produce actual native output`);
+      assert(result.raw.peak < 1, `${id} unexpectedly clips before master`);
+      manifest.rows.push({ id, peak: result.raw.peak, rms: result.output.rms, parameters: result.params, inputs: result.inputNames });
+      await stop();
+    };
+    await run('oscillator'); await run('filter'); await run('oscillator');
+    manifest.checks.push('generator + input effect produce finite native output; repeated Run/Stop closes every AudioContext');
+    // Query actual Monaco UI providers, not a duplicate type-service test.
+    await page.locator('#modules a[href="?module=filter"]').click();
+    const filterSource = await page.evaluate(() => window.__denPlayground.model.getValue());
+    await page.evaluate(() => {
+      const { model, editor } = window.__denPlayground;
+      const source = model.getValue().replace('lowpass.tick(', 'lowpass.\n/* completion */tick('); model.setValue(source);
+      editor.setPosition(model.getPositionAt(source.indexOf('lowpass.') + 'lowpass.'.length)); editor.focus(); editor.trigger('test', 'editor.action.triggerSuggest', {});
+    });
+    await page.getByRole('option', { name: /tick/ }).first().waitFor({ timeout: 30000 });
+    await page.screenshot({ path: join(artifacts, 'completion.png') }); await page.keyboard.press('Escape');
+    await page.evaluate(source => window.__denPlayground.model.setValue(source), filterSource);
+    await page.waitForFunction(() => document.querySelector('#type-status').textContent === 'Types checked.');
+    manifest.checks.push('actual Monaco member completion contains native filter.tick');
+    await page.evaluate(() => window.__denPlayground.model.setValue('export default ;'));
+    await page.waitForFunction(() => window.__denPlayground.state().markers.length > 0);
+    await page.click('#run'); await page.waitForFunction(() => window.__denPlayground.state().phase === 'error');
+    assert.match(await page.locator('#run-error').innerText(), /TypeScript/);
+    assert.equal((await state()).created, (await state()).closed);
+    await page.click('#reset'); await run('filter');
+    manifest.checks.push('syntax diagnostics block native startup, close context, and Reset/Run recovers');
+    // The graph builder may loop, but Stop and navigation must remain responsive.
+    await page.evaluate(source => window.__denPlayground.model.setValue('while (true) {}\n' + source), filterSource);
+    await page.click('#run');
+    await page.waitForFunction(() => document.querySelector('#audio-status').textContent === 'Compiling…');
+    await stop(); await page.click('#reset');
+    await page.click('#run'); await page.click('#modules a[href="?module=envelope"]');
+    await page.waitForFunction(() => window.__denPlayground.state().phase === 'idle');
+    assert.equal((await state()).created, (await state()).closed);
+    await page.goBack(); assert.equal(new URL(page.url()).searchParams.get('module'), 'filter');
+    assert.equal((await state()).phase, 'idle');
+    manifest.checks.push('infinite graph-building loop cancels; navigation cancels compilation; Back never autoplays');
+    await page.fill('#search', 'MIDI'); assert((await page.locator('#modules a').count()) > 0);
+    const uppercase = await page.locator('#modules a').allTextContents(); await page.fill('#search', 'midi'); assert.deepEqual(await page.locator('#modules a').allTextContents(), uppercase);
+    await page.fill('#search', 'no-such-module'); assert.equal(await page.locator('#modules a').count(), 0); assert(await page.locator('#no-results').isVisible()); await page.fill('#search', '');
+    manifest.checks.push('search is locale-independent under tr-TR, with useful empty state');
+    if (!smoke) for (const { id } of provenance.examples) if (!['oscillator', 'filter'].includes(id)) await run(id);
+    await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await page.screenshot({ path: join(artifacts, 'removed-mobile.png'), fullPage: true });
-    manifest.checks.push('clean output contains only minimal root; all former UI routes and assets404; no navigation, player, scripts or assets retained');
-  } catch (error) { manifest.failure = String(error); throw error; }
+    await page.screenshot({ path: join(artifacts, 'editor-mobile.png') });
+    await page.click('#open-library'); await page.fill('#search', 'envelope'); await page.click('#modules a[href="?module=envelope"]');
+    assert.equal(await page.locator('.library').isVisible(), false); await page.click('#run');
+    await page.waitForFunction(() => ['playing', 'error'].includes(window.__denPlayground.state().phase), undefined, { timeout: 45000 }); assert.equal((await state()).phase, 'playing'); await stop();
+    await page.screenshot({ path: join(artifacts, 'mobile-controls.png'), fullPage: true });
+    manifest.checks.push('390px mobile module selection, editor, Run/Stop, controls and no horizontal page overflow');
+    assert.deepEqual(errors, []);
+  } catch (error) { manifest.failure = String(error); if (page) await page.screenshot({ path: join(artifacts, 'failure.png') }).catch(() => {}); throw error; }
   finally { writeFileSync(join(artifacts, 'manifest.json'), JSON.stringify(manifest, null, 2)); await browser?.close(); if (server) await new Promise((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve())); }
 });

@@ -33,9 +33,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: public-site-removal-${{ github.event.pull_request.head.sha || github.sha }}
+          name: playground-ui-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            artifacts/site-removal/
+            artifacts/playground/
             artifacts/integration/**/manifest.json
   catalog-smoke:
     name: catalog-smoke
@@ -120,3 +120,28 @@ jobs:
             artifacts/catalog-audition/
             artifacts/capture-freeze-browser/
             artifacts/transitions-browser/
+
+  playground-preview:
+    name: playground-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm exec -- playwright install --with-deps chromium
+      - name: Verify packed editor and native two-example lifecycle
+        env:
+          DEN_PLAYGROUND_SCOPE: smoke
+          NODE_OPTIONS: --max-old-space-size=1536
+        run: node --test --test-concurrency=1 tests/site.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playground-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/playground/
