@@ -1,10 +1,11 @@
 # Catalog A/B audition
 
-`npm run build:site` stages `/catalog.html` beside the initial instrument/FX page,
-the silent diagnostics and the earlier Envelope/LFO audition. `npm run
-build:catalog` builds this page alone at `/`; only the combined staging step adds
-sibling navigation. All three isolated consumers install identical packed den
-bytes with locked dependencies. The original five settings are unchanged.
+This is a historical **test-only** browser fixture. It is no longer included in
+`npm run build:site` or publicly deployed. `tests/site-fixture-build.mjs` stages
+the original pages in a temporary directory so the existing browser and
+navigation assertions remain executable. Its three isolated consumers install
+identical packed den bytes with locked dependencies. The original DSP settings
+are unchanged. `npm run build:catalog` remains a standalone development fixture.
 
 ## Four candidate materials
 
@@ -60,7 +61,7 @@ when the checkout is available. A Vercel build without Git may use the documente
 No project access or environment settings are changed, and no other environment
 values are exposed. Browser assets display CANDIDATE and Runtime NOT_CLEARED.
 
-`tests/catalog-audition.test.mjs` serves the actual combined staged bytes. The
+`tests/catalog-audition.test.mjs` serves the actual combined test-fixture bytes. The
 hosted browser gate must exercise all eight A/B selections, native asset receipt,
 actual stereo unity/half-gain residuals, finite/headroom windows, release/tail,
 clear/stop and route preservation. The independent lifecycle helper observes

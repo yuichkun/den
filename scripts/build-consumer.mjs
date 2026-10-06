@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, cpSync, copyFileSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, cpSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,8 +9,10 @@ const run = (args, cwd) => execFileSync('npm', ['--cache', join(tmpdir(), 'den-n
   cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
 });
 
-// The deployment and entry test use the same isolated, packed-package consumer.
-export function buildConsumer({ stageSite = true, fixture = 'tests/consumer' } = {}) {
+// Development and tests use isolated packed consumers. Public output belongs
+// exclusively to build-site.mjs and must not be repopulated by a fixture.
+export function buildConsumer({ stageSite = false, fixture = 'tests/consumer' } = {}) {
+  if (stageSite) throw new Error('Test fixtures cannot write public site-dist; use stageSite: false');
   const consumer = mkdtempSync(join(tmpdir(), 'den-consumer-'));
   cpSync(join(root, fixture), consumer, { recursive: true });
   const [pack] = JSON.parse(run(['pack', '--json', '--pack-destination', consumer], root));
@@ -41,17 +43,17 @@ export function buildConsumer({ stageSite = true, fixture = 'tests/consumer' } =
   run(['ci', '--include=dev', '--ignore-scripts'], consumer);
   run(['run', 'check'], consumer);
   run(['run', 'build'], consumer);
-  const output = stageSite ? join(root, 'site-dist') : join(consumer, 'dist');
-  if (stageSite) {
-    rmSync(output, { recursive: true, force: true });
-    cpSync(join(consumer, 'dist'), output, { recursive: true });
-  }
+  const output = join(consumer, 'dist');
   return { consumer, pack, output };
+}
+
+export function buildStandaloneConsumer(build = buildConsumer) {
+  return build({ stageSite: false });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const { output } = buildConsumer();
+    const { output } = buildStandaloneConsumer();
     console.log(`Built packed den consumer: ${output}`);
   } catch (error) {
     if (error.stdout) process.stderr.write(error.stdout);

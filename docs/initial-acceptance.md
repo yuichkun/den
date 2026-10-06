@@ -4,6 +4,14 @@ Scope: GEN-608's initial shared DSP, one MIDI instrument engine, three instrumen
 settings, one Delay FX engine and two effect settings. No new DSP, framework,
 upstream unworklet change or registry publication is included in this integration.
 
+## Current deployment status
+
+This record retains the initial candidate's historical integration/listening
+history. On 2026-10-06, the previous public UI was removed before rebuilding.
+`build:site` now emits only a rebuilding notice; all historical players and
+checks below are isolated test fixtures, not current public routes. See
+[public site removal](deployment-status.md).
+
 ## Decision boundary
 
 This is an **initial usable CANDIDATE**. Source and behavior are based on
@@ -31,7 +39,7 @@ No test threshold is relaxed and no historical failure is converted into a pass.
 | Three sounds (GEN-619) | One engine with plain Bass / Percussion / Pad construction settings and complete native AudioParam maps; numerical fixtures and packed dry phrase/stress/snapshot tests | All raw audio remains CANDIDATE |
 | Two FX settings (GEN-621) | Same Delay engine with Chorus and Rhythmic delay settings; independent delay-time/modulation/feedback/tempo/tail and bypass/reset fixtures | Moving-head pitch/click behavior follows the documented contract |
 | Integrated sound/FX use | 4×3 packed numerical and browser matrix, all 22 initial sound parameters, stopped-only selectors, release/reset, cancellation/restart/context disposal; source identity assertions preserve raw candidate sounds | Fixed-input headroom measurements do not cover arbitrary edits or every device |
-| Main deployment boundary | `build:site` combines identical packed packages; root integration, silent diagnostics and retained module audition; deployed-byte route smoke test | Existing Vercel access/header/project settings remain unchanged |
+| Historical deployment boundary | The initial integration combined identical packed packages with instrument, diagnostics and module audition routes; their verification now lives in isolated test fixtures | The current public UI is removed; existing Vercel access/header/project settings remain unchanged |
 | Provenance | Per-run manifests connect source, dependencies, settings/parameters, MIDI/input, seed, rates, WAV/raw PCM, static waveform and verification | Human feedback and golden promotion are recorded separately |
 
 The prior candidate's [exact-head CI 37279030893](https://github.com/yuichkun/den/actions/runs/37279030893)

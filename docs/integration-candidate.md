@@ -69,19 +69,19 @@ actual connected instrument/FX outputs. It retains candidate WAV, settings,
 source/package/WASM hashes, every numerical peak, browser results and failures
 under `artifacts/integration`. Generated evidence is never an approved golden.
 `npm run build:integration` produces a standalone integration-only local build.
-The permanent `npm run build:site` route packs the same source into two clean
-locked consumers and stages their checked assets into `site-dist`: integration
-at `/`, the silent gate at `/diagnostics.html`, and the earlier Envelope/LFO
-module audition at `/audition.html`. Both package integrities must match and
-conflicting asset names fail the build. Vercel uses this versioned `build:site`
-command, not a branch-only build override. Building does not itself deploy.
+The previous public UI has been removed. `npm run build:site` now clears the
+public output and writes only a minimal rebuilding notice, with no old page or
+audio asset retained. Historical combined pages are staged only by
+`tests/site-fixture-build.mjs` in a temporary directory for automated checks.
+Their locked package integrity/collision guards remain unchanged.
 
-`tests/site.test.mjs` serves the staged deployment bytes and verifies both
-selected sound/FX graphs, the silent gain/snapshot gate, preserved audition,
-fresh navigation, and missing-asset/page-error absence. The full matrix and
+`tests/site-fixture.test.mjs` retains the former selected sound/FX, silent
+snapshot, audition, navigation and asset assertions. The full matrix and
 interrupted/repeated lifecycle checks remain in `tests/integration.test.mjs`.
-No production branch/project, authentication, access, or header setting change
-is needed. Merge and deployment follow independent review and exact-head CI.
+`tests/site.test.mjs` separately verifies the public deletion and removed-route
+404s. No production branch/project, authentication, access or header setting
+change is needed. Removal publication follows independent review and exact-head
+CI; verification fixtures do not retain the former UI as a product.
 
 The packed and realtime browser gates use Vite preview with `configFile:false`,
 without COOP/COEP headers. The integration manifest records response isolation

@@ -1,75 +1,31 @@
-# Consumer deployment
+# Public site removal
 
-The versioned build for the initial candidate is `npm run build:site`:
+The existing website is removed before a new catalog is built. The production
+command remains `npm run build:site`, with output `site-dist/` and no Vercel
+project, access, authentication, domain or security-setting changes.
 
-- `/`: integrated Diagnostic / Bass / Percussion / Pad × three Delay settings
-- `/diagnostics.html`: silent package gain/snapshot check
-- `/audition.html`: retained Envelope/LFO module audition
-- `/catalog.html`: four musical materials with A/B settings
+The build deletes the previous output directory and writes only `index.html`,
+a minimal rebuilding notice. It ships no scripts, stylesheets, navigation,
+players, links or audio assets. `/catalog.html`, `/audition.html`,
+`/diagnostics.html`, `/playground.html` and former asset paths are absent and
+must return 404. The previous pages are not redirected or hidden behind links.
 
-The build packs the same source into three isolated locked consumers, requires
-identical package integrity, typechecks/builds each, and copies only their Vite
-outputs into `site-dist`. Distinct outputs with the same asset name cause a hard
-failure. The deployment smoke test serves those exact bytes, not the source tree.
-`build:consumer` and `build:integration` remain available for focused local work.
-The repository's Vercel build command is now `build:site`; install remains
-`npm ci --include=dev`, framework is none, and output remains `site-dist`.
+Library/DSP sources, exports and repository history are preserved. Historical
+browser surfaces are test fixtures only. `tests/site-fixture-build.mjs` builds
+them into a temporary directory from identical locked packed consumers;
+`tests/site-fixture.test.mjs` retains their earlier integration checks, and the
+canonical catalog lifecycle test still exercises all eight musical-example
+variations, native state, output, cancellation, keyboard and touch behavior.
+The production build does not call that fixture helper.
 
-This replaces the former branch-only integration preview override. It does not
-change the Vercel project, production branch, authentication, sharing, permissions
-or response headers. Review and exact-head CI precede main integration; the
-existing Vercel check must pass on the final head. A successful build or deploy
-is not runtime clearance, physical-device certification, or golden approval.
-See [current acceptance boundaries](initial-acceptance.md).
+`tests/site-removal.test.mjs` poisons an output directory with former pages and
+assets and verifies they are physically removed. `tests/site.test.mjs` serves
+the actual minimal output, checks the old routes return 404, and records the
+root's absence of former controls/scripts/assets. Review, exact-head CI and
+actual production verification are required before declaring removal complete.
+No replacement interface is included in this deletion change.
 
-## Historical entry-gate deployment repair
-
-The following records the original G0 repair and its then-current `build:consumer`
-route. That route is preserved at `/diagnostics.html` by the current site build.
-
-The failure on `3ea862b1cb7b9fa37afa892e51606ea0556a35ae` is confirmed by the
-[deployment log](https://vercel.com/escentier/den/7XCUWxMzapFEBzsQhipQ7UhakxXd):
-
-```text
-Running install command './scripts/vercel-install.sh'
-sh: line 1: ./scripts/vercel-install.sh: No such file or directory
-```
-
-That command belonged to the retired Rust/Vite+ stack. Repository-local
-`vercel.json` now explicitly overrides install, build, framework detection, and
-output using the fresh TypeScript project:
-
-- Install: `npm ci --include=dev` (the static build requires TypeScript/Vite).
-- Build: `npm run build:consumer`.
-- Static output: `site-dist` (not library `dist`).
-- Framework: none; the build invokes Vite explicitly for the real consumer.
-
-The build uses `scripts/build-consumer.mjs` to pack den, install the artifact in
-an isolated temporary consumer with locked dependencies, check its public types,
-and build its actual HTML/JavaScript/AudioWorklet/WASM assets. Only that consumer's
-production output is copied into `site-dist`. The entry integration test calls the
-same build function and serves `site-dist` before asserting real browser results.
-Failures from packing, installation, checking, or bundling fail the build; this is
-not a placeholder success page or a disabled deployment.
-
-The page provides a user-triggered silent 48-kHz check of gain changes and snapshot
-restoration, displaying success only when measured samples and restore status
-match. The production browser test clicks the button and verifies its result.
-There is no new runtime/loader and no Rust setup. Browser 44.1/96-kHz support is
-not claimed; offline coverage is separate. No COOP/COEP header override is added:
-the existing unworklet postMessage transport is the path exercised here.
-
-Build configuration is versioned in the repository; no dashboard, security,
-credential, permission, or check-disabling change is required. See Vercel's
-[file-based configuration](https://vercel.com/docs/project-configuration) for
-install/build/output overrides. The deployment must pass on the final reviewed
-commit; a previous failed status is not waived by a local build.
-
-## Grouped catalog audition
-
-The combined build also stages `/catalog.html` from a third isolated consumer of
-the identical package. It imports four musical-example candidates and their A/B
-maps, uses explicit Start and a visible unity-default master, and retains the
-initial candidate routes. See [catalog audition](catalog-audition.md) for native
-asset receipt, cancellation, keyboard/touch behavior and exact browser gates.
-The standalone `build:catalog` output retains its own root without sibling links.
+All development commands (`build:consumer`, `build:integration`, `build:catalog`
+and the manual realtime probe) now use isolated temporary output.
+`buildConsumer({stageSite: true})` is rejected before packing/installing, so a
+test helper cannot repopulate public `site-dist`. Only `build:site` owns it.

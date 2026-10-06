@@ -25,31 +25,24 @@ and exercise real browser MIDI, AudioParams, snapshots and UI lifecycle. Generat
 source/audio/waveform manifests and failures are retained in `artifacts/`; CI
 uploads them. No command publishes to a registry.
 
-## Try the initial candidate
+## Public site status
 
-`npm run build:site` writes the deployment to `site-dist/`:
+The previous public website has been removed as the first step of a from-scratch
+replacement. `npm run build:site` clears `site-dist/` and writes only a minimal
+rebuilding notice at `/`. There is no catalog, instrument player, diagnostic
+page, navigation, JavaScript, stylesheet or audio asset in that public output.
+Former page and asset paths return 404.
 
-- `/`: Diagnostic / Bass / Percussion / Pad with Diagnostic delay / Chorus / Rhythmic delay
-- `/diagnostics.html`: silent package gain and snapshot check
-- `/audition.html`: earlier Envelope/LFO diagnostic listening room
-- `/catalog.html`: four new musical materials with complete A/B settings
+The den library, DSP sources, package exports and Git history are unchanged.
+Historical browser pages remain only in isolated test fixtures. The canonical
+musical-example, instrument, envelope, gain, snapshot, keyboard/touch and
+interrupted-audio assertions still run; `tests/site-fixture-build.mjs` stages
+those fixtures outside the production output. No previous UI is retained as a
+product surface. See [deployment status](docs/deployment-status.md).
 
-Serve that directory over HTTP locally, or use the existing Vercel deployment.
-Select a sound and effect while stopped, then press Start audio. Hold the keys
-or the sound-specific hold button; Release leaves the tail, Clear resets notes
-and delay history, and Stop closes audio. Start with low device volume. The
-shared Master control is 0–1 with no normalization or limiter.
-
-The site is a usable initial candidate, not a cleared general-release runtime.
-Known intermittent frame-clock/underrun observations remain **NOT_CLEARED**.
-Browser coverage is **48 kHz only**; 44.1/96 kHz offline success is not browser
-support. Existing positive candidate listening feedback is recorded separately
-from generated test output and exact-hash golden approval in the
+Audio remains **CANDIDATE** and runtime remains **NOT_CLEARED**. Test success is
+not listening approval or all-device real-time acceptance. See the
 [acceptance record](docs/initial-acceptance.md).
-
-The [catalog audition](docs/catalog-audition.md) has its own explicit Start,
-independent hold controls and visible unity-default master. Stop before changing
-materials or A/B settings. These new candidates have no inherited listening approval.
 
 ## Public package boundary
 
