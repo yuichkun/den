@@ -1,5 +1,10 @@
 # Sustained audition deadline regression
 
+The manual `node scripts/probe-realtime.mjs` command builds its own isolated
+packed consumer before capture. It does not require or alter public `site-dist`,
+and it does not restore the removed public audition page. The capture modes and
+assertions below are unchanged.
+
 The first browser tests proved sample values and lifecycle behavior, but did not prove that an AudioWorklet could produce those samples on time. In particular, waiting only for AudioContext time lets an overloaded renderer eventually finish and hides wall-clock drift. This gap allowed a numerically correct sustained sine to crackle during real playback.
 
 ## Reproduction and isolation

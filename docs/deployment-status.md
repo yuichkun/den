@@ -24,3 +24,8 @@ the actual minimal output, checks the old routes return 404, and records the
 root's absence of former controls/scripts/assets. Review, exact-head CI and
 actual production verification are required before declaring removal complete.
 No replacement interface is included in this deletion change.
+
+All development commands (`build:consumer`, `build:integration`, `build:catalog`
+and the manual realtime probe) now use isolated temporary output.
+`buildConsumer({stageSite: true})` is rejected before packing/installing, so a
+test helper cannot repopulate public `site-dist`. Only `build:site` owns it.
