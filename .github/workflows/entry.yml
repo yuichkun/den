@@ -9,10 +9,11 @@ jobs:
   entry:
     name: entry
     runs-on: ubuntu-latest
-    # PR36's final run took22m04s. The new spectral/IR/loop focused and
-    # packed/browser gates add about2-3minutes of measured work. Only this
-    # aggregate job budget changes; every test/audio/runtime threshold remains.
-    timeout-minutes: 30
+    # Main 3548edf7 completed in 28m30s before the new all54 playground gate.
+    # c60cfac0 passed all76 Node tests at 29m46s, then the 30m job cap cut off
+    # the trailing realtime captures. Allow aggregate headroom only; all test
+    # timeouts, PCM/underrun assertions, commands and completion gates stay fixed.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
