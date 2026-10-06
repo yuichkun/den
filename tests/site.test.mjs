@@ -105,7 +105,8 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     const pointerCutoff = (await state()).params.find(item => item.name === 'cutoff').value;
     assert(pointerCutoff > 40 && pointerCutoff < 8000);
     assert.equal(Number(await page.getByRole('spinbutton', { name: 'cutoff', exact: true }).inputValue()), pointerCutoff);
-    assert.equal(Number(await cutoffSlider.inputValue()), pointerCutoff);
+    // Chromium's range DOM serialization can shorten decimal text; the native API is f32.
+    assert.equal(Math.fround(Number(await cutoffSlider.inputValue())), pointerCutoff);
     await page.locator('#volume').focus(); await page.keyboard.press('Home'); await page.waitForTimeout(150);
     assert((await state()).output.peak < .000001, 'Output slider really mutes the native graph');
     for (let i = 0; i < 25; i++) await page.keyboard.press('ArrowRight');
