@@ -2,7 +2,8 @@
 
 A musician-facing, manual patching sketch built on the real public den package
 and unworklet **0.4.1**. It is separate from the developer code playground and
-does not change the library's exports or public deployment.
+does not change the library's exports or production deployment. This Draft
+branch has its own guarded Vercel preview build; main's playground is unchanged.
 
 **Draft PR only. Do not merge this prototype to main.** No registry publication,
 production deployment, Portal/DAW acceptance, or human listening approval is
@@ -22,6 +23,12 @@ runs its strict types, graph tests and native numerical audio tests, then builds
 the app. It prints the temporary consumer's `dist` path. Serve that directory
 with a normal static server on localhost; do not deploy it as the den homepage.
 The consumer can be deleted after review.
+
+The Draft branch's `vercel.json` stages the same packed app into
+`den-kit-preview-dist`. Its staging entrypoint refuses production, development,
+missing deployment context and any branch except `feature/den-kit-prototype`.
+The Preview exposes only the application's public commit/package provenance.
+Do not promote this deployment or merge the branch.
 
 The canonical complete gate is:
 

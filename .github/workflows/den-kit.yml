@@ -17,6 +17,7 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - run: node --test scripts/den-kit-preview.test.mjs
       - run: npm exec -- playwright install --with-deps chromium
       - name: Test isolated packed graph and native browser audio
         env:

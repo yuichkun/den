@@ -3,3 +3,4 @@ dist/
 artifacts/
 *.tgz
 site-dist/
+den-kit-preview-dist/
