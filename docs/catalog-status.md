@@ -36,6 +36,7 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Experimental bounded resident WSOLA | `/resident-time-stretch` | Independent exact rational active-duration/EOF, grain-local sampling/search, native state and public-package proof; severe padded-tail carrier loss, dominant-frequency deviation and CPU deadline misses prevent transparent-quality or realtime acceptance |
 | Octave-periodic musical pitch quantizer | `/pitch-quantizer` | Independent exhaustive-lattice nearest/tie/Schmitt/reset/state and public-package checks, including sparse-array rejection; bounded pitch-control quantization, not audio pitch detection or event-time quantization |
 | Bin-centered spectral freeze | `/spectral-freeze` | Independent dense DFT and circular-shift WOLA, every supported hop/reset/state class and public-package checks; held output is N-periodic with captured-window modulation, not transparent or phase-locked sustain |
+| Frequency blur and gain-capped cross-synthesis | `/spectral-texture` | Independent dense DFT/WOLA, synchronized dual-input frames, fixed phase-floor/gain-cap and all-hop joint-state proof; N<=256, deliberate weak-bin phase jumps, no speech or phase-vocoder quality claim |
 | Fixed filter-bank vocoder | `/filterbank-vocoder` | Independent bandpass/envelope/phase/selectivity/gain/reset/state and public-package checks; 1–8 caller-specified bands, sampled rectified amplitude, no speech-quality or flat-reconstruction claim |
 | Four complete A/B musical examples | `/musical-examples` | Original deterministic materials, complete native controls, 24 three-rate A/B rows, repeat/state/tail/headroom and independent musical checks; new audio is CANDIDATE |
 
@@ -54,6 +55,7 @@ Contracts, controls and limitations are detailed in [filters](catalog-filters.md
 [live-granular reading](live-granular.md),
 [frozen tails](freeze-reverb.md), [experimental resident WSOLA](resident-time-stretch.md),
 [pitch quantization](pitch-quantizer.md), [bin-centered spectral freeze](spectral-freeze-entry.md),
+[frequency blur and cross-synthesis](spectral-texture-entry.md),
 [filter-bank vocoder](filterbank-vocoder-entry.md),
 and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
@@ -125,7 +127,7 @@ merge; this document itself does not certify that a pending run has completed.
 | 8. Delay / modulation / frequency shift | Existing Delay/Chorus plus new candidates above. Bounded Hilbert additive-Hz shifter included with a useful-band limit. Fixed dual-head delay-time transitions are included with explicit queue/crossfade semantics; this is not general pitch/time processing |
 | 9. Dynamics / limiter / multiband | Single-band dynamics, bounded lookahead/sample-peak limiter and phase-compensated three-band dynamics included. True-peak certification and universal multiband real-time performance are not inferred |
 | 10. Reverb / convolution / special tail | Small algorithmic FDN above. Small fixed-IR convolution included with explicit block latency. Prepared-spectrum B128/P64 extends to8192 taps (170.67ms at48kHz) for bounded body/cabinet/short-space use. Controlled four-line FDN freeze/thaw is included with finite-precision limits. Arbitrary long-room support, hybrid and shimmer remain |
-| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Separate bin-centered spectral freeze captures and rotates frames into an explicitly N-periodic texture, not transparent sustain. A fixed 1–8-band vocoder combines caller-provided modulator/carrier audio with rectified envelopes and explicit gains; speech quality is unverified. A bounded sparse resident WSOLA experiment adds independent duration and local-pitch controls, but general time-stretch quality remains incomplete; transparent/stereo/streaming stretching and phase-vocoder capabilities remain |
+| 11. Pitch / time / STFT | FFT/STFT identity extends through N1024 with persistent scheduling/restore phase. Bounded two-window input pitch shift is included with measured coloration/cancellation limits. Framewise spectral gating is included with calibrated linear bin thresholds and explicit ringing/tail limits. Separate bin-centered spectral freeze captures and rotates frames into an explicitly N-periodic texture, not transparent sustain. N<=256 frequency-magnitude blur uses a declared weak-bin phase floor; synchronized cross-synthesis replaces magnitudes only within a fixed carrier-gain cap. A fixed 1–8-band vocoder combines caller-provided modulator/carrier audio with rectified envelopes and explicit gains; speech quality is unverified. A bounded sparse resident WSOLA experiment adds independent duration and local-pitch controls, but general time-stretch quality remains incomplete; transparent/stereo/streaming stretching and phase-vocoder capabilities remain |
 | 12. Concrete chains / blend | Initial instrument→Delay/drive→dynamics plus glass dyad, FM/modal hit, granular cloud and shaped echo. Fixed gains, phase/latency/tails are explicit; more combinations remain possible |
 | 13. Sounds / configurations / materials | Initial five settings remain intact. Four new A/B compositions with original assets and candidate provenance are included; grouped A/B browser audition is staged at `/catalog.html` with its own lifecycle/gain gate, and new human listening/golden approval is not implied |
 
@@ -308,3 +310,46 @@ strong captured-window modulation, colored off-bin textures, possible increased
 peaks and no finite drain while held. Its ideal 2*sqrt(N) bound is not a limiter
 or a finite-precision theorem. All audio remains CANDIDATE, with no new human
 listening approval or completed general spectral/time-processing claim.
+
+## Bounded spectral texture browser boundary
+
+`tests/spectral-texture-browser.test.mjs` requires an actual muted 48 kHz N64/H32
+composition. Two binary 17-sample native patterns and a persistent modulo-544
+counter identify each observed sample's phase. The browser must match an
+independent direct DFT/magnitude/IFFT/absolute-overlap waveform, without fitting
+phase, amplitude or RMS. Amount-zero, full/intermediate blur, synchronized
+same-input cross-synthesis, active gain cap, silent carrier/modulator and reset
+are separate checks. Both inputs stay within the documented normalized range.
+
+A native edge flips persistent source polarity before restoration. Every saved
+control renders while that negative source and its nonzero output remain
+observable. Native whole-graph restoration must recover the positive source and
+its expected processed waveform. This verifies the browser's functional state
+path; the short internal overlaps are already settled by host observation time.
+Exact internal history/phase continuation is therefore credited to the separate
+three-rate offline and installed-package tests, not inferred from delayed browser
+reads. Core 0.4.1 state/AudioParam restoration remains non-atomic.
+
+The independent component review covered 42 native cases and 210 exact PCM/state
+continuations over every supported hop class and three rates. A deliberately
+lagged modulator oracle differed by 0.35060, while the correct independent
+DFT/WOLA comparison stayed within 3.623e-8. The packed tail check was corrected
+before execution: an empty slice had provided no drain evidence. The retained
+corrected proof checks 255 actual zero samples after 2N drainage.
+
+Blur retains current phase only at nonzero bins at least 2^-20 of the frame's
+maximum magnitude. Weaker bins use zero phase, preventing roundoff-sized null
+phase from directing redistributed energy. This deliberate texture rule can
+jump by 2T*abs(sin(phi/2)), up to twice the target bin magnitude; it is not phase
+smoothing. Exactly representable scaling preserves the rule, while subnormal
+input quantization can change near-threshold ratios. Cross-synthesis keeps
+carrier phase and caps per-bin gain at a construction-fixed 1..16. Silent carrier
+stays silent, and the cap can prevent complete magnitude replacement.
+
+Public size is limited to N256 with H=N/2 or N/4. The existing N1024 single-input
+boundary is not inherited by this dual-input composition. The loaded component
+proof retained 64 KiB native memory and a 7.07 ms cold cross-synthesis quantum,
+which exceeds the 48 kHz deadline; the measured warm maximum of 1.45 ms is only a
+local diagnostic. Shared framing and FFT source remain unchanged, including the
+unused modulator inverse/output work. All audio is CANDIDATE and runtime remains
+NOT_CLEARED; no transparent speech, phase-vocoder or hardware guarantee follows.

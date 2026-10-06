@@ -219,6 +219,10 @@
     "./live-granular": {
       "types": "./dist/live-granular.d.ts",
       "import": "./dist/live-granular.js"
+    },
+    "./spectral-texture": {
+      "types": "./dist/spectral-texture.d.ts",
+      "import": "./dist/spectral-texture.js"
     }
   },
   "engines": {
