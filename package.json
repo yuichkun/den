@@ -223,6 +223,10 @@
     "./spectral-texture": {
       "types": "./dist/spectral-texture.d.ts",
       "import": "./dist/spectral-texture.js"
+    },
+    "./spatial-chains": {
+      "types": "./dist/spatial-chains.d.ts",
+      "import": "./dist/spatial-chains.js"
     }
   },
   "engines": {
