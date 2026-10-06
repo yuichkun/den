@@ -151,26 +151,22 @@ try {
   await page.click("#redo");
   assert.equal((await state()).patch.nodes[0].x, moved.patch.nodes[0].x);
   const saved = (await state()).patch;
-  await page
-    .locator("#file")
-    .setInputFiles({
-      name: "bad.json",
-      mimeType: "application/json",
-      buffer: Buffer.from('{"version":99}'),
-    });
+  await page.locator("#file").setInputFiles({
+    name: "bad.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"version":99}'),
+  });
   assert.deepEqual((await state()).patch, saved);
   assert.equal(
     (await state()).phase,
     "playing",
     "Invalid imports leave the current patch/audio alone",
   );
-  await page
-    .locator("#file")
-    .setInputFiles({
-      name: "patch.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(saved)),
-    });
+  await page.locator("#file").setInputFiles({
+    name: "patch.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(saved)),
+  });
   await page.waitForFunction(() => window.__denKit.state().phase === "idle");
   assert.deepEqual((await state()).patch, saved);
   const downloadPromise = page.waitForEvent("download");
@@ -189,6 +185,22 @@ try {
   assert.equal((await state()).created, (await state()).closed);
   await start();
   await stop();
+  // Multiple restart gestures serialize the prior close, and only the newest
+  // request may own audio. Stop also cancels a restart waiting for disposal.
+  await page.click("#apply");
+  await page.click("#apply");
+  await page.waitForFunction(() => window.__denKit.state().phase === "playing", undefined, {
+    timeout: 45000,
+  });
+  assert.equal((await state()).created - (await state()).closed, 1);
+  await page.click("#apply");
+  await page.click("#stop");
+  await page.waitForFunction(() => {
+    const s = window.__denKit.state();
+    return s.phase === "idle" && s.created === s.closed;
+  });
+  await page.waitForTimeout(300);
+  assert.equal((await state()).phase, "idle");
   await start();
   await page.goto("about:blank");
   await page.goto(url);

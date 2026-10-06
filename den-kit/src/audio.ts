@@ -28,6 +28,8 @@ export class AudioEngine {
   closed = 0;
   disposed = 0;
   private serial = 0;
+  private request = 0;
+  private closing: Promise<void> = Promise.resolve();
   private current: Session | null = null;
   private silence = false;
   constructor(private update: () => void) {}
@@ -63,8 +65,25 @@ export class AudioEngine {
       this.update();
       return;
     }
+    // A newer Apply or Stop invalidates startup even while a previous close is
+    // still pending. Never allocate a replacement until audio resources release.
+    const request = ++this.request;
+    const old = this.releaseCurrent();
+    this.phase = "compiling";
+    this.error = "";
+    this.update();
+    try {
+      await old;
+    } catch (error) {
+      if (request === this.request) {
+        this.phase = "error";
+        this.error = `Previous audio context could not close: ${String(error)}`;
+        this.update();
+      }
+      return;
+    }
+    if (request !== this.request) return;
     // Each Apply deliberately owns a fresh context; old registered WASM cannot accumulate.
-    const old = this.stop();
     let context: AudioContext;
     try {
       context = new AudioContext({ sampleRate: 48000 });
@@ -84,7 +103,6 @@ export class AudioEngine {
     this.update();
     try {
       await this.wait(resumed, s, 5000);
-      await old;
       if (!this.live(s)) return;
       if (context.sampleRate !== 48000)
         throw new Error("This prototype requires a 48 kHz AudioContext.");
@@ -153,8 +171,13 @@ export class AudioEngine {
     }
   }
   private async fail(s: Session, message: string) {
-    await this.stop();
-    if (this.current || this.serial !== s.id) return;
+    const request = ++this.request;
+    try {
+      await this.releaseCurrent();
+    } catch {
+      /* Retain the original runtime failure. */
+    }
+    if (this.current || this.serial !== s.id || request !== this.request) return;
     this.phase = "error";
     this.error = message;
     this.update();
@@ -239,9 +262,9 @@ export class AudioEngine {
       }
     })());
   }
-  async stop() {
+  private releaseCurrent(): Promise<void> {
     const s = this.current;
-    if (!s) return;
+    if (!s) return this.closing;
     this.current = null;
     s.abort.abort();
     s.worker?.terminate();
@@ -251,10 +274,22 @@ export class AudioEngine {
     }
     this.phase = "idle";
     this.update();
-    await this.dispose(s);
-    if (!this.current) {
-      this.phase = "idle";
-      this.update();
+    this.closing = Promise.all([this.closing, this.dispose(s)]).then(() => {});
+    return this.closing;
+  }
+  async stop() {
+    ++this.request;
+    this.error = "";
+    this.phase = "idle";
+    this.update();
+    try {
+      await this.releaseCurrent();
+    } catch (error) {
+      if (!this.current) {
+        this.phase = "error";
+        this.error = `Audio context could not close: ${String(error)}`;
+      }
     }
+    if (!this.current) this.update();
   }
 }

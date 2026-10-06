@@ -20,8 +20,10 @@ test('isolated historical fixtures retain instrument/FX, silent gate and module 
     assert.equal(diagnostic.pack.integrity, integration.pack.integrity);
     assert.equal(diagnostic.pack.integrity, catalog.pack.integrity);
     const config = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
-    assert.equal(config.buildCommand, 'npm run build:site');
-    assert.equal(config.outputDirectory, 'site-dist');
+    // This unmerged Draft branch intentionally stages its guarded prototype
+    // preview. Historical fixtures below still build independently as before.
+    assert.equal(config.buildCommand, 'node scripts/build-den-kit-preview.mjs');
+    assert.equal(config.outputDirectory, 'den-kit-preview-dist');
     for (const path of ['index.html', 'diagnostics.html', 'audition.html', 'catalog.html']) assert(readFileSync(join(output, path)).length > 0);
     manifest.html = Object.fromEntries(['index.html', 'diagnostics.html', 'audition.html', 'catalog.html'].map(path => [path, createHash('sha256').update(readFileSync(join(output, path))).digest('hex')]));
     manifest.wasm = readdirSync(join(output, 'assets')).filter(path => path.endsWith('.wasm'));
