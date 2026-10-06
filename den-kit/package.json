@@ -1,0 +1,19 @@
+{
+  "name": "den-kit-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@denaudio/den": "file:./den.tgz",
+    "@unworklet/core": "0.4.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
+  }
+}

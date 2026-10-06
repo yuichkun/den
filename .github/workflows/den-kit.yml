@@ -1,0 +1,47 @@
+name: den-kit Draft prototype
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  prototype:
+    name: den-kit-prototype
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm exec -- playwright install --with-deps chromium
+      - name: Test isolated packed graph and native browser audio
+        env:
+          NODE_OPTIONS: --max-old-space-size=1536
+        run: node scripts/test-den-kit.mjs
+      - name: Require completed exact-head evidence
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,readdirSync} from 'node:fs';
+          const paths=readdirSync('artifacts/den-kit');
+          assert.equal(paths.length,1);
+          const result=JSON.parse(readFileSync(`artifacts/den-kit/${paths[0]}/manifest.json`,'utf8'));
+          assert.equal(result.sourceCommit,process.env.EXPECTED_HEAD);
+          assert.equal(result.sourceDirty,false);
+          assert.equal(result.scope,'isolated-packed-package');
+          assert.equal(result.completed,true);
+          assert.equal(result.failure,undefined);
+          assert(result.packageIntegrity);
+          assert.equal(result.checks.length,6);
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: den-kit-${{ github.event.pull_request.head.sha }}
+          path: artifacts/den-kit/
