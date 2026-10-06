@@ -102,7 +102,9 @@ function renderAudio() {
       input.oninput = () => {
         if (input.value !== '' && input.validity.valid) { session.setParameter(item.name, input.valueAsNumber); synchronize(); }
       };
-      input.onchange = () => { if (input.value === '' || !input.validity.valid) input.value = String(item.value); synchronize(); };
+      // Preserve the caret while typing; committed text must show the native f32.
+      input.onchange = () => synchronize(true);
+      input.onblur = () => synchronize(true);
       control.append(text, input);
       if (slider && bounds) {
         slider.type = 'range'; slider.min = String(bounds.min); slider.max = String(bounds.max); slider.step = 'any'; slider.value = String(item.value);

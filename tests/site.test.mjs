@@ -94,6 +94,11 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     assert.equal((await state()).params.find(item => item.name === 'cutoff').value, 250);
     const cutoffSlider = page.getByRole('slider', { name: 'cutoff slider', exact: true });
     assert.equal(Number(await cutoffSlider.inputValue()), 250);
+    const cutoffNumber = page.getByRole('spinbutton', { name: 'cutoff', exact: true });
+    await cutoffNumber.fill('333.333'); await cutoffNumber.press('Tab');
+    assert.equal(Number(await cutoffNumber.inputValue()), Math.fround(333.333), 'Committed numeric text shows exact scheduled f32');
+    assert.equal((await state()).params.find(item => item.name === 'cutoff').value, Math.fround(333.333));
+    assert.equal(Math.fround(Number(await cutoffSlider.inputValue())), Math.fround(333.333));
     await cutoffSlider.focus(); await page.keyboard.press('Home'); await page.waitForTimeout(300);
     const lowCutoff = await state(); assert.equal(lowCutoff.params.find(item => item.name === 'cutoff').value, 40);
     assert.equal(Number(await page.getByRole('spinbutton', { name: 'cutoff', exact: true }).inputValue()), 40);
