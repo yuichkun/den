@@ -34,6 +34,7 @@ export const modules = [
   entry('stereo-delay', 'effects', 'Ping-pong / Multitap', '左右に移動する反復や、複数のタップで空間をつくる。', ['stereo-delay'], 'catalog-modulation-fx.md', 'タップ数、遅延長、フィードバックは構成ごとの制限があります。'),
   entry('dual-head-delay', 'effects', 'Dual-head delay', '2つの読み出しヘッドを交差させ、遅延時間の変更をつなぐ。', ['dual-head-delay'], 'dual-head-delay.md', '変更の待ち行列とクロスフェードが明示的です。任意入力での無クリック保証はありません。'),
   entry('reverb', 'effects', 'Algorithmic reverb', '小さなフィードバック・ディレイ網で残響をつくる。', ['reverb'], 'catalog-modulation-fx.md', '小規模な固定構成。任意の大空間や長い残響の再現ではありません。'),
+  entry('spatial-chains', 'effects', 'Hybrid space / Pitched tail', '短い畳み込みと初期反射、FDNの残響を組み合わせ、遅い尾だけを移調する。', ['spatial-chains'], 'spatial-chains-entry.md', '固定の並列構成。移調はフィードバックの外側です。出力上限や実時間性能の保証はありません。'),
   entry('freeze-reverb', 'effects', 'Frozen reverb tail', '残響を保持して、入力を抑えたまま余韻を伸ばす。', ['freeze-reverb'], 'freeze-reverb.md', '4本のFDNと有限精度の制約があります。保持中のエネルギーは完全一定ではありません。'),
   entry('convolution', 'effects', 'Convolution', '短いインパルス応答を畳み込み、ボディや空間の特性を加える。', ['convolution', 'prepared-convolution'], 'prepared-convolution.md', '準備済み方式は最大8192タップ。48 kHzで約171 ms。任意の長い室内残響には未対応です。'),
   entry('frequency-shifter', 'effects', 'Frequency shifter', '周波数を一定Hzずらし、倍音の関係を変える。', ['frequency-shifter'], 'frequency-shifter.md', 'ピッチ比による移調とは異なります。有効帯域と遅延、エイリアシングの制約があります。'),
