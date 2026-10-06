@@ -31,6 +31,7 @@ listening feedback, approved-golden status, or any runtime clearance.
 | Crossfaded resident loops | `/loop-crossfade` | Independent forward/reverse/fractional/overlap/replacement/state proof; effective period is L-F, no unchanged-duration or arbitrary-content seamlessness claim |
 | Native bounded take recorder | `/resident-recorder` | Independent sample-by-sample append/pause/full/reset, loaded-prefix/readback, finite-range, maximum-capacity and native snapshot/public-package proof; no device capture or streaming layer |
 | Rolling accepted-write history | `/live-buffer` | Independent chronological reference, statement-order, fractional/expired ages, pause/reset/revision/snapshot and maximum fixed-capacity proof; distinct from ResidentSample and not a live grain scheduler |
+| Fixed-pool live-granular reader | `/live-granular` | Independent absolute source-position, endpoint/allocation/expiry, latching, tiny/full-range and joint-history snapshot proof; explicit writer ordering and trigger, no density clock or host transport |
 | Controlled FDN frozen tail | `/freeze-reverb` | Independent recurrence, input suppression, bounded transition, frozen-energy drift, native history restore and public-package proof; finite-precision and runtime limits remain |
 | Experimental bounded resident WSOLA | `/resident-time-stretch` | Independent exact rational active-duration/EOF, grain-local sampling/search, native state and public-package proof; severe padded-tail carrier loss, dominant-frequency deviation and CPU deadline misses prevent transparent-quality or realtime acceptance |
 | Octave-periodic musical pitch quantizer | `/pitch-quantizer` | Independent exhaustive-lattice nearest/tie/Schmitt/reset/state and public-package checks, including sparse-array rejection; bounded pitch-control quantization, not audio pitch detection or event-time quantization |
@@ -50,6 +51,7 @@ Contracts, controls and limitations are detailed in [filters](catalog-filters.md
 [spectral gating](spectral-gate.md), [prepared convolution](prepared-convolution.md),
 [crossfaded loops](loop-crossfade.md), [take recording](resident-recorder.md),
 [rolling live history](live-buffer.md),
+[live-granular reading](live-granular.md),
 [frozen tails](freeze-reverb.md), [experimental resident WSOLA](resident-time-stretch.md),
 [pitch quantization](pitch-quantizer.md), [bin-centered spectral freeze](spectral-freeze-entry.md),
 [filter-bank vocoder](filterbank-vocoder-entry.md),
@@ -115,7 +117,7 @@ merge; this document itself does not certify that a pending run has completed.
 | --- | --- |
 | 1. Wavetable / VA / unison | Sine/saw/unison plus resident wavetable, pulse/triangle and seeded-noise candidates. Host-prepared pitch-band tables are included with explicit interpolation-image limits; richer table materials and higher-order antialiasing remain |
 | 2. FM / PM / additive / resonators | Bounded candidates included above with independent tuning/sideband/decay and alias evidence. General antialiasing or maximum-capacity real-time support is not implied |
-| 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Bounded native take recording and a distinct rolling accepted-write-age history are included; microphone/device capture, host streaming, overdub, live grain scheduling and general stretch remain |
+| 3. Sample / multisample / granular | Resident one-shot/loop/reverse/slice playback, fixed mapped zones/grain pools, and separate unity-sum loop crossfades with shortened L-F period are included. Bounded native take recording, a distinct rolling accepted-write-age history, and a fixed-pool live-grain reader with explicit trigger/expiry are included. Microphone/device capture, host streaming, overdub, wider live-grain scheduling and general stretch remain |
 | 4. Voice / note / expression | Existing voice policy and sustain/glide/tuning wrapper plus manually configured lower-zone member/master expression routing. Full MPE zone/RPN negotiation, master pedals and hardware delivery remain |
 | 5. Modulation / sequencing | Initial LFO/follower plus bounded MSEG, held/correlated seeded modulation, clock/step and fixed-note native MIDI arp candidates. Bounded octave-periodic pitch-control quantization with explicit hysteresis is included. No transport synchronization, chord capture, or external host/device delivery claim |
 | 6. Filters / EQ / formants / crossover | Clean candidate modules above. Bounded nonlinear character filter included. Broader resonator variants and analog-model/zero-delay solver claims remain separate |

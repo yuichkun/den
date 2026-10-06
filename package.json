@@ -215,6 +215,10 @@
     "./live-buffer": {
       "types": "./dist/live-buffer.d.ts",
       "import": "./dist/live-buffer.js"
+    },
+    "./live-granular": {
+      "types": "./dist/live-granular.d.ts",
+      "import": "./dist/live-granular.js"
     }
   },
   "engines": {
