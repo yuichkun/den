@@ -178,6 +178,20 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
+    const layout = () => page.evaluate(() => ({
+      viewport: innerWidth, page: document.documentElement.scrollWidth,
+      editor: document.querySelector('#editor').getBoundingClientRect().width,
+      monaco: document.querySelector('.monaco-editor').getBoundingClientRect().width,
+      overflowing: [...document.querySelectorAll('#app,.workspace,.editor-pane,#editor,.monaco-editor,.controls,.overflowingContentWidgets,.suggest-widget,.monaco-hover')].flatMap(element => {
+        const box = element.getBoundingClientRect(), css = getComputedStyle(element);
+        return box.right > innerWidth || box.left < 0 ? [{ element: element.id || element.className, left: box.left, right: box.right, width: box.width, display: css.display, visibility: css.visibility, position: css.position, overflowX: css.overflowX }] : [];
+      }),
+    }));
+    manifest.mobileBeforeLayout = await layout();
+    // Monaco automaticLayout is delivered by ResizeObserver after the viewport change.
+    // Keep the same no-overflow requirement, but wait for that asynchronous layout.
+    try { await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth, undefined, { timeout: 2000 }); }
+    finally { manifest.mobileAfterLayout = await layout(); }
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: join(artifacts, 'editor-mobile.png') });
     await page.click('#open-library'); await page.fill('#search', 'envelope'); await page.click('#modules a[href="?module=envelope"]');
