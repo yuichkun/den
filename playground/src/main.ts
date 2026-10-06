@@ -2,19 +2,22 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
 import 'monaco-editor/esm/vs/basic-languages/typescript/typescript.contribution.js';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import examples from 'virtual:den-examples';
+import build from 'virtual:den-build';
 import { attachEditorAssistance, setDiagnostics } from './editor/monaco-assistance.ts';
 import type { EditorDiagnostic } from './editor/protocol.ts';
 import { AudioSession } from './audio-session.ts';
+import { sliderBounds } from './parameter-range.ts';
 import './style.css';
 (globalThis as typeof globalThis & { MonacoEnvironment: unknown }).MonacoEnvironment = { getWorker: () => new EditorWorker() };
+const sourceRef = build.sourceCommit ?? 'feature/code-playground';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-<header class="topbar"><a class="brand" href="/">den <span>playground</span></a><div class="toplinks"><a href="https://github.com/yuichkun/den" target="_blank" rel="noreferrer">Source ↗</a><span>unworklet 0.4.1</span></div></header>
+<header class="topbar"><a class="brand" href="/">den <span>playground</span></a><div class="toplinks"><a href="https://github.com/yuichkun/den/tree/${sourceRef}" target="_blank" rel="noreferrer">Source ↗</a><span>unworklet 0.4.1</span></div></header>
 <main class="workspace">
 <aside class="library" aria-label="Modules"><div class="library-heading"><h1>Modules <small>${examples.length}</small></h1><button id="close-library" class="mobile-only" aria-label="Close module list">×</button></div><label class="search"><span class="sr-only">Find a module</span><input id="search" type="search" placeholder="Find a module…" autocomplete="off" spellcheck="false"></label><nav id="modules" aria-label="Module examples"></nav><p id="no-results" hidden>No matching modules.</p><footer>Editable TypeScript<br>48 kHz · Web Audio</footer></aside>
 <section class="editor-pane" aria-label="Processor source"><div class="filebar"><button id="open-library" class="mobile-only">Modules</button><div><strong id="filename"></strong><span id="modified" hidden>Modified</span></div><a id="docs" target="_blank" rel="noreferrer">Docs ↗</a></div><div class="sample-summary"><code id="import-path"></code><p id="description"></p></div><div class="runbar"><div class="run-actions"><button id="run" class="primary">Run <kbd>⌘ ↵</kbd></button><button id="stop" disabled>Stop</button><button id="reset">Reset</button></div><span id="audio-status" role="status" aria-live="polite">Audio is stopped.</span></div><div id="editor"></div><div class="editor-status"><span id="type-status" role="status">Loading TypeScript…</span><span>TypeScript <span aria-hidden="true">·</span> <span id="cursor">Ln 1, Col 1</span></span></div><div id="issues" hidden aria-label="Source errors"></div><pre id="run-error" role="alert" hidden></pre></section>
 <aside class="controls" aria-label="Audio controls"><section><h2>Output</h2><label class="range-label" for="volume">Level <output id="volume-value">25%</output></label><input id="volume" aria-label="Output level" type="range" min="0" max="1" step="0.01" value="0.25"><div class="meter" role="meter" aria-label="Output signal" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><i></i></div><p class="hint">Start quietly. Changes to code apply on Run.</p></section><section id="input-section" hidden><h2>Input source</h2><p id="input-names" class="hint"></p><label for="input-type">Waveform</label><select id="input-type"><option value="sawtooth">Saw</option><option value="sine">Sine</option><option value="square">Square</option><option value="triangle">Triangle</option><option value="noise">Noise</option></select><label class="range-label" for="input-frequency">Frequency <output id="frequency-value">110 Hz</output></label><input id="input-frequency" type="range" min="20" max="2000" step="1" value="110"><label class="range-label" for="input-level">Level <output id="input-level-value">0.10</output></label><input id="input-level" type="range" min="0" max="0.25" step="0.005" value="0.1"><label class="check"><input id="pulsed" type="checkbox"> Pulsed input</label></section><section><h2>AudioParams</h2><div id="parameters"><p class="hint">Run the example to expose its native parameters.</p></div></section><details class="host"><summary>Host setup</summary><p class="hint">The processor uses normal den + unworklet TypeScript. This host compiles it in a cancellable worker, then uses the public node API.</p><p class="hint">Optional exports <code>initial</code>, <code>events</code>, <code>midi</code>, <code>ready</code> and <code>afterReady</code> are playground setup data, not den APIs. The excerpt below shows their native calls after Run; see the complete host implementation in the contract.</p><pre id="host-code">await createNode(context, compiledProcessor);
-// Run to inspect this example's native setup.</pre><a href="https://github.com/yuichkun/den/blob/main/playground/README.md" target="_blank" rel="noreferrer">Sample contract ↗</a></details></aside>
+// Run to inspect this example's native setup.</pre><a href="https://github.com/yuichkun/den/blob/${sourceRef}/playground/README.md" target="_blank" rel="noreferrer">Sample contract ↗</a></details></aside>
 </main>`;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const drafts = new Map<string, string>();
@@ -57,7 +60,7 @@ function renderSelection() {
   $('filename').textContent = selected.file;
   $('import-path').textContent = selected.module === '.' ? '@denaudio/den' : `@denaudio/den/${selected.module.slice(2)}`;
   $('description').textContent = selected.description;
-  ($('docs') as HTMLAnchorElement).href = `https://github.com/yuichkun/den/blob/main/docs/${selected.docs}`;
+  ($('docs') as HTMLAnchorElement).href = `https://github.com/yuichkun/den/blob/${sourceRef}/docs/${selected.docs}`;
   $('modified').hidden = model.getValue() === selected.source;
   renderList();
 }
@@ -86,11 +89,28 @@ function renderAudio() {
     parameterKey = key; const container = $('parameters'); container.replaceChildren();
     if (!session.parameters.length) { const hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = session.phase === 'playing' ? 'This example has no AudioParams.' : 'Run the example to expose its native parameters.'; container.append(hint); }
     for (const item of session.parameters) {
-      const label = document.createElement('label'); label.className = 'parameter';
-      const text = document.createElement('span'); text.textContent = item.name;
+      const control = document.createElement('div'); control.className = 'parameter';
+      const text = document.createElement('label'); text.textContent = item.name;
       const input = document.createElement('input'); input.type = 'number'; input.min = String(item.min); input.max = String(item.max); input.step = 'any'; input.value = String(item.value); input.setAttribute('aria-label', item.name);
-      input.oninput = () => { if (input.value !== '' && input.validity.valid) session.setParameter(item.name, input.valueAsNumber); };
-      label.append(text, input); container.append(label);
+      input.id = `parameter-${container.children.length}`; text.htmlFor = input.id;
+      const bounds = sliderBounds(item.min, item.max);
+      const slider = bounds ? document.createElement('input') : null;
+      const synchronize = (fromSlider = false) => {
+        if (slider) slider.value = String(item.value);
+        if (fromSlider) input.value = String(item.value);
+      };
+      input.oninput = () => {
+        if (input.value !== '' && input.validity.valid) { session.setParameter(item.name, input.valueAsNumber); synchronize(); }
+      };
+      input.onchange = () => { if (input.value === '' || !input.validity.valid) input.value = String(item.value); synchronize(); };
+      control.append(text, input);
+      if (slider && bounds) {
+        slider.type = 'range'; slider.min = String(bounds.min); slider.max = String(bounds.max); slider.step = 'any'; slider.value = String(item.value);
+        slider.setAttribute('aria-label', `${item.name} slider`); slider.title = `Linear range: ${bounds.min} to ${bounds.max}`;
+        slider.oninput = () => { session.setParameter(item.name, slider.valueAsNumber); synchronize(true); };
+        control.append(slider);
+      }
+      container.append(control);
     }
   }
   if (session.setup && session.phase === 'playing') {
@@ -100,7 +120,7 @@ function renderAudio() {
       "const node = await createNode(context, compiledProcessor, {", `  initial: ${JSON.stringify(setup.initial)},`, "});",
       "node.outputs.main.connect(master);", "master.connect(context.destination);",
       ...session.inputNames.map(name => `source.connect(node.inputs[${JSON.stringify(name)}]);`),
-      ...setup.events.map(item => `node.events[${JSON.stringify(item.name)}].emit(events.find(e => e.name === ${JSON.stringify(item.name)})!.payload);`),
+      ...setup.events.map((item, index) => `node.events[${JSON.stringify(item.name)}].emit(events[${index}].payload);`),
       ...(setup.ready.length ? ['// Poll inspect(await node.snapshot()).slots with a 5 s timeout.', ...setup.ready.map(item => `// Wait for state ending ${JSON.stringify(item.suffix)} === ${JSON.stringify(item.value)}.`)] : []),
       ...Object.entries(setup.afterReady).map(([name, value]) => `node.params[${JSON.stringify(name)}].setValueAtTime(${value}, context.currentTime);`),
       ...setup.midi.map(item => `node.midi[${JSON.stringify(item.port)}].send(${JSON.stringify(item.event)});`),

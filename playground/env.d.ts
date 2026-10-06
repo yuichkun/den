@@ -6,3 +6,5 @@ declare module 'virtual:den-examples' {
   const examples: { id: string; module: string; title: string; description: string; file: string; docs: string; source: string }[];
   export default examples;
 }
+
+declare module 'virtual:den-build' { const build: { sourceCommit: string | null }; export default build; }

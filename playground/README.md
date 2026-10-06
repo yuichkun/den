@@ -2,7 +2,9 @@
 
 Each module opens a normal TypeScript processor using real public imports from
 `@denaudio/den` and `@unworklet/core`. Edit the graph, press **Run**, and use its
-native AudioParams. Nothing plays automatically. The output level starts at 25%.
+native AudioParams. Each usable finite native range has a linear slider paired
+with exact numeric input. No bounds, units or logarithmic scale are invented;
+degenerate or unsafe huge ranges retain numeric input only. Nothing plays automatically. The output level starts at 25%.
 Input processors receive the visible, adjustable Web Audio source; generators do
 not need an input. Stop closes the AudioContext and disposes the native node.
 

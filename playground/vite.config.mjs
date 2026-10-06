@@ -31,7 +31,8 @@ export async function playgroundAssets() {
   const registry = modules.map((name, i) => `import * as m${i} from ${JSON.stringify(name)};`).join('\n') + `\nexport default {${modules.map((name, i) => `${JSON.stringify(name)}:m${i}`).join(',')}};`;
   const bundled = await build({ stdin: { contents: "import { makeWorkletNamespaceFromMeta } from '@unworklet/core/worklet'; globalThis.__uwkMakeNs = makeWorkletNamespaceFromMeta;", resolveDir: root }, bundle: true, write: false, platform: 'browser', format: 'iife', target: 'es2022', minify: true });
   const runtime = bundled.outputFiles[0].text;
-  assets = { types, examples, registry, runtime };
+  const candidate = existsSync(join(root, 'candidate-provenance.json')) ? JSON.parse(readFileSync(join(root, 'candidate-provenance.json'), 'utf8')) : { sourceIdentity: 'development', sourceCommit: null };
+  assets = { types, examples, registry, runtime, candidate };
   return assets;
 }
 function virtualAssets(emitVendor = false) {
@@ -41,6 +42,7 @@ function virtualAssets(emitVendor = false) {
     async load(id) {
       if (!id.startsWith('\0virtual:den-')) return;
       const data = await playgroundAssets();
+      if (id.endsWith('build')) return `export default ${JSON.stringify(data.candidate)};`;
       if (id.endsWith('types')) return `export default ${JSON.stringify(data.types)};`;
       if (id.endsWith('examples')) return `export default ${JSON.stringify(data.examples)};`;
       if (id.endsWith('modules')) return data.registry;
@@ -55,7 +57,7 @@ function virtualAssets(emitVendor = false) {
         this.emitFile({ type: 'asset', fileName: `vendor/${vendor.binaryen}`, source: readFileSync(binaryen) });
       }
       this.emitFile({ type: 'asset', fileName: 'provenance.json', source: JSON.stringify({
-        candidate: existsSync(join(root, 'candidate-provenance.json')) ? JSON.parse(readFileSync(join(root, 'candidate-provenance.json'), 'utf8')) : { sourceIdentity: 'development', sourceCommit: null },
+        candidate: data.candidate,
         packages: data.types.packages, declarationHashes: data.types.hashes,
         examples: data.examples.map(({ id, module, source }) => ({ id, module, sha256: createHash('sha256').update(source).digest('hex') })),
         runtimeSHA256: createHash('sha256').update(data.runtime).digest('hex'),
