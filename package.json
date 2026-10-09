@@ -1,6 +1,6 @@
 {
   "name": "@denaudio/den",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Composable DSP modules and instrument/delay engines for unworklet",
   "type": "module",
   "license": "MIT OR Apache-2.0",
