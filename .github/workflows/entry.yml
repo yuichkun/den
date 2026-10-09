@@ -1,6 +1,12 @@
 name: Entry gate
 on:
   pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: Exact commit to verify for a release
+        type: string
+        required: true
   push:
     branches: [main]
 permissions:
@@ -17,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -29,12 +35,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: entry-candidate-${{ github.event.pull_request.head.sha || github.sha }}
+          name: entry-candidate-${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           path: artifacts/
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playground-ui-${{ github.event.pull_request.head.sha || github.sha }}
+          name: playground-ui-${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           path: |
             artifacts/playground/
             artifacts/integration/**/manifest.json
@@ -47,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -58,7 +64,7 @@ jobs:
       - run: node --test --test-concurrency=1 tests/catalog-audition.test.mjs
       - name: Verify canonical catalog gate actually completed
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -79,7 +85,7 @@ jobs:
         run: node --test --test-concurrency=1 tests/capture-freeze-browser.test.mjs
       - name: Verify native restore gate actually completed
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -98,7 +104,7 @@ jobs:
         run: node --test --test-concurrency=1 tests/transitions-browser.test.mjs
       - name: Verify transition restore gate actually completed
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -116,7 +122,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: catalog-smoke-${{ github.event.pull_request.head.sha || github.sha }}
+          name: catalog-smoke-${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           path: |
             artifacts/catalog-audition/
             artifacts/capture-freeze-browser/
@@ -129,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -142,7 +148,7 @@ jobs:
         run: node --test --test-concurrency=1 tests/site.test.mjs
       - name: Verify full playground gate reached its final assertions
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -161,5 +167,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playground-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          name: playground-preview-${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           path: artifacts/playground/

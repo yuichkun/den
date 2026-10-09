@@ -18,7 +18,7 @@ const manifest = {
   description: 'Initial reference candidates, not approved golden. No normalization or limiter.',
   sourceCommit: git('rev-parse', 'HEAD'), sourceDirty: git('status', '--porcelain') !== '',
   sourceFiles: Object.fromEntries(files.map(file => [file, hash(readFileSync(file))])),
-  dependencies: { den: '0.0.0', unworklet: '0.4.1', lockSHA256: hash(readFileSync('package-lock.json')) },
+  dependencies: { den: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version, unworklet: '0.4.1', lockSHA256: hash(readFileSync('package-lock.json')) },
   sampleRate, channels: 2, frames: length, durationSeconds: length / sampleRate,
   initialState: 'Fresh engine: zero history/filter states and initial LFO phase; no restored snapshot',
   seed: null, midi: null, audioEncoding: 'IEEE float32 WAV',
