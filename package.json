@@ -11,6 +11,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE-MIT",
     "LICENSE-APACHE",
     "docs"
@@ -244,7 +245,10 @@
     "build:consumer": "node scripts/build-consumer.mjs",
     "build:integration": "node scripts/build-integration.mjs",
     "build:site": "node scripts/build-site.mjs",
-    "build:catalog": "node scripts/build-catalog.mjs"
+    "build:catalog": "node scripts/build-catalog.mjs",
+    "release:version": "node scripts/release-version.mjs",
+    "release:pack": "node scripts/release-pack.mjs",
+    "test:release": "node --test tests/release.test.mjs tests/release-package.test.mjs"
   },
   "peerDependencies": {
     "@unworklet/core": "0.4.1"
@@ -259,5 +263,9 @@
     "typescript": "5.9.3",
     "vite": "7.3.6",
     "vitest": "4.1.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }

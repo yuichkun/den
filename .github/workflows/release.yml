@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Ordinary closed PRs must not displace a queued release. GitHub retains only
+# one pending run per concurrency group; merge release PRs one at a time.
+concurrency:
+  group: release-${{ github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'release/v') && github.event.pull_request.head.repo.full_name == github.repository && 'publish' || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.repository == 'yuichkun/den' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Verify the reviewed release and version
+        env:
+          SHA: ${{ github.sha }}
+          REVIEWED: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: node scripts/release-check.mjs
+
+  verify:
+    needs: validate
+    # Reuse every existing numerical, packed-consumer, browser and completion
+    # gate against the actual merge commit, with read-only permissions.
+    uses: ./.github/workflows/entry.yml
+    with:
+      ref: ${{ github.sha }}
+
+  publish:
+    needs: [validate, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      SHA: ${{ github.sha }}
+      REVIEWED: ${{ github.event.pull_request.head.sha }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      TITLE: ${{ github.event.pull_request.title }}
+      NOTES: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          # No dependency cache or long-lived npm authentication token.
+      - run: npm ci
+      - run: npm run release:pack
+      - name: Recheck source and remote tags immediately before publication
+        id: release
+        run: node scripts/release-check.mjs
+      - name: Check npm for an identical existing version
+        id: registry
+        run: node scripts/release-registry.mjs
+      - name: Check the trusted publisher before creating a tag
+        if: steps.registry.outputs.published != 'true'
+        run: |
+          id_token=$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" | jq -er .value)
+          curl --fail --silent --show-error -o /dev/null -X POST \
+            -H "Authorization: Bearer $id_token" -H 'Content-Length: 0' \
+            'https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/@denaudio%2Fden'
+      - name: Tag the checked commit
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if [ -z "$(git ls-remote --tags origin "refs/tags/v$VERSION")" ]; then
+            git tag "v$VERSION" "$SHA"
+            git push origin "refs/tags/v$VERSION"
+          fi
+      - name: Publish the checked tarball with npm OIDC
+        if: steps.registry.outputs.published != 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: npm publish "artifacts/release/denaudio-den-$VERSION.tgz" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Verify the published tarball
+        run: node scripts/release-registry.mjs --verify
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if ! gh release view "v$VERSION" > /dev/null 2>&1; then
+            printf '%s\n' "$NOTES" > "$RUNNER_TEMP/den-release-notes.md"
+            gh release create "v$VERSION" --verify-tag --latest --title "$TITLE" --notes-file "$RUNNER_TEMP/den-release-notes.md"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-package-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/release/

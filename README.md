@@ -23,7 +23,7 @@ The tests build declarations/ESM, run independent numerical references, pack the
 package, install it in clean locked consumers, build actual worklet/WASM assets,
 and exercise real browser MIDI, AudioParams, snapshots and UI lifecycle. Generated
 source/audio/waveform manifests and failures are retained in `artifacts/`; CI
-uploads them. No command publishes to a registry.
+uploads them. These verification commands do not publish to a registry.
 
 ## Code playground
 
@@ -96,4 +96,8 @@ a separate change. CI success does not supply that approval.
 
 This is a fresh TS/unworklet implementation. The retired Rust/WASM contents are
 preserved only in Git history. MIT/Apache-2.0 notices and attribution remain.
-Package version is `0.0.0`; no registry release is intended.
+Development snapshots may use version `0.0.0`. Releases use reviewed
+`release/vX.Y.Z` pull requests and npm trusted publishing; see the
+[release guide](https://github.com/yuichkun/den/blob/main/RELEASE.md) and
+[changelog](CHANGELOG.md). Before 1.0, breaking changes increment the minor
+version. The automation setup itself does not publish a package.
