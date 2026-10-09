@@ -5,7 +5,7 @@ import { cpSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, sym
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { checkPackage } from '../scripts/release-pack.mjs';
-import { alreadyPublished } from '../scripts/release-registry.mjs';
+import { alreadyPublished, waitForPublished } from '../scripts/release-registry.mjs';
 import { fixtureLocks, prepareVersion } from '../scripts/release-version.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -58,4 +58,63 @@ test('registry retries require the same tarball and never downgrade a newer rele
   metadata.versions['0.3.0'] = {};
   assert.throws(() => alreadyPublished(metadata, pack), /newer version/);
   assert.throws(() => alreadyPublished({ ...metadata, name: 'unrelated' }, pack), /Unexpected registry package/);
+});
+
+const pack = { name: '@denaudio/den', version: '0.1.0', integrity: 'sha512-expected' };
+const missing = { name: pack.name, versions: { '0.0.0-stage': {} } };
+const visible = { name: pack.name, versions: { '0.1.0': { dist: { integrity: pack.integrity } } } };
+
+function clock() {
+  let time = 0;
+  const waits = [];
+  return {
+    waits,
+    options: {
+      now: () => time,
+      wait: async ms => { waits.push(ms); time += ms; },
+      timeoutMs: 25, intervalMs: 10, onPending: () => {},
+    },
+  };
+}
+
+test('verification waits through npm propagation and accepts only the expected tarball', async () => {
+  const c = clock();
+  const responses = [missing, missing, visible];
+  assert.equal(await waitForPublished(pack, { ...c.options, lookup: async () => responses.shift() }), true);
+  assert.deepEqual(c.waits, [10, 10]);
+  assert.equal(responses.length, 0);
+});
+
+test('verification fails at its deadline when npm never exposes the version', async () => {
+  const c = clock();
+  let lookups = 0;
+  await assert.rejects(waitForPublished(pack, { ...c.options, lookup: async () => { lookups++; return missing; } }), /after waiting/);
+  assert.equal(lookups, 3);
+  assert.deepEqual(c.waits, [10, 10, 5]);
+});
+
+test('verification rejects conflicting or superseded releases without waiting', async () => {
+  for (const [metadata, error] of [
+    [{ ...visible, versions: { '0.1.0': { dist: { integrity: 'sha512-other' } } } }, /different tarball/],
+    [{ ...visible, versions: { ...visible.versions, '0.2.0': {} } }, /newer version/],
+    [{ ...visible, name: 'unrelated' }, /Unexpected registry package/],
+  ]) {
+    const c = clock();
+    await assert.rejects(waitForPublished(pack, { ...c.options, lookup: async () => metadata }), error);
+    assert.deepEqual(c.waits, []);
+  }
+});
+
+test('verification preserves registry errors instead of treating them as propagation', async () => {
+  for (const error of [new Error('npm registry lookup failed (403)'), new Error('network unavailable')]) {
+    const c = clock();
+    await assert.rejects(waitForPublished(pack, { ...c.options, lookup: async () => { throw error; } }), actual => actual === error);
+    assert.deepEqual(c.waits, []);
+  }
+});
+
+test('an already visible tarball verifies immediately', async () => {
+  const c = clock();
+  assert.equal(await waitForPublished(pack, { ...c.options, lookup: async () => visible }), true);
+  assert.deepEqual(c.waits, []);
 });

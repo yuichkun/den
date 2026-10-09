@@ -118,7 +118,10 @@ release; GitHub can replace an older pending run when another is queued.
 
 Fix account/runner failures and rerun the failed Release workflow. It keeps a tag
 only if it points at the same commit, skips an npm version only if its tarball
-integrity matches exactly, and skips an existing GitHub Release. Registry errors
+integrity matches exactly, and skips an existing GitHub Release. After npm accepts
+a publication, verification polls every 10 seconds for up to 5 minutes for the
+version to appear (an in-flight request can take up to 30 additional seconds).
+Different tarballs, newer versions and lookup errors fail immediately. Registry errors
 are failures, not evidence that a version is available to publish. A newer tag
 or npm version prevents an old run from moving `latest` backwards.
 
