@@ -82,7 +82,7 @@ test('invalid control endpoints reject only requested launches; no clamping or i
   const p = defineProcessor(ctx => {
     const sample = instantiate(residentSample, { capacity: 256, sourceSampleRate: ctx.sampleRate }, { name: 'sample' });
     const load = event<{ data: Float32Array }>({ from: 'main', name: 'load', capacity: CAPACITY_16, payloadCapacity: 1024 }); load.onReceive(x => sample.load(x.data));
-    const unit = instantiate(residentTimeStretch, { sampleRate: ctx.sampleRate, sample, searchFrames: 0 }, { name: 'stretch' }), output = audioOutput({ name: 'main', channels: 2 });
+    const unit = instantiate(residentTimeStretch, { renderQuantumSize: ctx.renderQuantumSize, sampleRate: ctx.sampleRate, sample, searchFrames: 0 }, { name: 'stretch' }), output = audioOutput({ name: 'main', channels: 2 });
     return { process() { forSample((i, everyNSamples) => { const invalid = select(i.lt(64), f32(NaN), select(i.lt(96), f32(Infinity), f32(-Infinity))); const r = unit.tick({ gate: bool(true), trigger: bool(true), reset: bool(false), durationScale: invalid, pitchRatio: invalid }, everyNSamples); output.ch(0).at(i).write(r.output); output.ch(1).at(i).write(f32(r.rejected)); }); } };
   });
   const r = await renderOffline(p, { sampleRate: 48000, duration: 512 / 48000, messages: [{ name: 'load', payload: { data: new Float32Array(256).fill(1) } }] });
@@ -90,9 +90,9 @@ test('invalid control endpoints reject only requested launches; no clamping or i
 });
 
 test('construction bounds reject unsupported capacities/configurations', () => {
-  const make = (sampleRate: number, hopSamples: number, searchFrames: number) => defineProcessor(() => {
+  const make = (sampleRate: number, hopSamples: number, searchFrames: number) => defineProcessor(ctx => {
     const sample = instantiate(residentSample, { capacity: 1, sourceSampleRate: 48000 }, { name: 'sample' });
-    instantiate(residentTimeStretch, { sampleRate, sample, hopSamples, searchFrames } as ResidentTimeStretchConfig, { name: 'stretch' }); return { process() {} };
+    instantiate(residentTimeStretch, { renderQuantumSize: ctx.renderQuantumSize, sampleRate, sample, hopSamples, searchFrames } as ResidentTimeStretchConfig, { name: 'stretch' }); return { process() {} };
   });
   for (const rate of [NaN, Infinity, 7999, 48000.5, 192001]) expect(() => make(rate, 128, 64)).toThrow(/residentTimeStretch/);
   for (const h of [0, 64, 129, 512, NaN]) expect(() => make(48000, h, 64)).toThrow(/residentTimeStretch/);
@@ -179,9 +179,9 @@ test('exact count arithmetic agrees with BigInt at broad maximum-length boundari
 });
 
 test('fractional resident source rates are rejected only by the exact-duration module', () => {
-  expect(() => defineProcessor(() => {
+  expect(() => defineProcessor(ctx => {
     const sample = instantiate(residentSample, { capacity: 1, sourceSampleRate: 44100.5 }, { name: 'sample' });
-    instantiate(residentTimeStretch, { sampleRate: 48000, sample }, { name: 'stretch' }); return { process() {} };
+    instantiate(residentTimeStretch, { renderQuantumSize: ctx.renderQuantumSize, sampleRate: 48000, sample }, { name: 'stretch' }); return { process() {} };
   })).toThrow(/sourceSampleRate/);
 });
 

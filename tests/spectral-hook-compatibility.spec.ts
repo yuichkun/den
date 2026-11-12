@@ -5,9 +5,9 @@ import { stftIdentity } from '../src/spectral.js';
 import { createStftIdentity as frozen } from './probes/stft-before-gate-hook.js';
 const previous = defineSubgraph(config => frozen(config as { size: number; hopSize: number }, 1024));
 function fixture(unit: typeof stftIdentity, size: number, hopSize: number) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-    const stft = instantiate(unit, { size, hopSize }, { name: 'stft' });
+    const stft = instantiate(unit, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'stft' });
     return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(stft.tick(input.ch(0).at(i), input.ch(1).at(i).gt(0), everyNSamples))); } };
   }, { id: 'den.spectral.identity.frozen-4be1c99' });
 }

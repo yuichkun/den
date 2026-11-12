@@ -1,6 +1,6 @@
 # Bounded uniform convolution candidate
 
-`partitionedConvolution({ blockSize, impulse }).tick(input, reset,
+`partitionedConvolution({ blockSize, impulse, renderQuantumSize: ctx.renderQuantumSize }).tick(input, reset,
 everyNSamples)` uses the existing stride-1 `forSample` scheduler. This is a small
 uniform-partition frequency-domain convolution, not a direct FIR relabeled as
 FFT processing. It is CANDIDATE and has no human or realtime acceptance.
@@ -9,6 +9,11 @@ not a practical convolution-reverb or complete catalog §10 capability.
 
 ## Contract
 
+- Pass `ctx.renderQuantumSize` from the enclosing processor. Dispatch runs every
+  `gcd(B, renderQuantumSize)` samples, and the persistent cursor commits only at
+  true B-sample boundaries. This preserves block-atomic snapshot phase even when
+  the quantum does not divide B. Off-phase work is eager; small or coprime
+  quanta increase cost and do not gain realtime clearance.
 - B is a construction-fixed power of two in 4..32; N=2B. The original/fixed IR has
   1..4B taps, each finite in [-1,1], and sum of absolute tap values <=4. Input is
   finite normalized audio [-1,1]; output is not clipped or gain-normalized.
@@ -30,7 +35,7 @@ not a practical convolution-reverb or complete catalog §10 capability.
   are double constants. No treatment of arbitrary nonfinite inputs is promised.
 - Persistent history, overlap, spectra and indices use native full snapshots.
   FFT/mixed-spectrum scratch is transient and rewritten before use. Same graph
-  and rate are required. Changing IR/configuration requires a new graph; no
+  and rate/quantum are required. Changing IR/configuration requires a new graph; no
   migration, IR swap, crossfade, stereo adapter or long-room support is implied.
 
 ## Required evidence

@@ -7,17 +7,17 @@ import { blurSpectrum, crossSpectrum, directDft, directTextureWola, maxError } f
 
 type Mode = 'blur' | 'cross' | 'identity';
 function fixture(size: number, hopSize: number, mode: Mode, option = mode === 'blur' ? Math.min(3, size / 2 - 1) : 4) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 4, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
     if (mode === 'identity') {
-      const unit = instantiate(stftIdentity, { size, hopSize }, { name: 'unit' });
+      const unit = instantiate(stftIdentity, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'unit' });
       return { process() { forSample((i, every) => output.ch(0).at(i).write(unit.tick(input.ch(0).at(i), input.ch(3).at(i).gt(0), every))); } };
     }
     if (mode === 'blur') {
-      const unit = instantiate(spectralBlur, { size, hopSize, radius: option }, { name: 'unit' });
+      const unit = instantiate(spectralBlur, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize, radius: option }, { name: 'unit' });
       return { process() { forSample((i, every) => output.ch(0).at(i).write(unit.tick(input.ch(0).at(i), input.ch(2).at(i), input.ch(3).at(i).gt(0), every))); } };
     }
-    const unit = instantiate(spectralCrossSynthesis, { size, hopSize, maxGain: option }, { name: 'unit' });
+    const unit = instantiate(spectralCrossSynthesis, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize, maxGain: option }, { name: 'unit' });
     return { process() { forSample((i, every) => output.ch(0).at(i).write(unit.tick(input.ch(0).at(i), input.ch(1).at(i), input.ch(2).at(i), input.ch(3).at(i).gt(0), every))); } };
   });
 }

@@ -1,16 +1,22 @@
 import { defineSubgraph, f32, f64, i32, instantiate, select, state, type EveryNSamples, type MessageGraphPayload, type Node } from '@unworklet/core';
-import { spectralFft, spectralForEach } from './spectral-fft.js';
+import { spectralDispatchPeriod, spectralFft, spectralForEach } from './spectral-fft.js';
 import { PREPARED_BLOCK as B, PREPARED_FFT_SIZE as N, PREPARED_PARTITIONS as P, PREPARED_VALUES as VALUES,
   validatePreparedConvolutionConfig, type PreparedConvolutionConfig, type PreparedConvolutionPacket } from './convolution-spectrum.js';
 export { prepareConvolutionSpectrum, type PreparedConvolutionConfig, type PreparedConvolutionPacket } from './convolution-spectrum.js';
+
+export interface PreparedConvolutionRuntimeConfig extends PreparedConvolutionConfig {
+  /** Pass ctx.renderQuantumSize; aligns native dispatch with snapshot boundaries. */
+  renderQuantumSize: number;
+}
 
 /** Fixed B128/P64 prepared-spectrum mono convolution candidate.
  * Correctness/gain bounds require an unchanged packet from host preparation.
  * Caller owns native CAPACITY_16 ingress with payloadCapacity 131072 bytes.
  * Copy/scan runs in native dispatch, so preload with audible playback gated off.
  */
-export const preparedConvolution = defineSubgraph((config: PreparedConvolutionConfig) => {
+export const preparedConvolution = defineSubgraph((config: PreparedConvolutionRuntimeConfig) => {
   validatePreparedConvolutionConfig(config);
+  const dispatchPeriod = spectralDispatchPeriod(B, config.renderQuantumSize);
   const coefficients = state.buffer.f32({ size: VALUES }).expose({ name: 'coefficients', snapshot: 'persistent' });
   const history = state.buffer.f64({ size: B }).expose({ name: 'historyScaled', snapshot: 'persistent' });
   const previous = state.buffer.f64({ size: VALUES }).expose({ name: 'previousSpectraScaled', snapshot: 'persistent' });
@@ -55,12 +61,16 @@ export const preparedConvolution = defineSubgraph((config: PreparedConvolutionCo
       validSamples.write(select(invalidate, i32(0), validSamples.read()));
       validBlocks.write(select(invalidate, i32(0), validBlocks.read()));
       pendingReset.write(pendingReset.read().or(invalidate));
-      everyNSamples(B, () => {
+      // Keep B-sample frame phase in the persistent cursor. A fresh native
+      // scheduler must also align after snapshots taken inside a B-sample hop.
+      everyNSamples(dispatchPeriod, () => {
+        const frameDue = cursor.read().mod(B).eq(0);
         const frame = fft.transform(n => select(n.lt(B).and(validSamples.read().gte(i32(B).sub(n))),
           history.read(cursor.read().add(n).mod(B)), f64(0)), () => f64(0), false);
         spectralForEach(N, k => {
           const index = spectrumCursor.read().mul(N).add(k).mul(2);
-          previous.write(index, frame.real(k)); previous.write(index.add(1), frame.imag(k));
+          previous.write(index, select(frameDue, frame.real(k), previous.read(index)));
+          previous.write(index.add(1), select(frameDue, frame.imag(k), previous.read(index.add(1))));
         });
         spectralForEach(N, k => {
           sumReal.write(0); sumImag.write(0);
@@ -80,11 +90,12 @@ export const preparedConvolution = defineSubgraph((config: PreparedConvolutionCo
         const result = fft.transform(n => mixedReal.read(n), n => mixedImag.read(n), true);
         spectralForEach(N, n => {
           const index = cursor.read().add(n).mod(N);
-          overlap.write(index, select(pendingReset.read(), f64(0), overlap.read(index)).add(result.real(n)));
+          const prior = overlap.read(index);
+          overlap.write(index, select(frameDue, select(pendingReset.read(), f64(0), prior).add(result.real(n)), prior));
         });
-        spectrumCursor.write(spectrumCursor.read().add(1).mod(P));
-        validBlocks.write(validBlocks.read().add(1).min(P - 1));
-        pendingReset.write(false);
+        spectrumCursor.write(select(frameDue, spectrumCursor.read().add(1).mod(P), spectrumCursor.read()));
+        validBlocks.write(select(frameDue, validBlocks.read().add(1).min(P - 1), validBlocks.read()));
+        pendingReset.write(pendingReset.read().and(frameDue.not()));
       });
       const output = select(invalidate.or(pendingReset.read()), f32(0), f32(overlap.read(cursor.read()).div(scale)));
       overlap.write(cursor.read(), f64(0));

@@ -91,7 +91,7 @@ writeFileSync('modulation-results.json',JSON.stringify(evidence));
     sourceDirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '',
     sourceHashes: Object.fromEntries(['src/envelope.ts','src/lfo.ts','tests/envelope.spec.ts','tests/lfo.spec.ts','tests/modulation-packed.test.mjs','package-lock.json'].map(file => [file, hash(readFileSync(join(root, file)))])),
     packageIntegrity: pack.integrity, consumerLockHash: hash(readFileSync(join(consumer, 'package-lock.json'))),
-    unworklet: '0.4.1', offlineSampleRates: [44100,48000,96000], samples: 256, format: 'mono f32 little-endian',
+    unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], offlineSampleRates: [44100,48000,96000], samples: 256, format: 'mono f32 little-endian',
     settings: { envelope: { gate: 'on at 0, off at 128', retrigger: false, reset: false, attackFrames: 32, decayFrames: 32, sustain: 0.5, releaseFrames: 32 }, lfo: { rate: 20, reset: false, initialPhase: 0 } },
     input: null, midi: [], seed: null, preset: null, files,
     verification: 'independent piecewise linear ADSR and Math.sin references; exact completion sample; isolated strict TypeScript consumer',

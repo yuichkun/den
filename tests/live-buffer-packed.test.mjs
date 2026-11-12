@@ -13,7 +13,7 @@ test('packed live buffer public types, exact native chronological age reference,
   const output = join(root, 'artifacts/live-buffer', trial); mkdirSync(output, { recursive: true });
   const consumer = mkdtempSync(join(tmpdir(), 'den-live-buffer-'));
   const sources = ['src/live-buffer.ts', 'docs/live-buffer.md', 'tests/live-buffer.spec.ts', 'tests/fixtures/live-buffer-reference.ts', 'tests/live-buffer-packed.test.mjs', ...readdirSync(join(root, 'tests/live-buffer-consumer')).map(file => `tests/live-buffer-consumer/${file}`), 'package.json', 'package-lock.json'];
-  const provenance = { status: 'CANDIDATE', runtime: 'NOT_CLEARED', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(sources.map(file => [file, hash(join(root, file))])), consumer, unworklet: '0.4.1', node: process.version };
+  const provenance = { status: 'CANDIDATE', runtime: 'NOT_CLEARED', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(sources.map(file => [file, hash(join(root, file))])), consumer, unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], node: process.version };
   writeFileSync(join(output, 'provenance.json'), JSON.stringify(provenance, null, 2));
   let phase = 'prepare';
   try {

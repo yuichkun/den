@@ -5,7 +5,7 @@ import type { SampleSetup } from './sample-setup.ts';
 import type { Diagnostic } from './typescript-project.ts';
 import { scheduleParameter } from './parameter-range.ts';
 export type Phase = 'idle' | 'compiling' | 'preparing' | 'playing' | 'stopping' | 'error';
-type Compiled = { meta: WorkletMeta; setup: SampleSetup; moduleSource: string; wasm: ArrayBuffer; processorName: string; sampleRate: number };
+type Compiled = { meta: WorkletMeta; setup: SampleSetup; moduleSource: string; wasm: ArrayBuffer; processorName: string; sampleRate: number; schemaHash: string };
 type Session = {
   id: number; ctx: AudioContext; abort: AbortController; worker?: Worker; node?: UnworkletNode<unknown>;
   urls: string[]; master?: GainNode; raw?: AnalyserNode; output?: AnalyserNode;
@@ -44,7 +44,7 @@ export class AudioSession {
       };
       worker.onerror = event => { event.preventDefault(); reject(new Error(event.message || 'Compilation worker failed.')); };
       worker.onmessageerror = () => reject(new Error('Compilation response could not be read.'));
-      worker.postMessage({ id: s.id, source });
+      worker.postMessage({ id: s.id, source, target: { sampleRate: s.ctx.sampleRate, renderQuantumSize: (s.ctx as AudioContext & { renderQuantumSize?: number }).renderQuantumSize ?? 128 } });
     });
     return this.wait(result, s, 20000, 'Compilation timed out. Stop loops or try a smaller graph.').finally(() => { worker.terminate(); if (s.worker === worker) s.worker = undefined; });
   }
@@ -52,7 +52,7 @@ export class AudioSession {
     if (['compiling', 'preparing', 'stopping'].includes(this.phase)) return;
     const previous = this.stop();
     let ctx: AudioContext;
-    try { ctx = new AudioContext({ sampleRate: 48000 }); }
+    try { ctx = new AudioContext(); }
     catch (error) { await previous.catch(() => {}); this.error = String(error); this.notify('error', 'Audio could not start.'); return; }
     // Resume is requested synchronously in the Run gesture, before compilation.
     const resumed = ctx.resume();
@@ -62,13 +62,12 @@ export class AudioSession {
     try {
       await this.wait(resumed, s, 5000, 'Audio context did not resume.'); await previous;
       if (!this.live(s)) return;
-      if (ctx.sampleRate !== 48000) throw new Error('This playground requires a 48 kHz AudioContext.');
       const data = await this.compile(s, source, version); if (!this.live(s)) return;
       this.notify('preparing', 'Preparing audio…');
       const moduleUrl = URL.createObjectURL(new Blob([data.moduleSource], { type: 'text/javascript' }));
       const wasmUrl = URL.createObjectURL(new Blob([data.wasm], { type: 'application/wasm' }));
       s.urls.push(moduleUrl, wasmUrl);
-      const processor = { worklet: { ...makeWorkletNamespaceFromMeta(data.meta), moduleUrl, wasmUrl, processorName: data.processorName, displayName: 'den playground', bakedSampleRate: data.sampleRate } } as CompiledProcessor<unknown>;
+      const processor = { schemaHash: data.schemaHash, worklet: { ...makeWorkletNamespaceFromMeta(data.meta), moduleUrl, wasmUrl, processorName: data.processorName, displayName: 'den playground', bakedSampleRate: data.sampleRate } } as CompiledProcessor<unknown>;
       const pending = createNode(ctx, processor, { initial: data.setup.initial });
       pending.then(node => { if (!this.live(s)) { node.dispose(); this.disposed++; } }, () => {});
       const node = await this.wait(pending, s, 15000, 'AudioWorklet did not become ready.'); if (!this.live(s)) return;
@@ -128,7 +127,7 @@ export class AudioSession {
     if (!s.input) return;
     try { s.source?.stop(); } catch {} s.source?.disconnect();
     if (this.inputType === 'noise') {
-      const buffer = s.ctx.createBuffer(1, 48000, 48000), samples = buffer.getChannelData(0); let seed = 1234567;
+      const buffer = s.ctx.createBuffer(1, s.ctx.sampleRate, s.ctx.sampleRate), samples = buffer.getChannelData(0); let seed = 1234567;
       for (let i = 0; i < samples.length; i++) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; samples[i] = seed / 2147483648 - 1; }
       s.source = new AudioBufferSourceNode(s.ctx, { buffer, loop: true });
     } else s.source = new OscillatorNode(s.ctx, { type: this.inputType, frequency: this.inputFrequency });
@@ -190,7 +189,7 @@ export class AudioSession {
     await this.dispose(s);
     if (!this.current) { this.parameters = []; this.inputNames = []; this.notify('idle', message); }
   }
-  state() { return { phase: this.phase, message: this.message, error: this.error, created: this.created, closed: this.closed, disposed: this.disposed, contextState: this.current?.ctx.state ?? 'closed', volume: this.volume, params: this.parameters.map(x => ({ ...x })), inputNames: [...this.inputNames] }; }
+  state() { const ctx = this.current?.ctx; return { phase: this.phase, message: this.message, error: this.error, created: this.created, closed: this.closed, disposed: this.disposed, contextState: ctx?.state ?? 'closed', sampleRate: ctx?.sampleRate ?? null, renderQuantumSize: ctx ? (ctx as AudioContext & { renderQuantumSize?: number }).renderQuantumSize ?? 128 : null, volume: this.volume, params: this.parameters.map(x => ({ ...x })), inputNames: [...this.inputNames] }; }
   samples(postMaster = true) { const analyser = postMaster ? this.current?.output : this.current?.raw; const data = new Float32Array(2048); analyser?.getFloatTimeDomainData(data); return data; }
   measure() { const stats = (x: Float32Array) => ({ peak: Math.max(...x.map(Math.abs)), rms: Math.sqrt(x.reduce((sum, value) => sum + value * value, 0) / x.length), finite: x.every(Number.isFinite) }); return { raw: stats(this.samples(false)), output: stats(this.samples(true)), ...this.state() }; }
 }

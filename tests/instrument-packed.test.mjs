@@ -150,7 +150,7 @@ test('packed instrument module: isolated typecheck/offline render and real 48 kH
       ...evidence, runtimeStatus:'NOT_CLEARED',clockMetadataStatus:observation.clockMetadataStatus,realtimeStatus, sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(),
       sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '',
       sourceHashes: Object.fromEntries(['src/instrument.ts','src/instrument-example.ts','src/envelope.ts','src/lfo.ts','src/filter.ts','src/oscillator.ts','src/voice-policy.ts','tests/instrument.spec.ts','tests/instrument-packed.test.mjs','tests/instrument-observer-contract.mjs','tests/instrument-observer.test.mjs','tests/instrument-consumer/processor.ts','tests/instrument-consumer/sustained-processor.ts','tests/instrument-consumer/main.js','tests/instrument-consumer/render.mjs','package-lock.json'].map(file => [file,hash(join(root,file))])),
-      unworklet:'0.4.1', channels:2, offlineSampleRates:[44100,48000,96000], browserSampleRates:[48000],
+      unworklet:JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], channels:2, offlineSampleRates:[44100,48000,96000], browserSampleRates:[48000],
       verification:'Independent DSP and voice tests; packed TypeScript/build/offline render; browser MIDI, polyphony, release, gain/cutoff edits, bypass, reset',
       limitations:['Not human approved','Public packed subpath import; browser coverage is 48 kHz only','MIDI dispatch is quantum-boundary'],files,
     },null,2));

@@ -8,9 +8,9 @@ import { spectralGate } from '../src/spectral-gate.js';
 // limit covers large exhaustive reset schedules without a huge dense DFT run.
 for (const rate of [44100, 48000, 96000]) test(`uniform-floor gate resets every large hop phase at ${rate}`, async () => {
   for (const [size, hop] of [[128, 32], [256, 128], [512, 256], [1024, 256], [1024, 512]]) {
-    const p = defineProcessor(() => {
+    const p = defineProcessor(ctx => {
       const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-      const gate = instantiate(spectralGate, { size, hopSize: hop }, { name: 'gate' });
+      const gate = instantiate(spectralGate, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize: hop }, { name: 'gate' });
       return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(gate.tick(input.ch(0).at(i), f32(3.4028234663852886e38), f32(0.25), input.ch(1).at(i).gt(0), everyNSamples))); } };
     });
     const count = Math.ceil((3 * size + hop * (size + hop + 1)) / 128) * 128;

@@ -5,7 +5,7 @@ export function makeProcessor(sourceRate: number, capacity = 65536, hopSamples: 
   return defineProcessor(ctx => {
     const sample = instantiate(residentSample, { capacity, sourceSampleRate: sourceRate }, { name: 'sample' });
     const load = event<{ data: Float32Array }>({ from: 'main', name: 'load', capacity: CAPACITY_16, payloadCapacity: capacity * 4 }); load.onReceive(x => sample.load(x.data));
-    const unit = instantiate(residentTimeStretch, { sampleRate: ctx.sampleRate, sample, hopSamples, searchFrames }, { name: 'stretch' });
+    const unit = instantiate(residentTimeStretch, { renderQuantumSize: ctx.renderQuantumSize, sampleRate: ctx.sampleRate, sample, hopSamples, searchFrames }, { name: 'stretch' });
     const input = audioInput({ name: 'controls', channels: 3 }), output = audioOutput({ name: 'main', channels: 8 });
     const durationScale = param.f32({ default: 1, min: .5, max: 2, automationRate: 'a-rate' }).named('durationScale');
     const pitchRatio = param.f32({ default: 1, min: .5, max: 2, automationRate: 'a-rate' }).named('pitchRatio');

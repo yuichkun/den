@@ -11,10 +11,12 @@ on:
     branches: [main]
 permissions:
   contents: read
+# Playwright 1.60 supports Ubuntu 24.04; ubuntu-latest now selects 26.04,
+# where browser dependency installation fails before the Entry tests can run.
 jobs:
   entry:
     name: entry
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Main 3548edf7 completed in 28m30s before the new all54 playground gate.
     # c60cfac0 passed all76 Node tests at 29m46s, then the 30m job cap cut off
     # the trailing realtime captures. Allow aggregate headroom only; all test
@@ -46,7 +48,7 @@ jobs:
             artifacts/integration/**/manifest.json
   catalog-smoke:
     name: catalog-smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Reuse the exact packed-site/lifecycle gate for early feedback while the
     # unchanged full entry suite runs. This is additional, not a replacement.
     timeout-minutes: 10
@@ -130,7 +132,7 @@ jobs:
 
   playground-preview:
     name: playground-preview
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

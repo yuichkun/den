@@ -1,61 +1,58 @@
-# unworklet 0.4.1 findings
+# unworklet compatibility findings
 
-The upstream reports #68–106 were read as reports, not assumed verified. These
-checks use registry-installed 0.4.1 packages and the checked-in dependency locks.
-No unworklet repository or dependency source was modified.
+The current checks use registry-installed **0.6.0** packages and the checked-in
+locks. The initial 0.4.1 findings are retained below as historical context; fixes
+are checked against their correct behavior rather than preserving upstream bugs.
+No unworklet source or package internals are patched.
 
-| Issue | Independently observed here | Smallest den-local constraint |
+| Issue | 0.4.1 observation | 0.6.0 regression check and remaining constraint |
 | --- | --- | --- |
-| [#78](https://github.com/yuichkun/unworklet/issues/78) | Real Chromium: gain initialized 0.5 but pre-render snapshot stores 0; editing to 0.25 while suspended still stores last-rendered 0.5. | Save after stable parameter values have rendered. Browser test verifies 0.5 → 0.25 → restored 0.5 in actual output. Suspended preset editing remains unsupported. |
-| [#79](https://github.com/yuichkun/unworklet/issues/79) | Restoring f32(1) into same-name i32 state yields 1065353216. | Gate accepts identical schema/rate only. Do not expose incompatible saved presets without reviewed migration tests. No den serializer added. |
-| [#96](https://github.com/yuichkun/unworklet/issues/96) | duration=896/48000 executes 8 blocks instead of 7. | Fixed gate durations 128/sampleRate and 256/sampleRate are verified by lengths/state; do not infer arbitrary durations are safe. |
-| [#98](https://github.com/yuichkun/unworklet/issues/98) | Unity DC fails the frequency-gain helper with 6.021 dB. | Direct independent sample comparisons; no FFT is needed for this gate. |
-| [#104](https://github.com/yuichkun/unworklet/issues/104) | Default config `{name:'default'}` swallows `{name:'x'}`, output 7 rather than 1. | Required config parameter plus explicit separate instance name renders 1. Used by gate and consumer. |
-| [#106](https://github.com/yuichkun/unworklet/issues/106) | Pure lang type import under TS 5.9.3 ESNext fails with Volar TS2416; ES2023 has zero diagnostics. | ES2023, strict=true, skipLibCheck=false. No type shim or blanket declaration skipping. |
+| [#78](https://github.com/yuichkun/unworklet/issues/78) | A pre-render snapshot stored gain 0 instead of initial 0.5; suspended edits stored the last rendered value. | Real Chromium snapshots retain initial 0.5 and a suspended edit to 0.25. Rendering verifies 0.5 → 0.25 → restored 0.5 at 44.1/48/96 kHz. |
+| [#79](https://github.com/yuichkun/unworklet/issues/79) | Restoring f32(1) into a same-name i32 slot yielded the reinterpreted bits 1065353216. | The incompatible slot is skipped and keeps its initial i32 value 7. den promises identical-schema/rate continuation; deliberate type changes still need a reviewed migration. |
+| [#96](https://github.com/yuichkun/unworklet/issues/96) | duration=896/48000 executed 8 blocks instead of 7. | Exact 896- and 256-sample durations execute 7 and 2 default quanta. |
+| [#98](https://github.com/yuichkun/unworklet/issues/98) | Unity DC measured 6.021 dB. | Unity DC measures 0 dB; the helper rejects the doubled-gain expectation. Direct sample comparisons remain independent checks. |
+| [#104](https://github.com/yuichkun/unworklet/issues/104) | A default config `{name:'default'}` swallowed `{name:'x'}`, producing 7 instead of 1. | **Still reproduced.** Required config plus a separate explicit instance name renders 1; den continues to use this form. |
+| [#106](https://github.com/yuichkun/unworklet/issues/106) | A lang type import under TS 5.9.3 ESNext failed with Volar TS2416. | Both ES2023 and ESNext pass strict checking with `skipLibCheck:false`. The consumer keeps ES2023 without a declaration shim. |
 
-The pinned dependency reproduction assertions intentionally capture known wrong
-behavior. On dependency upgrade, investigate changes and replace them with correct
-regression expectations; do not preserve upstream bugs as product requirements.
+The 0.5.0 and 0.6.0 [upstream changelog](https://github.com/yuichkun/unworklet/blob/v0.6.0/CHANGELOG.md)
+describes the snapshot, duration, gain, declaration and compilation changes.
+`tests/dependency.spec.ts` and the packed browser entry test independently check
+the paths above. `expectAudioMatches` accepts an independently calculated
+one-sample memory and rejects an intentionally incorrect answer. No audio golden
+is regenerated or approved by these tests.
 
-`expectAudioMatches` is exercised against an independently calculated one-sample
-memory and against an intentionally incorrect answer. The helper passes the former
-and rejects the latter. No audio snapshot matcher or golden update is used.
+Reviewed but not independently reproduced here: #95 (snapshot matcher name reuse)
+and #97 (integer WAV golden scale). This gate uses float WAV output and direct
+sample assertions. Build/HMR reuse (#100/#101/#102), arbitrary schema migrations,
+SIMD, DevTools and other APIs remain outside this fixture's coverage.
 
-Reviewed but **not reproduced** here: #95 (snapshot matcher name reuse), #97
-(integer WAV golden scale). The gate uses no approved golden; its WAVs use the
-existing float encoder, and numerical assertions inspect raw samples. Before future
-golden adoption, test these helper paths rather than assuming approval machinery.
-#100/#101/#102 concern build/HMR reuse; the gate uses a new build process and a new
-AudioContext, and does not claim HMR/repeated in-process build correctness.
-`.uwk` lowering, SIMD, MIDI dispatch, DevTools, arbitrary schema migration, and the
-other reported APIs are outside this fixture; their reports are not cleared by
-this PR. Later lanes must inspect and reproduce the bugs relevant to their APIs.
+## Browser sample rate and render quantum
 
-## Browser sample-rate scope (known, non-blocking)
+The packed entry consumer renders at **44100, 48000 and 96000 Hz** through the
+public `?worklet` import and `createNode`. At non-default rates, unworklet 0.6.0
+compiles in its generated Web Worker for the actual AudioContext. The test checks
+real output, live gain changes and snapshot restoration at each rate, and records
+the actual rate and quantum in the browser evidence. Offline sample-rate coverage
+is recorded separately; it is not substituted for browser evidence.
 
-The supported entry consumer creates a **48000 Hz** AudioContext. Offline render
-coverage at 44100/48000/96000 is separate and does not prove browser support at
-those rates. The manifest names `offlineSampleRates`, `browserRenderedSampleRates`,
-and per-context `browserCoverage` explicitly.
+A processor compiled directly, including the playground's compiler worker, must
+receive `{ sampleRate: context.sampleRate, renderQuantumSize:
+context.renderQuantumSize ?? 128 }`. Its runtime metadata and schema hash must
+come from that compile result. The playground browser gate separately checks
+44.1/48/96 kHz with 32/128/256-sample quanta. Fixed-length DSP buffer traversal uses
+`forIndex`; FFT lengths and sample-based hop periods are not render quanta.
+See the [spectral contract](spectral.md) for snapshot dispatch behavior.
 
-Real Chromium contexts at 44100 and 96000 are also probed: `createNode` refuses the
-plugin's 48000-Hz artifact, reporting the compiled and actual rates. This is the
-intentional safety guard associated with upstream
-[#22](https://github.com/yuichkun/unworklet/issues/22), not a den DSP failure. In
-published 0.4.1, unplugin calls `compile(processor)` without options and its public
-options expose only analysis-artifact and cross-origin-isolation flags. Core
-`compile` supports a rate for offline/custom bundling, but `createNode` does not
-recompile at context rate; `lang/browser.compileSource(source)` likewise has no
-rate argument in 0.4.1. No metadata bypass, custom runtime/loader, or upstream edit
-is introduced. The rejection probes document this limitation; non-48-kHz browser
-support is not an acceptance requirement and does not block den's next lanes.
+These tests establish the listed contexts and operations, not arbitrary device
+performance or realtime deadline clearance. Cross-rate snapshot continuation and
+human sound approval remain outside this gate.
 
 ## Tooling security
 
-Vite is pinned to **7.3.6** in both the package and isolated consumer. The earlier
+Vite remains pinned to **7.3.6** in the package and isolated consumers. The former
 7.3.1 pin was affected by
 [GHSA-p9ff-h696-f583](https://github.com/vitejs/vite/security/advisories/GHSA-p9ff-h696-f583)
-and other advisories returned by `npm audit`. The gate only serves a production
-preview on `127.0.0.1`, not a network-exposed development server; nevertheless the
-affected tooling has been replaced. Both lockfiles also resolve the patched
-esbuild dependency. Root and consumer audit results are checked after installation.
+and other reported advisories. The gate serves a production preview on
+`127.0.0.1`; it does not expose a development server to the network. Locks retain
+the patched esbuild dependency. Root and consumer audit results are checked after
+installation.

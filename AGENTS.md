@@ -2,7 +2,7 @@
 
 The source of scope is GEN-610 and the linked den specifications. This repository is a fresh TypeScript/unworklet package; do not restore the retired Rust/WASM stack.
 
-Use Node 24 and npm. Run `npm ci`, `npm run check`, and `npm test` before review. The gate must install the packed package in an isolated consumer and verify actual rendering. Keep unworklet at 0.4.1. Do not patch upstream or introduce parameter, snapshot, routing, loader, or test frameworks.
+Use Node 24 and npm. Run `npm ci`, `npm run check`, and `npm test` before review. The gate must install the packed package in an isolated consumer and verify actual rendering. Keep unworklet at the tested 0.6.0. Do not patch upstream or introduce parameter, snapshot, routing, loader, or test frameworks.
 
 Keep package exports, lockfile, shared contracts, and consumer changes under one integration owner. DSP lanes start after independent entry-contract review. Follow RELEASE.md for publication through reviewed release PRs; do not merge, stage or publish without task authorization. Release tooling and documentation must contain only public project information, never credentials or private planning links. Preserve Git history; use branches and PRs. Independent review and exact-head CI are required before merge.
 

@@ -8,6 +8,117 @@ import { preview } from 'vite';
 import { buildSite } from '../scripts/build-site.mjs';
 const root = join(import.meta.dirname, '..');
 const smoke = process.env.DEN_PLAYGROUND_SCOPE === 'smoke';
+
+async function verifyContextTargets(url, manifest) {
+  // Configurable render quantum is behind a Chromium feature flag. The main
+  // browser gate below also exercises browsers where the property is absent.
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox', '--enable-blink-features=WebAudioConfigurableRenderQuantum'] });
+  try {
+    const page = await browser.newPage();
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.addInitScript(() => {
+      const NativeAudioContext = AudioContext, NativeAnalyserNode = AnalyserNode, NativeWorker = Worker;
+      window.__denTarget = { sampleRate: 44100, renderQuantumSize: 32 };
+      window.__denAnalysers = []; window.__denCompiles = [];
+      // Supply different real device/context defaults without adding a test-only
+      // setting to the host. Any sampleRate forced by the host is still honored.
+      window.AudioContext = class extends NativeAudioContext {
+        constructor(options) { super({ sampleRate: window.__denTarget.sampleRate, renderSizeHint: window.__denTarget.renderQuantumSize, ...options }); }
+      };
+      window.AnalyserNode = class extends NativeAnalyserNode {
+        constructor(context, options) { super(context, options); window.__denAnalysers.push(this); }
+      };
+      window.Worker = class extends NativeWorker {
+        constructor(url, options) {
+          super(url, options);
+          this.addEventListener('message', ({ data }) => {
+            if (data.result?.meta) window.__denCompiles.push({ sampleRate: data.result.sampleRate, renderQuantumSize: data.result.meta.layout.renderQuantumSize, schemaHash: data.result.schemaHash });
+          });
+        }
+      };
+    });
+    await page.goto(url); await page.waitForFunction(() => !!window.__denPlayground);
+    const targets = [[44100, 32], [96000, 256], [44100, 256], [96000, 32], [44100, 32]];
+    for (const [sampleRate, renderQuantumSize] of targets) {
+      await page.evaluate(target => { window.__denTarget = target; }, { sampleRate, renderQuantumSize });
+      for (const id of ['oscillator', 'spectral']) {
+        await page.locator(`#modules a[href="?module=${id}"]`).click();
+        await page.waitForFunction(() => ['idle', 'error'].includes(window.__denPlayground.state().phase));
+        await page.click('#run');
+        await page.waitForFunction(() => ['playing', 'error'].includes(window.__denPlayground.state().phase), undefined, { timeout: 45000 });
+        await page.waitForTimeout(200);
+        const result = await page.evaluate(() => {
+          const state = window.__denPlayground.state();
+          const samples = new Float32Array(2048); window.__denAnalysers.at(-2)?.getFloatTimeDomainData(samples);
+          const crossings = [];
+          for (let i = 1; i < samples.length; i++) if (samples[i - 1] < 0 && samples[i] >= 0) crossings.push(i - 1 - samples[i - 1] / (samples[i] - samples[i - 1]));
+          const frequency = (crossings.length - 1) * state.sampleRate / (crossings.at(-1) - crossings[0]);
+          return { ...state, frequency, compiled: window.__denCompiles.at(-1) };
+        });
+        assert.equal(result.phase, 'playing', `${id} at ${sampleRate}/${renderQuantumSize}: ${result.error}`);
+        assert.equal(result.sampleRate, sampleRate); assert.equal(result.renderQuantumSize, renderQuantumSize);
+        assert.equal(result.compiled.sampleRate, sampleRate); assert.equal(result.compiled.renderQuantumSize, renderQuantumSize);
+        assert.match(result.compiled.schemaHash, /^[0-9a-f]+$/i);
+        assert(result.output.finite && result.output.rms > .00005, `${id}: native output must be audible and finite`);
+        const expected = id === 'oscillator' ? 220 : 110;
+        assert(Math.abs(result.frequency - expected) < 1, `${id}: ${result.frequency} Hz, expected ${expected} Hz`);
+        manifest.checks.push({ check: 'native context compile target and output frequency', id, sampleRate, renderQuantumSize, frequency: result.frequency });
+        await page.click('#stop'); await page.waitForFunction(() => window.__denPlayground.state().phase === 'idle');
+        const stopped = await page.evaluate(() => window.__denPlayground.state());
+        assert.equal(stopped.created, stopped.closed); assert.equal(stopped.output.peak, 0);
+      }
+    }
+    // Reproduce a slow host setup while the real worklet already processes
+    // silence. The example must begin warming from arriving input, not from
+    // AudioContext startup; extending a startup timeout cannot repair this.
+    for (const sourceStartDelayMs of [0, 75]) {
+      await page.locator('#modules a[href="?module=spectral-freeze"]').click();
+      await page.evaluate(delay => {
+        const start = OscillatorNode.prototype.start;
+        OscillatorNode.prototype.start = function (...args) {
+          OscillatorNode.prototype.start = start;
+          const result = start.apply(this, args), until = performance.now() + delay;
+          while (performance.now() < until) {}
+          return result;
+        };
+      }, sourceStartDelayMs);
+      await page.click('#run');
+      await page.waitForFunction(() => ['playing', 'error'].includes(window.__denPlayground.state().phase), undefined, { timeout: 45000 });
+      assert.equal((await page.evaluate(() => window.__denPlayground.state())).phase, 'playing');
+      await page.waitForFunction(() => window.__denPlayground.state().output.rms > .00005);
+      const freeze = page.getByRole('spinbutton', { name: 'freeze', exact: true });
+      const verifyHeld = async () => {
+        const requestedAt = await page.evaluate(() => window.__denAnalysers.at(-2).context.currentTime);
+        await page.waitForFunction(at => {
+          const context = window.__denAnalysers.at(-2).context;
+          return context.currentTime - at > 512 / context.sampleRate;
+        }, requestedAt);
+        await page.locator('#input-level').focus(); await page.keyboard.press('Home');
+        const stoppedInputAt = await page.evaluate(() => window.__denAnalysers.at(-2).context.currentTime);
+        await page.waitForFunction(at => {
+          const context = window.__denAnalysers.at(-2).context;
+          return context.currentTime - at > .01 + 1024 / context.sampleRate;
+        }, stoppedInputAt);
+        const signal = await page.evaluate(() => window.__denPlayground.state().output);
+        assert(signal.finite && signal.rms > .00005, `freeze holds audible input after a ${sourceStartDelayMs} ms host delay`);
+      };
+      await verifyHeld();
+      await freeze.fill('0');
+      await page.waitForFunction(() => window.__denPlayground.state().output.peak < .000001);
+      await page.locator('#input-level').focus(); await page.keyboard.press('End');
+      await page.waitForFunction(() => window.__denPlayground.state().output.rms > .00005);
+      await freeze.fill('1');
+      await verifyHeld();
+      manifest.checks.push({ check: 'freeze waits for input and supports release/recapture', sourceStartDelayMs });
+      await page.locator('#input-level').focus(); await page.keyboard.press('End');
+      await page.click('#stop'); await page.waitForFunction(() => window.__denPlayground.state().phase === 'idle');
+      const stopped = await page.evaluate(() => window.__denPlayground.state());
+      assert.equal(stopped.created, stopped.closed); assert.equal(stopped.output.peak, 0);
+    }
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); }
+}
+
 test('packed playground: actual editor assistance and native audio lifecycle', { timeout: smoke ? 300000 : 480000 }, async () => {
   const artifacts = join(root, 'artifacts/playground', new Date().toISOString().replaceAll(':', '-')); mkdirSync(artifacts, { recursive: true });
   const manifest = { sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '', scope: smoke ? 'two-example-preview' : 'all-examples', checks: [], rows: [], listening: 'NOT_PERFORMED' };
@@ -28,6 +139,7 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     for (const path of ['catalog.html', 'audition.html', 'diagnostics.html', 'playground.html', 'catalog-home.js', 'site.css', 'assets/old.js', 'assets/old.wasm']) assert.equal((await page.request.get(new URL(path, url).href)).status(), 404, path);
     await page.goto(url); await page.waitForFunction(() => !!window.__denPlayground);
     await page.waitForFunction(() => document.querySelector('#type-status').textContent === 'Types checked.', undefined, { timeout: 45000 });
+    manifest.browserRenderQuantumApi = await page.evaluate(() => 'renderQuantumSize' in AudioContext.prototype);
     assert.equal(await page.locator('#modules a').count(), 54);
     assert.equal(await page.locator('.host a').getAttribute('href'), `https://github.com/yuichkun/den/blob/${manifest.sourceCommit}/playground/README.md`);
     assert.equal((await page.evaluate(() => window.__denPlayground.state())).created, 0);
@@ -48,7 +160,7 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
       assert(result.raw.finite && result.output.finite, id);
       assert(result.output.rms > .00005, `${id} must produce actual native output`);
       assert(result.raw.peak < 1, `${id} unexpectedly clips before master`);
-      manifest.rows.push({ id, peak: result.raw.peak, rms: result.output.rms, parameters: result.params, inputs: result.inputNames });
+      manifest.rows.push({ id, sampleRate: result.sampleRate, renderQuantumSize: result.renderQuantumSize, peak: result.raw.peak, rms: result.output.rms, parameters: result.params, inputs: result.inputNames });
       await stop();
     };
     await run('oscillator'); await run('filter'); await run('oscillator');
@@ -162,7 +274,9 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     await page.locator('#modules a[href="?module=filter"]').click();
     await page.waitForFunction(() => document.querySelector('#type-status').textContent === 'Types checked.');
     await page.evaluate(() => { window.__denRestoredFromCache = false; window.addEventListener('pageshow', event => { window.__denRestoredFromCache = event.persisted; }); });
-    await page.goto(new URL('provenance.json', url).href); await page.goBack();
+    // BFCache restores do not consistently emit another load event. Wait for
+    // the navigation commit, then the actual restored editor readiness below.
+    await page.goto(new URL('provenance.json', url).href); await page.goBack({ waitUntil: 'commit' });
     await page.waitForFunction(() => !!window.__denPlayground && document.querySelector('#type-status').textContent === 'Types checked.');
     const restoredFromCache = await page.evaluate(() => window.__denRestoredFromCache === true);
     assert.equal((await state()).phase, 'idle'); assert.equal((await state()).created, (await state()).closed);
@@ -209,6 +323,7 @@ test('packed playground: actual editor assistance and native audio lifecycle', {
     manifest.checks.push('390px mobile module selection, editor, Run/Stop, controls and no horizontal page overflow');
     assert.deepEqual(errors, []);
     if (!smoke) assert.equal(new Set(manifest.rows.map(row => row.id)).size, provenance.examples.length);
+    await verifyContextTargets(url, manifest);
     manifest.completed = true;
   } catch (error) { manifest.failure = String(error); if (page) await page.screenshot({ path: join(artifacts, 'failure.png') }).catch(() => {}); throw error; }
   finally { writeFileSync(join(artifacts, 'manifest.json'), JSON.stringify(manifest, null, 2)); await browser?.close(); if (server) await new Promise((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve())); }

@@ -8,7 +8,8 @@ a phase vocoder, formant preservation or a transparent general-purpose stretcher
 
 ## Entry, native ownership and cost
 
-Instantiate with `sampleRate: ctx.sampleRate` (integer 8000..192000), an existing
+Instantiate with `sampleRate: ctx.sampleRate` (integer 8000..192000),
+`renderQuantumSize: ctx.renderQuantumSize` (positive integer), an existing
 `ResidentSample`, `hopSamples: 128 | 256` (default 256) and
 `searchFrames: 0 | 8 | 16 | 32 | 64 | 128` (default 64). H is the synthesis hop in
 output frames; the two overlapping source grains each span 2 H output frames.
@@ -30,13 +31,16 @@ buffer. Resident PCM and ingress allocation are shared, not copied per instance.
 Sixteen maximum ingress slots reserve 4 MiB, plus 256 KiB resident PCM.
 
 The graph uses bounded native counted loops, not expanded code per PCM frame or
-search candidate. Every 128 output samples it evaluates 64 reference reads and
+search candidate. Every `gcd(H, 128, renderQuantumSize)` output samples it
+evaluates 64 reference reads and
 (2 S+1)×64 candidate comparisons; each comparison uses zero-padded linear sampling.
-H256 commits only alternate evaluations. This eager 128 scheduling, including
-when stopped, is deliberate: unworklet 0.4.1's native hop counters are not snapshot
+Only true H-sample boundaries commit evaluations. This eager scheduling,
+including when stopped, is deliberate: unworklet's native hop counters are not snapshot
 state, whereas the module's persistent H clock is. Muting/gate-off does not remove
 search cost. S0 still evaluates the zero-offset baseline. Maximum S128 means
-16,448 comparisons per 128-sample quantum; there is no average-cost CPU-saving claim.
+16,448 comparisons per dispatch. Quantum 32 causes four times the work per
+sample of quantum 128; a quantum coprime to 128 can increase it by 128 times.
+There is no average-cost CPU-saving claim or realtime clearance.
 
 ## Controls, launch and transitions
 
@@ -120,7 +124,9 @@ All launch/clock/time/grain/EOF and resident state use native persistent snapsho
 comparison, score and output scratch are transient. Restoration is bit-identical
 only for the same graph, configuration, resident metadata and rate, at the native
 quantum boundaries. In particular, H256 halfway-hop and pending launches must
-continue exactly after a 128-aligned snapshot. No serializer or migration layer is
+continue exactly after any native block-aligned snapshot at the same rate and
+quantum. The persistent clock retains hop phase while the native dispatch
+period divides the actual quantum. No serializer or migration layer is
 introduced.
 
 ## Audible and acceptance limits

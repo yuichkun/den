@@ -1,12 +1,12 @@
 import { expect, test } from 'vitest';
-import { audioInput, audioOutput, defineProcessor, f32, f64, forSample, instantiate, state, type CompiledProcessor } from '@unworklet/core';
+import { audioInput, audioOutput, decodeSnapshot, defineProcessor, f32, f64, forSample, instantiate, state, type CompiledProcessor } from '@unworklet/core';
 import { renderOffline } from '@unworklet/offline';
 import { spectralFft, spectralForEach } from '../src/spectral-fft.js';
 import { stftIdentity } from '../src/spectral.js';
 
 const rates = [44100, 48000, 96000];
-const render = (processor: CompiledProcessor, sampleRate: number, input: Float32Array[], restore?: Uint8Array) =>
-  renderOffline(processor, { sampleRate, duration: (input[0].length - 0.25) / sampleRate, inputs: { main: input }, restore });
+const render = (processor: CompiledProcessor, sampleRate: number, input: Float32Array[], restore?: Uint8Array, renderQuantumSize = 128) =>
+  renderOffline(processor, { sampleRate, renderQuantumSize, duration: (input[0].length - 0.25) / sampleRate, inputs: { main: input }, restore });
 function directDft(real: ArrayLike<number>, imag: ArrayLike<number>, inverse = false) {
   const size = real.length, sign = inverse ? 1 : -1, scale = inverse ? 1 / size : 1;
   const out = [new Float64Array(size), new Float64Array(size)];
@@ -41,9 +41,9 @@ function fftFixture(size: number) {
   });
 }
 function stftFixture(size: number, hopSize: number) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-    const stft = instantiate(stftIdentity, { size, hopSize }, { name: 'stft' });
+    const stft = instantiate(stftIdentity, { size, hopSize, renderQuantumSize: ctx.renderQuantumSize }, { name: 'stft' });
     return { process() { forSample((i, everyNSamples) => {
       output.ch(0).at(i).write(stft.tick(input.ch(0).at(i), input.ch(1).at(i).gt(0), everyNSamples));
     }); } };
@@ -69,8 +69,8 @@ const maxError = (actual: ArrayLike<number>, expected: ArrayLike<number>) => {
   let error = 0; for (let n = 0; n < actual.length; n++) error = Math.max(error, Math.abs(actual[n] - expected[n])); return error;
 };
 
-for (const rate of rates) {
-  test(`radix FFT signs/layout/normalization match independent DFT at ${rate}`, async () => {
+for (const rate of rates) for (const quantum of [32, 128, 256]) {
+  test(`radix FFT signs/layout/normalization match independent DFT at ${rate} Hz / quantum ${quantum}`, async () => {
     for (const size of [8, 16, 32, 64]) {
       let seed = 123;
       const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 2 ** 32 * 2 - 1; };
@@ -82,10 +82,10 @@ for (const rate of rates) {
         [Float32Array.from({ length: size }, random), Float32Array.from({ length: size }, random)],
         [Float32Array.from({ length: size }, random), new Float32Array(size)],
       ];
-      const frames = Math.ceil((cases.length + 1) * size / 128) * 128;
+      const frames = Math.ceil((cases.length + 1) * size / quantum) * quantum;
       const input = [new Float32Array(frames), new Float32Array(frames)];
       cases.forEach((value, n) => value.forEach((v, ch) => input[ch].set(v, n * size)));
-      const result = await render(fftFixture(size), rate, input);
+      const result = await render(fftFixture(size), rate, input, undefined, quantum);
       expect(result.diagnostics.scrubbedSamples).toBe(0);
       for (let c = 0; c < cases.length; c++) for (const inverse of [false, true]) {
         const expected = directDft(cases[c][0], cases[c][1], inverse), start = (c + 1) * size;
@@ -100,7 +100,7 @@ for (const rate of rates) {
     }
   }, 60000);
 
-  test(`larger internal FFT kernel matches f32-rounded direct DFT at ${rate}`, async () => {
+  test(`larger internal FFT kernel matches f32-rounded direct DFT at ${rate} Hz / quantum ${quantum}`, async () => {
     for (const size of [256]) {
       const cases = [
         [Float32Array.from({ length: size }, (_, n) => Number(n === 0)), new Float32Array(size)],
@@ -110,7 +110,7 @@ for (const rate of rates) {
       ];
       const frames = (cases.length + 1) * size, input = [new Float32Array(frames), new Float32Array(frames)];
       cases.forEach((value, n) => value.forEach((v, ch) => input[ch].set(v, n * size)));
-      const result = await render(fftFixture(size), rate, input);
+      const result = await render(fftFixture(size), rate, input, undefined, quantum);
       expect(result.diagnostics.scrubbedSamples).toBe(0);
       for (let c = 0; c < cases.length; c++) for (const inverse of [false, true]) {
         const expected = directDft(cases[c][0], cases[c][1], inverse), start = (c + 1) * size;
@@ -121,14 +121,14 @@ for (const rate of rates) {
     }
   }, 60000);
 
-  test(`STFT startup, all reset hop phases and exact N latency at ${rate}`, async () => {
+  test(`STFT startup, all reset hop phases and exact N latency at ${rate} Hz / quantum ${quantum}`, async () => {
     for (const size of [8, 16, 32, 64]) for (const hop of [size / 2, size / 4]) {
       const frames = 4096;
       const input = Float32Array.from({ length: frames }, (_, n) => n < frames - size ? (n % 137 === 0 ? 1 : 0.35 * Math.sin(n * 0.173) + 0.1 * Math.cos(n * 0.417)) : 0);
       const resets = new Float32Array(frames);
       for (let phase = 0; phase < hop; phase++) resets[128 + phase * (size + 1)] = 1;
       resets.fill(1, 3071, 3076); resets[3584] = 1;
-      const p = stftFixture(size, hop), result = await render(p, rate, [input, resets]);
+      const p = stftFixture(size, hop), result = await render(p, rate, [input, resets], undefined, quantum);
       const expected = directWola(input, resets, size, hop);
       expect(maxError(result.outputs.main[0], expected)).toBeLessThan(1.5e-7);
       let lastReset = -1;
@@ -137,8 +137,8 @@ for (const rate of rates) {
         expect(Math.abs(result.outputs.main[0][n] - (n - size > lastReset ? input[n - size] : 0))).toBeLessThan(1.5e-7);
       }
       expect(result.diagnostics.scrubbedSamples).toBe(0);
-      const first = await render(p, rate, [input.slice(0, 1024), resets.slice(0, 1024)]);
-      const continuation = await render(p, rate, [input.slice(1024), resets.slice(1024)], first.state);
+      const first = await render(p, rate, [input.slice(0, 1024), resets.slice(0, 1024)], undefined, quantum);
+      const continuation = await render(p, rate, [input.slice(1024), resets.slice(1024)], first.state, quantum);
       expect(continuation.outputs.main[0]).toEqual(result.outputs.main[0].slice(1024));
     }
   }, 60000);
@@ -161,3 +161,36 @@ test('STFT preserves quiet f32 and high finite inputs; reset does not leak histo
 test('STFT rejects unsupported sizes and window/hop combinations during capture', () => {
   for (const [size, hop] of [[0, 0], [7, 2], [12, 6], [2048, 512], [16, 3], [16, 16], [NaN, 4]]) expect(() => stftFixture(size, hop)).toThrow(RangeError);
 });
+
+
+test('spectral buffer loops visit every index once and preserve adjacent guards for each target quantum', async () => {
+  for (const quantum of [32, 128, 256]) for (const size of [4, 8, 64, 256, 1024]) {
+    const processor = defineProcessor(() => {
+      const visits = state.buffer.i32({ size: size + 2 }).expose({ name: 'visits', snapshot: 'persistent' });
+      return { process() {
+        spectralForEach(size, index => visits.write(index.add(1), visits.read(index.add(1)).add(1)));
+      } };
+    });
+    const result = await renderOffline(processor, { sampleRate: 48000, renderQuantumSize: quantum, duration: (quantum - 0.25) / 48000 });
+    const bytes = decodeSnapshot(result.state).slots.find(slot => slot.name === 'visits')!.data;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const values = Array.from({ length: size + 2 }, (_, n) => view.getInt32(n * 4, true));
+    expect(values, `size ${size} / quantum ${quantum}`).toEqual([0, ...Array<number>(size).fill(1), 0]);
+  }
+}, 60000);
+
+test('maximum-size FFT retains every complex bin at quantum 32 and 256', async () => {
+  const size = 1024, rate = 48000;
+  let seed = 769;
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 2 ** 32 - 0.5; };
+  const frame = [Float32Array.from({ length: size }, random), Float32Array.from({ length: size }, random)];
+  const input = frame.map(values => { const padded = new Float32Array(size * 2); padded.set(values); return padded; });
+  const expected = [directDft(frame[0], frame[1]), directDft(frame[0], frame[1], true)];
+  for (const quantum of [32, 256]) {
+    const result = await render(fftFixture(size), rate, input, undefined, quantum);
+    expect(result.diagnostics.scrubbedSamples).toBe(0);
+    for (let direction = 0; direction < 2; direction++) for (let ch = 0; ch < 2; ch++) {
+      expect(maxError(result.outputs.main[2 * direction + ch].slice(size), Float32Array.from(expected[direction][ch]))).toBeLessThan(1e-6);
+    }
+  }
+}, 60000);

@@ -1,6 +1,6 @@
 {
   "name": "@denaudio/den",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Composable DSP modules and instrument/delay engines for unworklet",
   "type": "module",
   "license": "MIT OR Apache-2.0",
@@ -251,14 +251,14 @@
     "test:release": "node --test tests/release.test.mjs tests/release-package.test.mjs"
   },
   "peerDependencies": {
-    "@unworklet/core": "0.4.1"
+    "@unworklet/core": "0.6.0"
   },
   "devDependencies": {
-    "@unworklet/core": "0.4.1",
-    "@unworklet/lang": "0.4.1",
-    "@unworklet/offline": "0.4.1",
-    "@unworklet/test": "0.4.1",
-    "@unworklet/unplugin": "0.4.1",
+    "@unworklet/core": "0.6.0",
+    "@unworklet/lang": "0.6.0",
+    "@unworklet/offline": "0.6.0",
+    "@unworklet/test": "0.6.0",
+    "@unworklet/unplugin": "0.6.0",
     "playwright": "1.60.0",
     "typescript": "5.9.3",
     "vite": "7.3.6",

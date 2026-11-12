@@ -35,7 +35,7 @@ test('packed musical examples: four bounded CANDIDATE A/B pairs with independent
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(),
     sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(sources.map(f => [f, hash(join(root, f))])),
     packageSHA256: hash(join(consumer, 'den.tgz')), packageIntegrity: pack.integrity, consumerLockSHA256: hash(join(consumer, 'package-lock.json')),
-    node: process.version, unworklet: '0.4.1', publicEntry: '@denaudio/den/musical-examples', files,
+    node: process.version, unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], publicEntry: '@denaudio/den/musical-examples', files,
     assetProvenance: 'Original host-side analytic sums of sines. No external recording or downloaded sample. Fixed weights, no peak/RMS normalization.',
     fixtureContract: 'Each JSON records every expanded native parameter, message timing/asset hash, input hash, exact frame count, and same-schema split. WAV is unnormalized 32-bit float stereo with the explicit patch gain applied.',
     evidence: 'See musical-examples-results.json for all 24 three-rate A/B rows, independent errors, gain/headroom/tails, repeated PCM hashes, same-schema continuations and allocation observations.',

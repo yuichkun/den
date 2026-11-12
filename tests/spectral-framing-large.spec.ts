@@ -4,9 +4,9 @@ import { renderOffline } from '@unworklet/offline';
 import { stftIdentity } from '../src/spectral.js';
 
 function fixture(size: number, hopSize: number) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-    const stft = instantiate(stftIdentity, { size, hopSize }, { name: 'stft' });
+    const stft = instantiate(stftIdentity, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'stft' });
     return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(stft.tick(input.ch(0).at(i), input.ch(1).at(i).gt(0), everyNSamples))); } };
   });
 }

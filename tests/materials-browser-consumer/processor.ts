@@ -4,7 +4,7 @@ import { stftIdentity } from '@denaudio/den/spectral';
 import { partitionedConvolution } from '@denaudio/den/convolution';
 
 // Deliberately small functional graph. Maximum-capacity cost has separate evidence.
-export default defineProcessor(({ sampleRate }) => {
+export default defineProcessor(({ sampleRate, renderQuantumSize }) => {
   const sample = instantiate(residentSample, { capacity: 256, sourceSampleRate: sampleRate }, { name: 'sample' });
   const load = event<{ data: Float32Array }>({ from: 'main', name: 'load', capacity: CAPACITY_16, payloadCapacity: 1024 });
   load.onReceive(({ data }) => sample.load(data));
@@ -12,8 +12,8 @@ export default defineProcessor(({ sampleRate }) => {
   const reset = param.f32({ default: 0, min: 0, max: 1, automationRate: 'a-rate' }).named('reset');
   const player = instantiate(samplePlayer, { sampleRate, sample, loop: true }, { name: 'player' });
   const grains = instantiate(granularSource, { sampleRate, sample, maxGrains: 2, seed: 174 }, { name: 'grains' });
-  const stft = instantiate(stftIdentity, { size: 8, hopSize: 4 }, { name: 'identity' });
-  const convolution = instantiate(partitionedConvolution, { blockSize: 4, impulse: [.5, -.25, .25] }, { name: 'convolution' });
+  const stft = instantiate(stftIdentity, { renderQuantumSize, size: 8, hopSize: 4 }, { name: 'identity' });
+  const convolution = instantiate(partitionedConvolution, { renderQuantumSize, blockSize: 4, impulse: [.5, -.25, .25] }, { name: 'convolution' });
   const out = audioOutput({ name: 'main', channels: 7 });
   return { process() { forSample((i, everyNSamples) => {
     const on = gate.at(i).gte(.5), clear = reset.at(i).gte(.5);

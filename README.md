@@ -32,7 +32,7 @@ builds the English TypeScript playground at `/`. Its Monaco editor resolves real
 package declarations for completion, hover, signatures and diagnostics. Every
 public import has an editable audio example. Run compiles in a cancellable
 worker, creates a native node, and exposes its AudioParams; Stop disposes it.
-See the [source format and host contract](https://github.com/yuichkun/den/blob/3042e73435986fa2804f5811604e784d93470c1f/playground/README.md).
+See the [source format and host contract](https://github.com/yuichkun/den/blob/main/playground/README.md).
 
 The earlier public website was deleted before this replacement. Old
 `catalog.html`, `audition.html`, `diagnostics.html` and `playground.html` routes
@@ -46,7 +46,7 @@ See the [acceptance record](docs/initial-acceptance.md).
 
 ## Public package boundary
 
-The ESM-only `@denaudio/den` requires **@unworklet/core 0.4.1** as a peer. All
+The ESM-only `@denaudio/den` requires **@unworklet/core 0.6.0** as a peer. All
 exercised compiler, renderer, plugin and test dependencies are locked. Import
 editable construction functions/subgraphs through these public subpaths:
 
@@ -66,7 +66,12 @@ export default createInstrument(bassConfig);
 Use the existing `@unworklet/unplugin` Vite plugin and `createNode`; den adds no
 loader, parameter, MIDI, routing, snapshot or serialization framework. Settings
 are plain engine construction options and complete native parameter maps.
-Snapshots require the same processor/schema/sample rate. See the
+Compilation follows the AudioContext's sample rate and render quantum. Spectral
+framing, both convolution modules, spatial chains and resident time stretch
+require the processor's `ctx.renderQuantumSize` in their construction config so
+snapshot restoration preserves hop timing even at short quantum boundaries. See the
+[0.2.0 migration notes](CHANGELOG.md#020--2026-11-12).
+Snapshots require the same processor/schema/sample rate/render quantum. See the
 [instrument contract](docs/instrument.md), [sound settings](docs/instrument-settings.md),
 [Delay FX contract](docs/delay-fx.md), [effect settings](docs/delay-settings.md),
 [shared contracts](docs/contracts.md), and [dependency limitations](docs/dependency-findings.md).

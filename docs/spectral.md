@@ -7,23 +7,26 @@ realtime clearance is implied.
 
 ## Entry contract
 
-`stftIdentity({ size, hopSize }).tick(input, reset, everyNSamples)` is an ordinary
+`stftIdentity({ size, hopSize, renderQuantumSize: ctx.renderQuantumSize }).tick(input, reset, everyNSamples)` is an ordinary
 unworklet subgraph. Instantiate it once with an explicit name. Call tick exactly
 once per sample from stride-1 `forSample((i, everyNSamples) => ...)`. The last
 argument is unworklet's existing conditional scheduler, not a den scheduler or a
 runtime JavaScript callback. `select` is never used to skip the FFT workload.
 
+- Pass the enclosing processor's `ctx.renderQuantumSize` in the configuration.
+  It is a positive integer, matching unworklet's compile target, not the FFT size
+  or hop. All STFT-based modules use this value for snapshot-safe dispatch.
 - Supported N is a power of two in 8..1024. H is N/2 or N/4. These are
   offline-candidate bounds, not a performance or concurrency recommendation.
 - The internal, non-public complex radix-2 kernel has natural-order real/imaginary
   planes, forward exponent -i2πkn/N, inverse exponent +i2πkn/N and inverse scale 1/N.
   All intermediate work/history use fixed f64 buffers; I/O is f32. The stream
   uses an exact 2^128 scale internally to avoid 0.4.1's 1e-30 buffer-write
-  flush discarding quiet f32 inputs. Stage/chunk JavaScript loops execute during
-  graph construction. Within each stage, the public fixed-128 `forSample` loop
-  iterates explicitly addressed work buffers, without audio/parameter reads or
-  updates to sample time. The kernel checks `SAMPLES_PER_BLOCK===128`; other
-  quantum sizes are unsupported. Twiddle step constants are calculated at build
+  flush discarding quiet f32 inputs. Stage JavaScript loops execute during
+  graph construction. Within each stage, the public `forIndex(count)` loop
+  visits exactly the work-buffer capacity, independently of the render quantum,
+  without audio/parameter reads or updates to sample time. The outer `forSample`
+  loop alone follows the audio quantum. Twiddle step constants are calculated at build
   time, then a bounded f64 recurrence reanchors to (1,0) at every butterfly group.
 - A frame at sample t=mH consumes samples [t-N,t), with absent history set to
   zero. It is added to output samples [t,t+N). Output therefore has exactly N
@@ -41,14 +44,17 @@ runtime JavaScript callback. `select` is never used to skip the FFT workload.
   or new storage/snapshot system is supplied.
 - Native persistent history/overlap/cursor/valid/reset state is saved. FFT and
   spectral scratch are transient and fully overwritten at each scheduled frame.
-  Only identical graph/rate full-snapshot continuation is in scope; migration
-  and cross-rate continuation are not promised.
-  Native 0.4.1 hop counters are not included in offline snapshots. Dispatch
-  therefore occurs every min(H,128) samples, a divisor of the128-sample restore
-  boundary; the named persistent cursor modulo H selects frame commits. For
-  H>128 the FFT pair still executes every128 samples and off-phase results are
-  discarded. This explicitly preserves snapshot phase rather than promising
-  H-rate CPU savings. See [large-frame evidence](spectral-large-candidate.md).
+  Only identical graph/rate/quantum full-snapshot continuation is in scope;
+  migration and cross-rate or cross-quantum continuation are not promised.
+  Native hop counters are not included in snapshots. Dispatch therefore occurs
+  every `gcd(H, 128, renderQuantumSize)` samples, a divisor of both the hop and
+  every block-atomic restore boundary. The persistent cursor modulo H selects
+  frame commits. Off-phase FFT results are computed eagerly and discarded.
+  At quantum 128 this retains the former dispatch period. For H>=128, quantum
+  32 evaluates four times as many FFT pairs per sample; a quantum coprime to
+  128 dispatches every sample, up to 128 times the old workload. Correct output
+  and snapshot phase do not imply realtime feasibility. See
+  [large-frame evidence](spectral-large-candidate.md) for historical costs.
 
 ## Verification required before integration
 
@@ -56,13 +62,16 @@ Independent direct O(N²) DFT covers complex impulse, DC, Nyquist, positive and
 negative bins, off-bin tone, seeded inputs, signs, natural ordering, conjugate
 symmetry and inverse normalization. Independent time-indexed DFT/WOLA covers
 startup, every hop phase, held/arbitrary resets, block boundaries and three
-offline rates (44.1/48/96 kHz). Exact same-schema snapshots and reset discard are
-checked separately. Larger construction sizes require measured capture/compile
+offline rates (44.1/48/96 kHz). The rate/quantum matrix includes quantum
+32/128/256, independent numerical oracles and exact quantum-128 PCM comparisons.
+Exact same-schema snapshots include non-128-aligned boundaries at quantum 32
+and non-power-of-two quantum 48. Reset discard is checked separately. Larger construction sizes require measured capture/compile
 cost, WASM size, memory and quantum-burst timing before becoming public bounds.
 
 Node driver measurements describe that environment only, including whether copies
 were included. They do not certify browser deadlines, concurrency or a device
-budget. The browser boundary remains unworklet 0.4.1's existing 48-kHz support.
+budget. The playground now compiles for its actual AudioContext sample rate and
+render quantum using unworklet 0.6.0; this does not grant realtime clearance.
 
 ## Initial local evidence
 

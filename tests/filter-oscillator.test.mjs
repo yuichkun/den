@@ -70,7 +70,7 @@ for (const sampleRate of [44100, 48000, 96000]) {
   writeFileSync(join(artifacts, 'filter-oscillator-manifest.json'), JSON.stringify({
     status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '',
     sourceHashes: Object.fromEntries(sourceFiles.map(f => [f, hash(readFileSync(join(root, f)))])),
-    packageIntegrity: pack.integrity, consumerLockSha256: hash(readFileSync(join(consumer, 'package-lock.json'))), unworklet: '0.4.1', sampleRates: [44100, 48000, 96000], frames: 4096,
+    packageIntegrity: pack.integrity, consumerLockSha256: hash(readFileSync(join(consumer, 'package-lock.json'))), unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], sampleRates: [44100, 48000, 96000], frames: 4096,
     settings: { waveform: 'sine', frequencyHz: 440, initialPhase: 0, cutoffHz: 1000, q: Math.fround(Math.SQRT1_2), initialFilterState: [0, 0], reset: false },
     input: null, midi: [], seed: null, preset: null, format: 'mono IEEE754 f32 native little-endian', files,
     checks: 'packed declarations and isolated offline rendering against analytic sine plus independent direct-form biquad, absolute sample error <2e-6',

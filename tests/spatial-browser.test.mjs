@@ -27,7 +27,7 @@ test('packed hybrid and feedforward space: complex transfer, coherent pitch and 
     limitations: ['Small muted 48 kHz composition, not device or maximum-capacity deadline clearance',
       'Independent complex transfer applies to linear steady unity-ratio paths; shifted tests use specifically coherent tones',
       'Half-rate interpolation loss is included; arbitrary pitch phase, coloration and cancellation are not waived',
-      'All saved controls render while unequal histories remain before native restore; raw state/AudioParam restoration is not atomic',
+      'This fixture retains the historical caller protocol: render saved controls before restore; it does not test current restore ordering under stale controls or arbitrary automation',
       'Paired nonzero tail recovery is a browser functional state check; exact waveform continuation remains separately proved offline',
       'Feedforward pitch is outside FDN feedback and is not regenerative shimmer'] };
   let browser, server;

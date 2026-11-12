@@ -1,9 +1,9 @@
 import {audioOutput,defineProcessor,f32,forSample,instantiate,param} from '@unworklet/core';
 import {oscillator} from '@denaudio/den/oscillator';
 import {spectralGate} from '@denaudio/den/spectral-gate';
-export default defineProcessor(({sampleRate})=>{
+export default defineProcessor(({sampleRate, renderQuantumSize})=>{
  const source=instantiate(oscillator,{sampleRate,waveform:'sine'},{name:'source'});
- const gate=instantiate(spectralGate,{size:64,hopSize:16},{name:'gate'});
+ const gate=instantiate(spectralGate,{ renderQuantumSize,size:64,hopSize:16},{name:'gate'});
  const threshold=param.f32({default:0,min:0,max:100,automationRate:'a-rate'}).named('threshold');
  const floor=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('floor');
  const reset=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('reset');

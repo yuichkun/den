@@ -8,11 +8,11 @@ export const events = [{ name: 'ir', payload: prepareConvolutionSpectrum(impulse
 // The host emits the unchanged packet while muted, then checks native state.
 export const ready = [{ suffix: 'convolution/loaded', value: true }, { suffix: 'convolution/rejected', value: false }];
 
-export default defineProcessor(() => {
+export default defineProcessor(({ renderQuantumSize }) => {
   const input = audioInput({ name: 'main', channels: 1 });
   const output = audioOutput({ name: 'main', channels: 1 });
   const gain = param.f32({ default: 0.8, min: 0, max: 1.5, automationRate: 'a-rate' }).named('gain');
-  const convolution = instantiate(preparedConvolution, config, { name: 'convolution' });
+  const convolution = instantiate(preparedConvolution, { ...config, renderQuantumSize }, { name: 'convolution' });
   event<PreparedConvolutionPacket>({ from: 'main', name: 'ir', capacity: CAPACITY_16, payloadCapacity: 131072 })
     .onReceive(packet => convolution.load(packet));
   return { process() { forSample((i, everyNSamples) => {

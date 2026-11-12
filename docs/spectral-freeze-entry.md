@@ -8,7 +8,7 @@ sustain, phase-vocoder or phase-locking claim.
 
 ## Public contract
 
-`spectralFreeze({ size, hopSize }).tick(input, freeze, reset, everyNSamples)`
+`spectralFreeze({ size, hopSize, renderQuantumSize: ctx.renderQuantumSize }).tick(input, freeze, reset, everyNSamples)`
 
 - Instantiate once with an explicit subgraph name. Call exactly once per sample
   inside stride-1 `forSample`, supplying its existing `everyNSamples`.
@@ -79,15 +79,17 @@ Persistent state contains the existing history/overlap/cursor/reset state, two
 (N/2+1)-element f64 capture planes, the hold flag, held phase and a private
 modulo-H sample clock. The latter mirrors the reviewed framing cursor%H; neither
 clock changes phase on reset. Frame controls and capture decisions are transient.
-Full snapshots continue exactly for the identical graph, configuration and rate.
+Full snapshots continue exactly for the identical graph, configuration, rate
+and quantum.
 Tests cover inactive, frozen, post-reset and release/rearm states at every
-128-sample snapshot offset class. No cross-rate or cross-configuration migration
-promise is added.
+native block-aligned snapshot offset class, including non-128 boundaries.
+No cross-rate, cross-quantum or cross-configuration migration promise is added.
 
-The shared STFT dispatch remains every min(H,128) samples. For H>128, the FFT,
-hook and IFFT still execute eagerly every128 samples; only true t=mH frames
-capture, advance the held phase or commit overlap. These extra hook calls do not
-change persistent capture/hold phase. No CPU saving is implied by a select.
+The shared STFT dispatch runs every `gcd(H, 128, renderQuantumSize)` samples.
+The FFT, hook and IFFT execute eagerly, but only true t=mH frames capture,
+advance the held phase or commit overlap. These extra hook calls do not change
+persistent capture/hold phase. No CPU saving is implied by a select; smaller or
+coprime quanta increase workload as documented in the [spectral contract](spectral.md).
 
 ## Headroom derivation
 

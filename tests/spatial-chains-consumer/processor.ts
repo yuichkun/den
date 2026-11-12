@@ -6,12 +6,12 @@ import {
 } from '@denaudio/den/spatial-chains';
 
 export function makeProcessor(mode: 'hybrid' | 'pitched' = 'hybrid', windowSamples = 2048) {
-  return defineProcessor(({ sampleRate }) => {
+  return defineProcessor(({ sampleRate, renderQuantumSize }) => {
     const input = audioInput({ name: 'main', channels: 4 }), output = audioOutput({ name: 'main', channels: 3 });
     const mix = param.f32({ default: .5, min: 0, max: 1, automationRate: 'a-rate' }).named('mix');
     const ratio = param.f32({ default: 2, min: .5, max: 2, automationRate: 'a-rate' }).named('ratio');
     const pitchMix = param.f32({ default: .5, min: 0, max: 1, automationRate: 'a-rate' }).named('pitchMix');
-    const config: SpatialChainConfig = { sampleRate };
+    const config: SpatialChainConfig = { sampleRate, renderQuantumSize };
     const pitchedConfig: FeedforwardPitchedReverbConfig = { ...config, windowSamples };
     const plain = mode === 'hybrid' ? instantiate(hybridReverb, config, { name: 'space' }) : undefined;
     const pitched = mode === 'pitched' ? instantiate(feedforwardPitchedReverb, pitchedConfig, { name: 'space' }) : undefined;

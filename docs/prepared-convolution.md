@@ -1,14 +1,18 @@
 # Prepared-spectrum convolution candidate
 
 `@denaudio/den/prepared-convolution` exports `preparedConvolution`, the host-only
-`prepareConvolutionSpectrum`, and `PreparedConvolutionConfig` /
-`PreparedConvolutionPacket`. This is an offline-validated **CANDIDATE**, without
+`prepareConvolutionSpectrum`, and the types `PreparedConvolutionConfig`,
+`PreparedConvolutionRuntimeConfig` and `PreparedConvolutionPacket`. The original
+configuration type remains the host spectrum shape; the runtime configuration
+extends it with the required render quantum. This is an offline-validated **CANDIDATE**, without
 browser, realtime-capacity or human-audition clearance.
 
 ## Fixed boundary
 
-- Mono, block size B=128, FFT N=256, P=64 partitions. Configuration must be exactly
-  `{ blockSize: 128, partitions: 64 }`; unsupported configurations throw.
+- Mono, block size B=128, FFT N=256, P=64 partitions. Host preparation accepts
+  `{ blockSize: 128, partitions: 64 }`. DSP instantiation additionally requires
+  `renderQuantumSize: ctx.renderQuantumSize`; unsupported configurations throw.
+  The host spectrum and packet format do not depend on the quantum.
 - Original IR: 1..8192 finite real taps, each in [-1,1], with absolute sum <=4.
   No normalization, truncation, sample-rate conversion or output limiter.
 - Audio input must be finite and normalized to [-1,1]. Output can exceed unity.
@@ -54,7 +58,8 @@ import {
 } from '@denaudio/den/prepared-convolution';
 
 const convolver = instantiate(preparedConvolution,
-  { blockSize: 128, partitions: 64 }, { name: 'convolver' });
+  { blockSize: 128, partitions: 64, renderQuantumSize: ctx.renderQuantumSize },
+  { name: 'convolver' });
 const ir = event<PreparedConvolutionPacket>({
   from: 'main', name: 'ir', capacity: CAPACITY_16, payloadCapacity: 131072,
 });
@@ -109,8 +114,8 @@ practical test budget, not a proven bound for every implementation/environment.
 ## Load, reset, state and scheduling
 
 `tick(input, reset, everyNSamples)` returns `{ output, loaded, rejected,
-revision }`. Call it once per sample inside stride-1 native forSample. This
-implementation requires the core 0.4.1 128-sample quantum.
+revision }`. Call it once per sample inside stride-1 native forSample.
+Its fixed buffer loops use `forIndex` independently of the audio quantum.
 
 - Valid full packet: loaded=true, rejected=false. A shorter IR still carries
   the complete padded 32768-value table, so previous coefficients are replaced.
@@ -128,12 +133,16 @@ implementation requires the core 0.4.1 128-sample quantum.
 - Missing/unloaded/rejected assets are silent. Invalidation is logical, not
   secure erasure; bytes may remain in buffers/snapshots until overwritten.
 
-FFT+64-partition MAC+IFFT+OLA run eagerly once every 128 samples, including while
-unloaded. Indices are explicit; native counted loops avoid graph expansion by
-P*N. B equals quantum size, so the dispatch phase is identical at every native
-snapshot boundary. Named persistent cursor, spectral cursor, valid counts,
-coefficients/status/revision, histories and overlap fully describe continuation.
-Same-graph/config/rate native snapshots continue bit-identically. Pending queued
+FFT+64-partition MAC+IFFT+OLA run eagerly every `gcd(128, renderQuantumSize)`
+samples, including while unloaded. Only the persistent cursor's true B-sample
+boundaries commit spectral history, overlap, counters and pending reset. The
+native scheduler realigns after any block-atomic snapshot, even inside a hop.
+Indices are explicit; fixed `forIndex` loops avoid graph expansion by P*N.
+At quantum 32 the eager workload is four times that at 128; coprime quanta can
+increase it by 128 times. These targets do not imply realtime capacity.
+Named persistent cursor, spectral cursor, valid counts, coefficients/status/
+revision, histories and overlap fully describe continuation.
+Same-graph/config/rate/quantum native snapshots continue bit-identically. Pending queued
 messages, cross-configuration migration and live-swap crossfades are outside
 this contract. Transient FFT/mix buffers are overwritten before use.
 

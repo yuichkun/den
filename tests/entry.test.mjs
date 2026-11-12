@@ -41,23 +41,17 @@ test('packed package → isolated TypeScript consumer → production build → r
       const result = await page.evaluate(rate=>window.runGate(rate),sampleRate);
       assert.equal(result.actualSampleRate,sampleRate);
       browserRates.push(result);
-      if (sampleRate !== 48000) {
-        assert.equal(result.status,'blocked');
-        assert.match(result.error,new RegExp(`compiled for 48000 Hz.*AudioContext runs at ${sampleRate} Hz`));
-      } else {
-        assert.equal(result.status,'rendered');
+      assert.equal(result.status,'rendered',result.error);
+      for(const [name,expected] of [['before',0.5],['changed',0.25],['after',0.5]]) {
+        assert.equal(result[name].length,256);
+        assert(result[name].every(x=>Math.abs(x-expected)<1e-6),`${sampleRate} Hz ${name}: ${result[name].slice(0,8)}`);
       }
+      assert.equal(result.restored.ok,true);
+      // #78 regression: suspended snapshots use current host AudioParam values.
+      assert.equal(result.initial.slots.gain.value,0.5);
+      assert.equal(result.suspended.slots.gain.value,0.25);
+      assert.equal(result.saved.slots.gain.value,0.5);
     }
-    const result = browserRates.find(r=>r.actualSampleRate===48000);
-    for(const [name,expected] of [['before',0.5],['changed',0.25],['after',0.5]]) {
-      assert.equal(result[name].length,256);
-      assert(result[name].every(x=>Math.abs(x-expected)<1e-6),`${name}: ${result[name].slice(0,8)}`);
-    }
-    assert.equal(result.restored.ok,true);
-    // #78 reproduction: suspended snapshot records the last rendered AudioParam.
-    assert.equal(result.initial.slots.gain.value,0);
-    assert.equal(result.suspended.slots.gain.value,0.5);
-    assert.equal(result.saved.slots.gain.value,0.5);
     await page.getByRole('button',{name:'Run silent check'}).click();
     await page.waitForFunction(()=>document.querySelector('#result').textContent.startsWith('Passed at 48000 Hz.'));
     const artifacts=join(root,'artifacts'); mkdirSync(artifacts,{recursive:true});
@@ -69,7 +63,7 @@ test('packed package → isolated TypeScript consumer → production build → r
     files['browser.json']=hash(readFileSync(join(artifacts,'browser.json')));
     copyFileSync(join(root,'package-lock.json'),join(artifacts,'den-package-lock.json'));
     files['den-package-lock.json']=hash(readFileSync(join(root,'package-lock.json')));
-    writeFileSync(join(artifacts,'manifest.json'),JSON.stringify({status:'CANDIDATE',sourceCommit:run('git',['rev-parse','HEAD'],root).trim(),sourceDirty:run('git',['status','--porcelain'],root).trim()!=='',sourceHashes:Object.fromEntries(['src/index.ts','src/gate.ts','package-lock.json','tests/consumer/render.mjs','tests/consumer/main.js','tests/consumer/contract.ts','tests/entry.test.mjs','scripts/build-consumer.mjs','vercel.json','tests/consumer/index.html'].map(f=>[f,hash(readFileSync(join(root,f)))])),den:JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version,unworklet:'0.4.1',consumer:'den-clean-consumer (locked fixture)',settings:{scale:1,initialPrevious:0},node:process.version,offlineSampleRates:[44100,48000,96000],browserCoverage:browserRates.map(({actualSampleRate,status,error})=>({sampleRate:actualSampleRate,status,error})),browserRenderedSampleRates:[48000],channels:1,samples:256,parameters:{gain:0.5},input:'sample[i]=(i+1)/256 for i=0..255',midi:[],seed:null,engine:'den.entry.gate.v1',preset:null,files,verification:'sample-exact one-sample delay × gain; clean restore; browser gain 0.5→0.25→0.5',limitations:['Browser 44100/96000 blocked by unworklet 0.4.1 baked-rate guard; no runtime rate option in unplugin','Not human approved','same-schema snapshots only','snapshot after rendered AudioParam changes only']},null,2));
+    writeFileSync(join(artifacts,'manifest.json'),JSON.stringify({status:'CANDIDATE',sourceCommit:run('git',['rev-parse','HEAD'],root).trim(),sourceDirty:run('git',['status','--porcelain'],root).trim()!=='',sourceHashes:Object.fromEntries(['src/index.ts','src/gate.ts','package-lock.json','tests/consumer/render.mjs','tests/consumer/main.js','tests/consumer/contract.ts','tests/entry.test.mjs','scripts/build-consumer.mjs','vercel.json','tests/consumer/index.html'].map(f=>[f,hash(readFileSync(join(root,f)))])),den:JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version,unworklet:JSON.parse(readFileSync(join(consumer,'node_modules/@unworklet/core/package.json'),'utf8')).version,consumer:'den-clean-consumer (locked fixture)',settings:{scale:1,initialPrevious:0},node:process.version,offlineSampleRates:[44100,48000,96000],browserCoverage:browserRates.map(({actualSampleRate,status,error})=>({sampleRate:actualSampleRate,status,error})),browserRenderedSampleRates:[44100,48000,96000],channels:1,samples:256,parameters:{gain:0.5},input:'sample[i]=(i+1)/256 for i=0..255',midi:[],seed:null,engine:'den.entry.gate.v1',preset:null,files,verification:'sample-exact one-sample delay × gain; clean restore; browser gain 0.5→0.25→0.5',limitations:['Not human approved','same-schema/rate snapshots only','Native browser coverage does not imply realtime deadline clearance']},null,2));
   } finally {
     await browser?.close();
     await new Promise((resolve,reject)=>server.httpServer.close(e=>e?reject(e):resolve()));

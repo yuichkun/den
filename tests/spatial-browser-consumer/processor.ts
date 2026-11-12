@@ -2,11 +2,11 @@ import { audioOutput, defineProcessor, f32, forSample, i32, instantiate, param, 
 import { oscillator } from '@denaudio/den/oscillator';
 import { hybridReverb, feedforwardPitchedReverb } from '@denaudio/den/spatial-chains';
 
-export default defineProcessor(({ sampleRate }) => {
+export default defineProcessor(({ sampleRate, renderQuantumSize }) => {
   const source = instantiate(oscillator, { sampleRate, waveform: 'sine' }, { name: 'source' });
-  const hybrid = instantiate(hybridReverb, { sampleRate }, { name: 'hybrid' });
-  const pitched = instantiate(feedforwardPitchedReverb, { sampleRate, windowSamples: 2048 }, { name: 'pitched' });
-  const twin = instantiate(feedforwardPitchedReverb, { sampleRate, windowSamples: 2048 }, { name: 'twin' });
+  const hybrid = instantiate(hybridReverb, { renderQuantumSize, sampleRate }, { name: 'hybrid' });
+  const pitched = instantiate(feedforwardPitchedReverb, { renderQuantumSize, sampleRate, windowSamples: 2048 }, { name: 'pitched' });
+  const twin = instantiate(feedforwardPitchedReverb, { renderQuantumSize, sampleRate, windowSamples: 2048 }, { name: 'twin' });
   const frame = state.i32(0).named('frame');
   const level = param.f32({ default: .25, min: 0, max: .5, automationRate: 'a-rate' }).named('level');
   const mix = param.f32({ default: 1, min: 0, max: 1, automationRate: 'a-rate' }).named('mix');

@@ -27,5 +27,11 @@ for(const staleQuanta of [0,1,2,3,4,7,8,17]){
  reports.push({staleQuanta,phaseAdvance:staleQuanta/32,additionalReadAge:staleQuanta*64,expectedSign:sign,pitch:bin(out[3]),source:bin(out[0]),maxPitchError,maxOtherSettledError,scrubbedSamples:0});
 }
 assert(Math.abs(reports[0].pitch.re-(-.006133459294851527))<2e-9);assert(Math.abs(reports[1].pitch.re-.006133459294852017)<2e-9);
-const report={status:'DIAGNOSIS ONLY / NOT BROWSER CLEARANCE',method:'Public renderOffline restore into fresh native driver followed by explicitly scheduled stale AudioParams. Reproduces the known worklet-state/host-param ordering gap without claiming an in-place restore API.',sampleRate,frames,savedParams:saved,preRestoreLiveParams:live,conclusion:'One odd stale ratio quantum flips steady unity output by half a cycle; even quanta appear correct. All five saved controls applied before processing restored state yield the unchanged unity phase oracle.',hashes:Object.fromEntries(['processor.ts','node_modules/@denaudio/den/dist/windowed-pitch-shift.js','node_modules/@unworklet/core/dist/index.mjs','node_modules/@unworklet/core/dist/worklet-DGiKko0I.mjs'].map(p=>[p,createHash('sha256').update(readFileSync(p)).digest('hex')])),reports};
+const sources = {
+ 'processor.ts': 'processor.ts',
+ '@denaudio/den/windowed-pitch-shift': new URL(import.meta.resolve('@denaudio/den/windowed-pitch-shift')),
+ '@unworklet/core': new URL(import.meta.resolve('@unworklet/core')),
+ '@unworklet/core/worklet-runtime': new URL(import.meta.resolve('@unworklet/core/worklet-runtime')),
+};
+const report={status:'DIAGNOSIS ONLY / NOT BROWSER CLEARANCE',method:'Public renderOffline restore into fresh native driver followed by explicitly scheduled stale AudioParams. Simulates the historical 0.4.1 worklet-state/host-param ordering gap; it does not exercise or characterize the current in-place restore API.',sampleRate,frames,savedParams:saved,preRestoreLiveParams:live,conclusion:'One odd stale ratio quantum flips steady unity output by half a cycle; even quanta appear correct. All five saved controls applied before processing restored state yield the unchanged unity phase oracle.',hashes:Object.fromEntries(Object.entries(sources).map(([name,path])=>[name,createHash('sha256').update(readFileSync(path)).digest('hex')])),reports};
 writeFileSync('review-pitch-restore-gap-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

@@ -1,7 +1,9 @@
 import { defineSubgraph, f32, f64, i32, instantiate, select, state, type EveryNSamples, type Node } from '@unworklet/core';
-import { spectralFft } from './spectral-fft.js';
+import { spectralDispatchPeriod, spectralFft } from './spectral-fft.js';
 
 export interface PartitionedConvolutionConfig {
+  /** Pass ctx.renderQuantumSize; aligns native dispatch with snapshot boundaries. */
+  renderQuantumSize: number;
   /** Construction-fixed power of two in [4,32]. FFT size is twice this value. */
   blockSize: number;
   /** Fixed IR, length 1..4*blockSize. Every tap in [-1,1], total absolute gain <=4. */
@@ -21,6 +23,7 @@ export const partitionedConvolution = defineSubgraph((config: PartitionedConvolu
       config.impulse.reduce((sum, tap) => sum + Math.abs(tap), 0) > 4) {
     throw new RangeError('partitionedConvolution requires power-of-two blockSize [4,32], 1..4*blockSize finite IR taps in [-1,1], and IR absolute sum <=4');
   }
+  const dispatchPeriod = spectralDispatchPeriod(block, config.renderQuantumSize);
   const impulse = [...config.impulse], size = 2 * block, partitions = Math.ceil(impulse.length / block);
   // Construction-only O(P*N*B) coefficient preparation. No host FFT runtime,
   // asset read, callback allocation or coefficient update on the audio thread.
@@ -50,12 +53,16 @@ export const partitionedConvolution = defineSubgraph((config: PartitionedConvolu
       validSamples.write(select(reset, i32(0), validSamples.read()));
       validBlocks.write(select(reset, i32(0), validBlocks.read()));
       pendingReset.write(pendingReset.read().or(reset));
-      everyNSamples(block, () => {
+      // A quantum need not divide blockSize. Persistent cursor phase keeps
+      // frame commits exact when native scheduler counters restart on restore.
+      everyNSamples(dispatchPeriod, () => {
+        const frameDue = cursor.read().mod(block).eq(0);
         const transformed = fft.transform(n => select(n.lt(block).and(validSamples.read().gte(i32(block).sub(n))),
           history.read(cursor.read().add(n).mod(block)), f64(0)), () => f64(0), false);
         for (let k = 0; k < size; k++) {
-          previousReal.write(spectrumCursor.read().mul(size).add(k), transformed.real(k));
-          previousImag.write(spectrumCursor.read().mul(size).add(k), transformed.imag(k));
+          const index = spectrumCursor.read().mul(size).add(k);
+          previousReal.write(index, select(frameDue, transformed.real(k), previousReal.read(index)));
+          previousImag.write(index, select(frameDue, transformed.imag(k), previousImag.read(index)));
         }
         for (let k = 0; k < size; k++) {
           let real = f64(0), imag = f64(0);
@@ -71,11 +78,12 @@ export const partitionedConvolution = defineSubgraph((config: PartitionedConvolu
         const frame = fft.transform(n => mixedReal.read(n), n => mixedImag.read(n), true);
         for (let n = 0; n < size; n++) {
           const index = cursor.read().add(n).mod(size);
-          overlap.write(index, select(pendingReset.read(), f64(0), overlap.read(index)).add(frame.real(n)));
+          const prior = overlap.read(index);
+          overlap.write(index, select(frameDue, select(pendingReset.read(), f64(0), prior).add(frame.real(n)), prior));
         }
-        spectrumCursor.write(spectrumCursor.read().add(1).mod(partitions));
-        validBlocks.write(validBlocks.read().add(1).min(partitions - 1));
-        pendingReset.write(false);
+        spectrumCursor.write(select(frameDue, spectrumCursor.read().add(1).mod(partitions), spectrumCursor.read()));
+        validBlocks.write(select(frameDue, validBlocks.read().add(1).min(partitions - 1), validBlocks.read()));
+        pendingReset.write(pendingReset.read().and(frameDue.not()));
       });
       const output = select(reset.or(pendingReset.read()), f32(0), f32(overlap.read(cursor.read()).div(scale)));
       overlap.write(cursor.read(), f64(0));

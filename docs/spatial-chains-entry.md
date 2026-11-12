@@ -22,12 +22,13 @@ catalog categories. Existing frozen-tail support remains separate.
 
 One new subpath, `@denaudio/den/spatial-chains`; no root-entry re-export:
 
-- `hybridReverb({ sampleRate }).tick(input, controls, everyNSamples)` returns
+- `hybridReverb({ sampleRate, renderQuantumSize }).tick(input, controls, everyNSamples)` returns
   `{ left, right }`.
-- `feedforwardPitchedReverb({ sampleRate, windowSamples? }).tick(input,
+- `feedforwardPitchedReverb({ sampleRate, renderQuantumSize, windowSamples? }).tick(input,
   controls, everyNSamples)` returns `{ left, right, ratioRejected }`.
 - `SpatialChainConfig`: integer `sampleRate` in 8000..192000, taken from the
-  enclosing `ctx.sampleRate`.
+  enclosing `ctx.sampleRate`, and positive integer `renderQuantumSize` from
+  `ctx.renderQuantumSize` for the early convolution's snapshot-safe dispatch.
 - `FeedforwardPitchedReverbConfig`: same rate plus even integer `windowSamples`
   in 32..16384, default 2048. This is the pitch delay excursion, not a grain or
   FFT-frame duration.
@@ -147,7 +148,7 @@ advances the pitched entry's readers. Retrigger resets both pitch phases before
 their current read, retains history and can click. No smoothing or universally
 click-free automation, reset, retrigger or bypass is claimed.
 
-Use only native same-rate, same-schema snapshots. Every inherited persistent
+Use only native same-rate, same-quantum, same-schema snapshots. Every inherited persistent
 history/cursor/valid count, convolution scheduling state, FDN damping state and
 pitch ratio/phase persists; transient scratch must be rewritten before use.
 Restore requires the same configuration and coordinated input/control timeline.

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { audioInput, audioOutput, compile, defineProcessor, defineSubgraph, f32, f64, forSample, instantiate, state } from '@unworklet/core';
 import { spectralFft, spectralForEach } from '../../dist/spectral-fft.js';
 import { stftIdentity } from '../../dist/spectral.js';
@@ -13,10 +14,10 @@ const hop = Number(process.argv[4] ?? size / 4);
 const dispatchPeriod = mode === 'candidate-stft' ? Math.min(hop, 128) : hop;
 const candidateStft = defineSubgraph(config => createStftIdentity(config, 1024));
 const startCapture = performance.now();
-const processor = defineProcessor(() => {
+const processor = defineProcessor(ctx => {
   const input = audioInput({ channels: 1, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
   if (mode === 'stft' || mode === 'candidate-stft') {
-    const stft = instantiate(mode === 'stft' ? stftIdentity : candidateStft, { size, hopSize: hop }, { name: 'stft' });
+    const stft = instantiate(mode === 'stft' ? stftIdentity : candidateStft, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize: hop }, { name: 'stft' });
     return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(stft.tick(input.ch(0).at(i), i.lt(0), everyNSamples))); } };
   }
   assert.equal(mode, 'kernel');
@@ -69,7 +70,7 @@ const stats = values => {
   return { count: values.length, p50Ms: values[Math.floor(values.length * 0.5)], p99Ms: values[Math.floor(values.length * 0.99)], maxMs: values.at(-1) };
 };
 assert.equal(instance.scrubbedSamples(), 0); assert.equal(instance.memory.buffer.byteLength, memoryBytes);
-console.log(JSON.stringify({ status: 'CANDIDATE', node: process.version, unworklet: '0.4.1', mode, size, hop, dispatchPeriod, sampleRate: 48000, captureMs, compileMs, instantiateMs, coldQuantumMs,
+console.log(JSON.stringify({ status: 'CANDIDATE', node: process.version, unworklet: JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], mode, size, hop, dispatchPeriod, sampleRate: 48000, captureMs, compileMs, instantiateMs, coldQuantumMs,
   wasmBytes: compiled.wasm.byteLength, wasmSha256: createHash('sha256').update(compiled.wasm).digest('hex'), graphBytes: JSON.stringify(compiled.graph).length,
   fixedMemoryBytes: memoryBytes, copyBytesPerQuantum: 1024, process: stats(processTimes), withCopies: stats(fullTimes), burst: stats(burstTimes), empty: stats(emptyTimes),
   startupQuanta: stats(startupTimes),

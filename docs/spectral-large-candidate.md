@@ -22,6 +22,13 @@ for windowed framing, snapshots, practical concurrency or realtime acceptance.
 
 ## Persistent frame phase
 
+The measurements and dispatch description below record the original 0.4.1
+candidate at quantum 128. Since den 0.2.0, callers pass `ctx.renderQuantumSize`
+and dispatch is `gcd(H, 128, renderQuantumSize)`; fixed FFT loops use `forIndex`.
+The [current spectral contract](spectral.md) describes snapshot behavior and
+increased work for smaller or coprime quanta. Historical timings below are not
+measurements of those targets.
+
 Public unworklet 0.4.1 has no condition-driven statement block. Its select is
 eager; everyNSamples/byN bounds are construction-fixed. Native everyNSamples
 counters are omitted from snapshots. Simply changing a hop to256 or512 would

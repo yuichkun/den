@@ -1,5 +1,5 @@
 import { f32, f64, i32, instantiate, select, state, type EveryNSamples, type Node } from '@unworklet/core';
-import { spectralFft, spectralForEach } from './spectral-fft.js';
+import { spectralDispatchPeriod, spectralFft, spectralForEach } from './spectral-fft.js';
 
 /** Internal graph-construction-only bin view. Never a runtime JS callback. */
 export interface StftSpectrum {
@@ -8,12 +8,13 @@ export interface StftSpectrum {
 }
 
 /** Internal construction only. Public wrappers choose their reviewed capacity. */
-export function createStftIdentity(config: { size: number; hopSize: number }, maximumSize: number, processSpectrum?: (spectrum: StftSpectrum) => StftSpectrum) {
+export function createStftIdentity(config: { size: number; hopSize: number; renderQuantumSize: number }, maximumSize: number, processSpectrum?: (spectrum: StftSpectrum) => StftSpectrum) {
   const { size, hopSize } = config;
   if (!Number.isInteger(size) || size < 8 || size > maximumSize || !Number.isInteger(Math.log2(size)) ||
       (hopSize !== size / 2 && hopSize !== size / 4)) {
     throw new RangeError(`stftIdentity requires power-of-two size [8,${maximumSize}] and hopSize size/2 or size/4`);
   }
+  const dispatchPeriod = spectralDispatchPeriod(hopSize, config.renderQuantumSize);
   const fft = instantiate(spectralFft, { size }, { name: 'fft' });
   // Public 0.4.1 flushes buffer writes below 1e-30. Exact power-of-two
   // scaling retains finite f32 subnormals without adding an audio threshold.
@@ -35,12 +36,12 @@ export function createStftIdentity(config: { size: number; hopSize: number }, ma
     tick(input: Node<'f32'>, reset: Node<'bool'>, everyNSamples: EveryNSamples): Node<'f32'> {
       valid.write(select(reset, i32(0), valid.read()));
       pendingReset.write(pendingReset.read().or(reset));
-      // Native hop counters are not snapshot state in 0.4.1. Dispatch at a
-      // period dividing the 128-sample snapshot boundary; the named persistent
-      // ring cursor carries the actual H phase. For H>128 this eagerly computes
-      // an FFT pair every 128 samples, committing only at the true frame phase.
+      // Native scheduler counters are not snapshot state. The dispatch period
+      // divides both the hop and actual quantum, so a fresh scheduler aligns
+      // after any block-atomic restore. The persistent ring cursor carries H
+      // phase; off-phase FFT results are computed eagerly but never committed.
       // No CPU-saving claim is attached to the select-based commit condition.
-      everyNSamples(Math.min(hopSize, 128), () => {
+      everyNSamples(dispatchPeriod, () => {
         const frameDue = cursor.read().mod(hopSize).eq(0);
         // sin(pi*n/N) equals the nonnegative periodic sqrt-Hann window.
         // Reanchor per frame; one native buffer loop replaces N code copies.

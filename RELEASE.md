@@ -23,8 +23,8 @@ Ordinary PRs, including the automation setup PR, do not publish anything.
    Merge only when the release is ready to publish.
 
 Before 1.0, breaking changes increment the minor version; compatible changes
-increment the patch. The first intended release is `0.1.0`. Keep unworklet at
-the currently tested `0.4.1`; upgrading it is a separate compatibility change.
+increment the patch. The first public release was `0.1.0`. Keep unworklet at
+the currently tested `0.6.0`; upgrading it is a separate compatibility change.
 
 CI success and npm publication do not promote any CANDIDATE audio to an approved
 golden or clear the documented 4-voice real-time limitation. Audio approval stays

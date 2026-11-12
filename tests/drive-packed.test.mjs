@@ -35,7 +35,7 @@ test('packed /drive public declarations, real renders, independent oracles and c
   writeFileSync(join(artifacts, 'drive-candidate-manifest.json'), JSON.stringify({
     status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(), sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '',
     sourceHashes: Object.fromEntries(sourceFiles.map(f => [f, hash(readFileSync(join(root, f)))])),
-    packageIntegrity: pack.integrity, consumerLockSha256: hash(readFileSync(join(consumer, 'package-lock.json'))), unworklet: '0.4.1', sampleRates: [44100, 48000, 96000], frames: 8192,
+    packageIntegrity: pack.integrity, consumerLockSha256: hash(readFileSync(join(consumer, 'package-lock.json'))), unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], sampleRates: [44100, 48000, 96000], frames: 8192,
     input: '0.35 * (sin(2*pi*173*n/sampleRate) + 0.3*sin(2*pi*997*n/sampleRate)), f32',
     settings: { drive: 6, mix: 1, dcBlockHz: 0, reductionBits: 6, reductionHoldSamples: 5 },
     format: 'mono IEEE754 f32 native little-endian', files,

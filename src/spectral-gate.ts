@@ -3,6 +3,8 @@ import { spectralForEach } from './spectral-fft.js';
 import { createStftIdentity } from './spectral-stft.js';
 
 export interface SpectralGateConfig {
+  /** Pass ctx.renderQuantumSize; aligns native dispatch with snapshot boundaries. */
+  renderQuantumSize: number;
   /** Construction-fixed power of two in [8,1024]. Reference alignment is size samples. */
   size: number;
   /** Exactly size/2 or size/4. Rebuild to change. */

@@ -7,6 +7,16 @@ implemented initial package/site boundary are linked from [the README](../README
 and [the acceptance record](initial-acceptance.md). Later reviewed module-specific
 contracts supersede the provisional choices below.
 
+The current package uses unworklet **0.6.0**. Its entry gate renders in real
+Chromium at 44.1/48/96 kHz, and snapshots include current AudioParam values even
+before rendering or while suspended. The 0.4.1 rate restriction and suspended-edit
+workaround below are historical. Incompatible slot types are now skipped instead
+of reinterpreted; live restore applies saved AudioParams before persistent state.
+See [dependency findings](dependency-findings.md) for the checked regressions and
+remaining constraints. Snapshots still require the same processor/schema, sample
+rate and render quantum; this upgrade does not imply general automation rollback,
+cross-target migration, transient-state clearing or human audio approval.
+
 ## Authority and provisional choices
 
 The approved initial-scope specification says that individual DSP methods and
