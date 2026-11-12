@@ -14,12 +14,12 @@ export const events = [{ name: 'load', payload: { data } }];
 export const ready = [{ suffix: 'sample/length', value: data.length }];
 export const afterReady = { gate: 1 };
 
-export default defineProcessor(({ sampleRate }) => {
+export default defineProcessor(({ sampleRate, renderQuantumSize }) => {
   const output = audioOutput({ name: 'main', channels: 1 });
   const sample = instantiate(residentSample, { capacity: data.length, sourceSampleRate }, { name: 'sample' });
   event<{ data: Float32Array }>({ from: 'main', name: 'load', capacity: CAPACITY_16, payloadCapacity: data.byteLength })
     .onReceive(packet => sample.load(packet.data));
-  const stretch = instantiate(residentTimeStretch, { sampleRate, sample, hopSamples: 128, searchFrames: 8 }, { name: 'stretch' });
+  const stretch = instantiate(residentTimeStretch, { sampleRate, renderQuantumSize, sample, hopSamples: 128, searchFrames: 8 }, { name: 'stretch' });
   const gate = param.f32({ default: 0, min: 0, max: 1, automationRate: 'a-rate' }).named('gate');
   const durationScale = param.f32({ default: 1.5, min: 0.5, max: 2, automationRate: 'a-rate' }).named('durationScale');
   const pitchRatio = param.f32({ default: 1, min: 0.5, max: 2, automationRate: 'a-rate' }).named('pitchRatio');

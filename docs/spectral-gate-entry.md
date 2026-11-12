@@ -7,7 +7,7 @@ This is one bounded spectral effect built on the independently reviewed
 
 ## API and meaning
 
-- `spectralGate({ size, hopSize }).tick(input, threshold, floor, reset, everyNSamples)`
+- `spectralGate({ size, hopSize, renderQuantumSize: ctx.renderQuantumSize }).tick(input, threshold, floor, reset, everyNSamples)`
 - Construction-fixed power-of-two N=8..1024 and H=N/2 or N/4.
 - Input: finite normalized f32 audio in [-1,1]. Controls: f32. Threshold is clamped to [0,max-f32], floor to [0,1];
   infinities saturate, NaN threshold becomes 0 and NaN floor becomes 1 (all-pass).
@@ -29,9 +29,11 @@ This is one bounded spectral effect built on the independently reviewed
 ## Framing, state and headroom
 
 Retain the original periodic sqrt-Hann analysis/synthesis windows, normalization
-2H/N, reset discard semantics, persistent cursor, and every min(H,128) dispatch.
-For H>128 an FFT/IFFT pair still executes every128 samples; only cursor%H==0
-commits frames. No H-rate CPU-saving claim.
+2H/N, reset discard semantics and persistent cursor. Dispatch now follows
+`gcd(H, 128, renderQuantumSize)` to align every native snapshot boundary; only
+cursor%H==0 commits frames. Off-phase FFT/IFFT work is eager. See the shared
+[spectral contract](spectral.md) for increased costs at small or coprime quanta;
+there is no H-rate CPU-saving claim.
 
 The WOLA alignment/reference delay is N samples; a processed transient can spread
 across its synthesis frame [t,t+N), so its first nonzero sample need not occur at
@@ -43,7 +45,7 @@ old history/overlap and leaves absolute frame phase unchanged.
 
 Only the existing history, overlap, cursor, valid history and pending reset need
 persistent storage. Frame controls and spectrum work are transient and overwritten
-before use. Identical graph/rate full-snapshot continuation remains in scope.
+before use. Identical graph/rate/quantum full-snapshot continuation remains in scope.
 
 Attenuating bins can increase individual time-domain peaks. For normalized input,
 an ideal contraction bound per frame and the overlapping windows give the
@@ -52,10 +54,12 @@ not a limiter or loudness promise; measured peaks accompany candidate evidence.
 
 ## Implementation boundary and verification
 
-Add a narrow optional internal construction-time spectrum-copy hook to the
+The original gate entry added a narrow optional internal construction-time
+spectrum-copy hook to the
 existing STFT function. The identity branch must produce the same graph, schema,
-PCM and full snapshots as its frozen predecessor. Do not modify the FFT kernel,
-existing convolution or unworklet. The public gate wrapper is separate; shared
+PCM and full snapshots as its frozen predecessor. The 0.2.0 compatibility
+migration separately replaces fixed-quantum FFT loops and extends snapshot-safe
+dispatch; its numerical and continuation assertions preserve this gate behavior. The public gate wrapper is separate; shared
 exports, CI and site belong to integration.
 
 Required tests: independent direct DFT/bin-mask/inverse-DFT/time-indexed WOLA;

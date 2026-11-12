@@ -59,7 +59,9 @@ Contracts, controls and limitations are detailed in [filters](catalog-filters.md
 [filter-bank vocoder](filterbank-vocoder-entry.md),
 and [musical examples](musical-examples.md).
 All remain editable unworklet subgraphs. No parameter, MIDI, state, routing,
-loader, asset or test framework is introduced. Dependencies stay at unworklet 0.4.1. The only initial-DSP source exception is
+loader, asset or test framework is introduced. The current dependency is unworklet
+0.6.0; older measurements below retain their original version and scope. See the
+[0.2.0 migration notes](../CHANGELOG.md#020--2026-11-12). The only initial-DSP source exception is
 a narrowly tested one-sample read-head construction-boundary correction; existing
 common-rate audio/state/WASM parity is required.
 

@@ -1,10 +1,10 @@
 import {audioOutput,CAPACITY_16,defineProcessor,event,f32,f64,forSample,i32,instantiate,param,select,state} from '@unworklet/core';
 import {residentSample} from '@denaudio/den/sample';
 import {residentTimeStretch} from '@denaudio/den/resident-time-stretch';
-export const makeProcessor=(capacity:number,sourceSampleRate:number)=>defineProcessor(({sampleRate})=>{
+export const makeProcessor=(capacity:number,sourceSampleRate:number)=>defineProcessor(({sampleRate, renderQuantumSize})=>{
  const sample=instantiate(residentSample,{capacity,sourceSampleRate},{name:'resident'});
  event<{data:Float32Array}>({from:'main',name:'load',capacity:CAPACITY_16,payloadCapacity:capacity*4}).onReceive(({data})=>sample.load(data));
- const stretch=instantiate(residentTimeStretch,{sampleRate,sample,hopSamples:128,searchFrames:8},{name:'stretch'});
+ const stretch=instantiate(residentTimeStretch,{ renderQuantumSize,sampleRate,sample,hopSamples:128,searchFrames:8},{name:'stretch'});
  const gate=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('gate');
  const trigger=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('trigger');
  const reset=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('reset');

@@ -27,34 +27,35 @@ test('reproduce #104 and verify required config plus explicit instance name', as
   expect((await render(fixture(true))).outputs.main[0][0]).toBe(1);
 });
 
-test('reproduce #79: same-width incompatible slot types must not be offered as compatible presets', async () => {
+test('regression #79: restore skips same-width incompatible slot types', async () => {
   const original=defineProcessor(()=>{const value=state.f32(1).named('value');return {process(){value.write(value.read());}};},{id:'den.repro.schema'});
   const changed=defineProcessor(()=>{const value=state.i32(7).named('value');return {process(){value.write(value.read());}};},{id:'den.repro.schema'});
   const old=await render(original);
   const next=await renderOffline(changed,{sampleRate:48000,duration:128/48000,restore:old.state});
-  expect(inspect(next.state).slots.value.value).toBe(1065353216);
+  expect(inspect(next.state).slots.value.value).toBe(7);
 });
 
-test('reproduce #96 and verify exact block duration used by the gate', async () => {
+test('regression #96: exact quantum durations do not render an extra block', async () => {
   const fixture=defineProcessor(()=>{const count=state.i32(0).named('count');return{process(){count.write(count.read().add(1));}};});
-  const affected=await renderOffline(fixture,{sampleRate:48000,duration:896/48000});
-  expect(inspect(affected.state).slots.count.value).toBe(8);
+  const exact=await renderOffline(fixture,{sampleRate:48000,duration:896/48000});
+  expect(inspect(exact.state).slots.count.value).toBe(7);
   const safe=await renderOffline(fixture,{sampleRate:48000,duration:256/48000});
   expect(inspect(safe.state).slots.count.value).toBe(2);
 });
 
-test('reproduce #98; use direct sample comparisons for this DC fixture',()=>{
+test('regression #98: DC gain is not doubled by the frequency-gain helper',()=>{
   const result={outputs:{main:[new Float32Array(128).fill(1)]},sampleRate:48000,events:[],state:new Uint8Array()};
-  expect(()=>expectGainAtFreq(result,0,0,0.01)).toThrow(/6.021/);
+  expectGainAtFreq(result,0,0,0.01);
+  expect(()=>expectGainAtFreq(result,0,6.0206,0.01)).toThrow();
   expectAudioMatches(result,[new Float32Array(128).fill(1)],{tolerance:0});
 });
 
-test('reproduce #106: ES2023 is a strict-checking consumer target, ESNext fails upstream', async()=>{
+test('regression #106: public lang types pass strict checking at ES2023 and ESNext', async()=>{
   const ts=await import('typescript');
   const diagnostics=(target: import('typescript').ScriptTarget)=>{
     const program=ts.createProgram(['tests/probes/lang-types.ts'],{target,module:ts.ModuleKind.NodeNext,moduleResolution:ts.ModuleResolutionKind.NodeNext,strict:true,noEmit:true,skipLibCheck:false,types:[]});
     return ts.getPreEmitDiagnostics(program);
   };
   expect(diagnostics(ts.ScriptTarget.ES2023)).toEqual([]);
-  expect(diagnostics(ts.ScriptTarget.ESNext).some(d=>d.code===2416 && d.file?.fileName.includes('@volar/language-core'))).toBe(true);
+  expect(diagnostics(ts.ScriptTarget.ESNext)).toEqual([]);
 },15000);

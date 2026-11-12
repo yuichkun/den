@@ -1,20 +1,32 @@
-import { SAMPLES_PER_BLOCK, defineSubgraph, f64, forSample, i32, select, state, type Node } from '@unworklet/core';
+import { defineSubgraph, f64, forIndex, i32, select, state, type Node } from '@unworklet/core';
 
 /** Internal fixed-capacity buffer iteration, using only public native loops.
  * No audio/parameter indexing or sample-clock advancement belongs in this body.
  */
 export function spectralForEach(size: number, body: (index: Node<'i32'>) => void) {
-  if (SAMPLES_PER_BLOCK !== 128 || size < 4 || size > 1024 || !Number.isInteger(Math.log2(size))) {
-    throw new RangeError('spectral buffer iteration requires fixed-128 loops and power-of-two size [4,1024]');
+  if (size < 4 || size > 1024 || !Number.isInteger(Math.log2(size))) {
+    throw new RangeError('spectral buffer iteration requires power-of-two size [4,1024]');
   }
-  const stride = Math.max(1, 128 / size);
-  for (let chunk = 0; chunk < Math.max(1, size / 128); chunk++) forSample.byN(stride, inner => body(inner.div(stride).add(chunk * 128)));
+  forIndex(size, body);
+}
+
+/** Internal sample dispatch period. Native scheduler phase is not snapshotted.
+ * A divisor of both the hop and quantum realigns a fresh scheduler at every
+ * block-atomic restore; persistent module cursors decide when to commit frames.
+ * Keep the historical 128-sample maximum dispatch period at ordinary targets.
+ */
+export function spectralDispatchPeriod(hopSize: number, renderQuantumSize: number) {
+  if (!Number.isInteger(renderQuantumSize) || renderQuantumSize < 1) {
+    throw new RangeError('spectral renderQuantumSize must be the positive integer ctx.renderQuantumSize');
+  }
+  let divisor = Math.min(hopSize, 128), remaining = renderQuantumSize;
+  while (remaining !== 0) [divisor, remaining] = [remaining, divisor % remaining];
+  return divisor;
 }
 
 /** Internal construction-fixed FFT. Not a separate runtime or public package API. */
 export const spectralFft = defineSubgraph((config: { size: number }) => {
   const { size } = config;
-  if (SAMPLES_PER_BLOCK !== 128) throw new RangeError('spectral FFT requires the public unworklet fixed-128 loop contract');
   if (!Number.isInteger(size) || size < 8 || size > 1024 || !Number.isInteger(Math.log2(size))) {
     throw new RangeError('spectral FFT size must be a power of two in [8,1024]');
   }
@@ -32,7 +44,7 @@ export const spectralFft = defineSubgraph((config: { size: number }) => {
   };
   return {
     /** JS functions/loops run during graph capture. Butterfly iteration uses the
-     * public fixed-128 native forSample loop over work-buffer indices, nested
+     * public fixed-count native forIndex loop over work-buffer indices, nested
      * inside the caller's hop body. It performs no audio I/O or audio-time update.
      * Inputs must not alias these work buffers.
      * Result aliases scratch and must be consumed before the next transform.

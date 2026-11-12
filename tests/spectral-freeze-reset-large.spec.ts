@@ -8,9 +8,9 @@ import { directFreezeWola, maxError } from './spectral-freeze-consumer/oracle.mj
 // supplies a linear-cost time-indexed oracle for exhaustive large reset phases.
 for (const rate of [44100, 48000, 96000]) test(`mirrored clock stays aligned through every large reset offset at ${rate}`, async () => {
   for (const [size, hop] of [[128, 32], [256, 128], [512, 256], [1024, 256], [1024, 512]]) {
-    const p = defineProcessor(() => {
+    const p = defineProcessor(ctx => {
       const input = audioInput({ channels: 3, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-      const unit = instantiate(spectralFreeze, { size, hopSize: hop }, { name: 'freeze' });
+      const unit = instantiate(spectralFreeze, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize: hop }, { name: 'freeze' });
       return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(unit.tick(input.ch(0).at(i), input.ch(2).at(i).gt(0), input.ch(1).at(i).gt(0), everyNSamples))); } };
     });
     const count = Math.ceil((4 * size + hop * (size + hop + 1)) / 128) * 128;

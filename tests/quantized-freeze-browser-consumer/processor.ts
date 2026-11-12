@@ -1,10 +1,10 @@
 import {audioOutput,defineProcessor,f32,forSample,instantiate,param} from '@unworklet/core';
 import {pitchQuantizer} from '@denaudio/den/pitch-quantizer';
 import {spectralFreeze} from '@denaudio/den/spectral-freeze';
-export default defineProcessor(()=>{
+export default defineProcessor(ctx =>{
  const held=instantiate(pitchQuantizer,{pitchClasses:[7,0,3],hysteresis:.25},{name:'held'});
  const nearest=instantiate(pitchQuantizer,{pitchClasses:[7,0,3],hysteresis:0},{name:'nearest'});
- const spectral=instantiate(spectralFreeze,{size:64,hopSize:16},{name:'spectral'});
+ const spectral=instantiate(spectralFreeze,{ renderQuantumSize: ctx.renderQuantumSize,size:64,hopSize:16},{name:'spectral'});
  const input=param.f32({default:60,min:-16384,max:16384,automationRate:'a-rate'}).named('pitch');
  const pitchReset=param.f32({default:0,min:0,max:1,automationRate:'a-rate'}).named('pitchReset');
  const level=param.f32({default:.25,min:-1,max:1,automationRate:'a-rate'}).named('level');

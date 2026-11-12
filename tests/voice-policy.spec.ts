@@ -96,9 +96,11 @@ test('mono last-held priority and legato fallback survive out-of-order releases'
   expect(f[4].velocity[0]).toBeCloseTo(40/127,7);
 });
 
-test('reproduce upstream #99 instead of trusting the MIDI-balance helper',()=>{
-  const result={outputs:{},sampleRate:48000,state:new Uint8Array(),events:[on(60),on(60,0)].map(payload=>({name:'midi',atSample:0,payload}))};
-  expect(()=>expectMidiBalance(result,'midi')).toThrow(/hanging/);
+test('regression #99: the MIDI-balance helper treats velocity-zero note-on as termination',()=>{
+  const result=(messages:MidiEvent[])=>({outputs:{},sampleRate:48000,state:new Uint8Array(),events:messages.map(payload=>({name:'midi',atSample:0,payload}))});
+  expectMidiBalance(result([on(60),on(60,0)]),'midi');
+  expect(()=>expectMidiBalance(result([on(60)]),'midi')).toThrow(/hanging/);
+  expect(()=>expectMidiBalance(result([on(60),on(60,0),off(60)]),'midi')).toThrow();
 });
 
 test('reuse oldest release before held voices; choose lowest free slot after completion', async()=>{

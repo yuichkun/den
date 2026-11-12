@@ -7,9 +7,9 @@ import { preparedConvolution, prepareConvolutionSpectrum, type PreparedConvoluti
 const config = { blockSize: 128, partitions: 64 }, B = 128;
 const reports: object[] = [];
 afterAll(() => { mkdirSync('artifacts', { recursive: true }); writeFileSync('artifacts/prepared-convolution-numerics.json', JSON.stringify({ status: 'CANDIDATE', reports }, null, 2)); });
-const fixture = () => defineProcessor(() => {
+const fixture = () => defineProcessor(ctx => {
   const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 4, name: 'main' });
-  const convolution = instantiate(preparedConvolution, config, { name: 'convolution' });
+  const convolution = instantiate(preparedConvolution, { ...config, renderQuantumSize: ctx.renderQuantumSize }, { name: 'convolution' });
   const load = event<PreparedConvolutionPacket>({ from: 'main', name: 'ir', capacity: CAPACITY_16, payloadCapacity: 131072 });
   load.onReceive(packet => convolution.load(packet));
   return { process() { forSample((i, everyNSamples) => {

@@ -6,13 +6,13 @@ import { stftIdentity } from '../src/spectral.js';
 import { directGateWola, gateFrame, maxError } from './spectral-gate-consumer/oracle.mjs';
 
 function fixture(size: number, hopSize: number, identity = false) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 4, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
     if (identity) {
-      const stft = instantiate(stftIdentity, { size, hopSize }, { name: 'unit' });
+      const stft = instantiate(stftIdentity, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'unit' });
       return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(stft.tick(input.ch(0).at(i), input.ch(1).at(i).gt(0), everyNSamples))); } };
     }
-    const gate = instantiate(spectralGate, { size, hopSize }, { name: 'unit' });
+    const gate = instantiate(spectralGate, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'unit' });
     return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(gate.tick(input.ch(0).at(i), input.ch(2).at(i), input.ch(3).at(i), input.ch(1).at(i).gt(0), everyNSamples))); } };
   });
 }

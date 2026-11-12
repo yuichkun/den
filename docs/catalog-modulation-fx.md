@@ -13,7 +13,7 @@ Public entries:
 
 All use existing `defineSubgraph` / `instantiate` and state/snapshot mechanisms.
 No loader, routing, serialization, parameter, or test framework is added.
-Keep unworklet at 0.4.1. The root entry does not re-export these candidate modules.
+Use the tested unworklet 0.6.0 dependency. The root entry does not re-export these candidate modules.
 
 ## Shared entry contract
 

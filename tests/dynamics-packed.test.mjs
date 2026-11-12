@@ -36,7 +36,7 @@ test('packed dynamics: isolated strict TypeScript, actual DSP, snapshots and bou
   }
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(),
     sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(['src/dynamics.ts', 'docs/dynamics.md', 'tests/dynamics.spec.ts', 'tests/dynamics-packed.test.mjs', 'tests/dynamics-consumer/processor.ts', 'tests/dynamics-consumer/render.mjs', 'package.json', 'package-lock.json'].map(file => [file, hash(join(root, file))])),
-    packageIntegrity: pack.integrity, publicSubpath, testedImport: importPath, unworklet: '0.4.1', node: process.version,
+    packageIntegrity: pack.integrity, publicSubpath, testedImport: importPath, unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], node: process.version,
     offlineSampleRates: [44100, 48000, 96000], browserSampleRates: [], frames: 32768, channels: 2,
     input: 'L=0.5*sin(2*pi*110*n/rate), R=-L/2; sidechain L=0.8 on frames2048..16383, zero elsewhere; sidechain R=0',
     settings: { detector: 'rms', thresholdDb: -12, ratio: 4, kneeDb: 6, rangeDb: 36, attack: 0.003, release: 0.07, detectorAttack: 0.001, detectorRelease: 0.01, hysteresisDb: 3 },

@@ -1,8 +1,10 @@
 import { defineSubgraph, f32, f64, i32, select, state, type EveryNSamples, type Node } from '@unworklet/core';
-import { spectralForEach } from './spectral-fft.js';
+import { spectralDispatchPeriod, spectralForEach } from './spectral-fft.js';
 import type { ResidentSample } from './sample.js';
 
 export interface ResidentTimeStretchConfig {
+  /** Pass ctx.renderQuantumSize; aligns native dispatch with snapshot boundaries. */
+  renderQuantumSize: number;
   /** Match ctx.sampleRate; integer 8000..192000. */
   sampleRate: number;
   /** Resident sourceSampleRate must also be an integer in [8000,192000]. */
@@ -44,6 +46,7 @@ export const residentTimeStretch = defineSubgraph((config: ResidentTimeStretchCo
       ![128, 256].includes(H) || ![0, 8, 16, 32, 64, 128].includes(S)) {
     throw new RangeError('residentTimeStretch requires integer sampleRate/sourceSampleRate [8000,192000], hopSamples 128/256 and searchFrames 0/8/16/32/64/128');
   }
+  const dispatchPeriod = spectralDispatchPeriod(H, config.renderQuantumSize);
   const active = state.bool(false).named('active'), pending = state.bool(false).named('pending');
   const ended = state.bool(false).named('ended'), rejected = state.bool(false).named('rejected');
   const previousGate = state.bool(false).named('previousGate'), revision = state.i32(-1).named('revision');
@@ -96,10 +99,10 @@ export const residentTimeStretch = defineSubgraph((config: ResidentTimeStretchCo
       sourceLength.write(select(clear, i32(0), sourceLength.read()));
       const request = c.trigger.or(c.gate.and(previousGate.read().not())).and(c.gate).and(c.reset.not()).and(missing.not());
       pending.write(pending.read().or(request));
-      // 0.4.1 does not snapshot native everyNSamples counters. A 128-sample
-      // scheduler realigns at every allowed snapshot boundary; persistent clock
-      // carries H=256 phase. Search is eager every 128, even when not committing.
-      everyNSamples(128, () => {
+      // Native scheduler counters are not snapshotted. This period divides H
+      // and the actual quantum, so every block-atomic restore realigns dispatch.
+      // The persistent clock carries H phase; off-phase searches do not commit.
+      everyNSamples(dispatchPeriod, () => {
         const due = clock.read().eq(0), attempt = due.and(pending.read()).and(c.gate).and(c.reset.not());
         const valid = c.durationScale.gte(.5).and(c.durationScale.lte(2)).and(c.pitchRatio.gte(.5)).and(c.pitchRatio.lte(2));
         launching.write(attempt.and(valid).and(missing.not()));

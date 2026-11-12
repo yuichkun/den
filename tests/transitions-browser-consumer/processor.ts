@@ -4,12 +4,12 @@ import { oversampledDrive } from '@denaudio/den/oversampled-drive';
 import { dualHeadDelay } from '@denaudio/den/dual-head-delay';
 import { windowedPitchShift } from '@denaudio/den/windowed-pitch-shift';
 import { stftIdentity } from '@denaudio/den/spectral';
-export default defineProcessor(({sampleRate})=>{
+export default defineProcessor(({sampleRate, renderQuantumSize})=>{
  const source=instantiate(oscillator,{sampleRate,waveform:'sine'},{name:'source'});
  const drive=instantiate(oversampledDrive,{sampleRate,factor:2,curve:'hard'},{name:'drive'});
  const delay=instantiate(dualHeadDelay,{sampleRate,maxDelaySeconds:.01,transitionSamples:32},{name:'delay'});
  const pitch=instantiate(windowedPitchShift,{sampleRate,windowSamples:2048},{name:'pitch'});
- const spectral=instantiate(stftIdentity,{size:256,hopSize:128},{name:'spectral'});
+ const spectral=instantiate(stftIdentity,{ renderQuantumSize,size:256,hopSize:128},{name:'spectral'});
  const ratio=param.f32({default:1,min:.5,max:2,automationRate:'a-rate'}).named('ratio');
  const time=param.f32({default:8/sampleRate,min:1/sampleRate,max:.01,automationRate:'a-rate'}).named('time');
  const gain=param.f32({default:1,min:0,max:32,automationRate:'a-rate'}).named('gain');

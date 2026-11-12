@@ -3,6 +3,8 @@ import { spectralForEach } from './spectral-fft.js';
 import { createStftIdentity } from './spectral-stft.js';
 
 export interface SpectralBlurConfig {
+  /** Pass ctx.renderQuantumSize; aligns native dispatch with snapshot boundaries. */
+  renderQuantumSize: number;
   /** Construction-fixed power of two in [8,256]; live reference delay is size. */
   size: number;
   /** Exactly size/2 or size/4. */
@@ -12,6 +14,8 @@ export interface SpectralBlurConfig {
 }
 
 export interface SpectralCrossSynthesisConfig {
+  /** Pass ctx.renderQuantumSize; aligns native dispatch with snapshot boundaries. */
+  renderQuantumSize: number;
   /** Construction-fixed power of two in [8,256]; live reference delay is size. */
   size: number;
   /** Exactly size/2 or size/4. */
@@ -91,7 +95,7 @@ export const spectralBlur = defineSubgraph((config: SpectralBlurConfig) => {
 
 // A private, separately named native STFT instance preserves all frame statements
 // and tap writes even though its synthesized audio output is unused by the caller.
-const magnitudeTap = defineSubgraph((config: { size: number; hopSize: number }) => {
+const magnitudeTap = defineSubgraph((config: { size: number; hopSize: number; renderQuantumSize: number }) => {
   const { size } = config, half = size / 2;
   const framing = createStftIdentity(config, 256, spectrum => {
     const capture = (k: Node<'i32'>) => {

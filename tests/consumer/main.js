@@ -7,7 +7,7 @@ window.runGate = async (sampleRate) => {
   try {
     node = await createNode(ctx, processor, {initial: {gain: 0.5}});
   } catch (error) {
-    const failure = {status:'blocked', requestedSampleRate:sampleRate, actualSampleRate:ctx.sampleRate, error:String(error)};
+    const failure = {status:'blocked', requestedSampleRate:sampleRate, actualSampleRate:ctx.sampleRate, actualRenderQuantumSize:ctx.renderQuantumSize ?? 128, error:String(error)};
     await ctx.close();
     return failure;
   }
@@ -36,7 +36,7 @@ window.runGate = async (sampleRate) => {
     const changed = await settle();
     const restored = await node.restore(saved);
     const after = await settle();
-    return {status:'rendered', requestedSampleRate:sampleRate, actualSampleRate:ctx.sampleRate, initial, suspended, saved: inspect(saved), restored, before, changed, after};
+    return {status:'rendered', requestedSampleRate:sampleRate, actualSampleRate:ctx.sampleRate, actualRenderQuantumSize:ctx.renderQuantumSize ?? 128, initial, suspended, saved: inspect(saved), restored, before, changed, after};
   } finally { source.stop(); node.dispose(); await ctx.close(); }
 };
 

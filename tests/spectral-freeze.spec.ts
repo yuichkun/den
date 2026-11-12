@@ -6,13 +6,13 @@ import { stftIdentity } from '../src/spectral.js';
 import { directDft, directFreezeWola, maxError, rotateSpectrum } from './spectral-freeze-consumer/oracle.mjs';
 
 function fixture(size: number, hopSize: number, identity = false) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 3, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
     if (identity) {
-      const unit = instantiate(stftIdentity, { size, hopSize }, { name: 'unit' });
+      const unit = instantiate(stftIdentity, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'unit' });
       return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(unit.tick(input.ch(0).at(i), input.ch(1).at(i).gt(0), everyNSamples))); } };
     }
-    const unit = instantiate(spectralFreeze, { size, hopSize }, { name: 'unit' });
+    const unit = instantiate(spectralFreeze, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize }, { name: 'unit' });
     return { process() { forSample((i, everyNSamples) => output.ch(0).at(i).write(unit.tick(input.ch(0).at(i), input.ch(2).at(i).gt(0), input.ch(1).at(i).gt(0), everyNSamples))); } };
   });
 }

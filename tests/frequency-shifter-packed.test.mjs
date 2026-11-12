@@ -35,7 +35,7 @@ test('packed frequency-shifter entry renders independently at three rates and co
     'tests/frequency-shifter-consumer/processor.ts', 'tests/frequency-shifter-consumer/reference.mjs', 'tests/frequency-shifter-consumer/render.mjs', 'package.json', 'package-lock.json'];
   writeFileSync(join(path, 'manifest.json'), JSON.stringify({ status: 'CANDIDATE', sourceCommit,
     sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(sources.map(file => [file, hash(join(root, file))])),
-    packageIntegrity: pack.integrity, node: process.version, unworklet: '0.4.1', offlineSampleRates: [44100, 48000, 96000], browserSampleRates: [], files,
+    packageIntegrity: pack.integrity, node: process.version, unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], offlineSampleRates: [44100, 48000, 96000], browserSampleRates: [], files,
     verified: ['Isolated public typecheck', 'Three-rate independent direct convolution and complex sideband DFT', 'Bit-identical native snapshot continuation', 'Fixed memory and zero scrubs', 'Vite worklet compilation'],
     limitations: ['Not human-approved', 'No browser or realtime acceptance', 'Finite Hilbert band; no input bandpass or anti-alias filter', '31-sample group delay, including dry/bypass; FIR pre/post ringing', 'Additive Hz shift, not pitch-ratio shift or time stretch'] }, null, 2));
   console.log(`Frequency-shifter evidence: ${path}`);

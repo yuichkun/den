@@ -1,9 +1,9 @@
 import { audioInput, audioOutput, CAPACITY_16, defineProcessor, event, f32, forSample, instantiate, select } from '@unworklet/core';
 import { preparedConvolution, type PreparedConvolutionPacket } from '@denaudio/den/prepared-convolution';
 
-export default defineProcessor(() => {
+export default defineProcessor(ctx => {
   const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 4, name: 'main' });
-  const convolution = instantiate(preparedConvolution, { blockSize: 128, partitions: 64 }, { name: 'convolution' });
+  const convolution = instantiate(preparedConvolution, { renderQuantumSize: ctx.renderQuantumSize, blockSize: 128, partitions: 64 }, { name: 'convolution' });
   const ir = event<PreparedConvolutionPacket>({ from: 'main', name: 'ir', capacity: CAPACITY_16, payloadCapacity: 131072 });
   ir.onReceive(packet => convolution.load(packet));
   return { process() { forSample((i, everyNSamples) => {

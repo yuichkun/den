@@ -1,9 +1,9 @@
 import { audioOutput, defineProcessor, f32, forSample, i32, instantiate, param, select, state } from '@unworklet/core';
 import { spectralBlur, spectralCrossSynthesis } from '@denaudio/den/spectral-texture';
 
-export default defineProcessor(() => {
-  const blur = instantiate(spectralBlur, { size: 64, hopSize: 32, radius: 2 }, { name: 'blur' });
-  const cross = instantiate(spectralCrossSynthesis, { size: 64, hopSize: 32, maxGain: 4 }, { name: 'cross' });
+export default defineProcessor(ctx => {
+  const blur = instantiate(spectralBlur, { renderQuantumSize: ctx.renderQuantumSize, size: 64, hopSize: 32, radius: 2 }, { name: 'blur' });
+  const cross = instantiate(spectralCrossSynthesis, { renderQuantumSize: ctx.renderQuantumSize, size: 64, hopSize: 32, maxGain: 4 }, { name: 'cross' });
   // The 17-sample source and 32-sample framing repeat together after 544 samples.
   // This native counter gives the observer a phase, not a fitted audio alignment.
   const frame = state.i32(0).named('frame');

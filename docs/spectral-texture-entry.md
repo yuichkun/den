@@ -7,6 +7,9 @@ locking, human sound approval, or real-time clearance.
 
 ## Shared framing
 
+- Pass `renderQuantumSize: ctx.renderQuantumSize` in both module configurations.
+  Dispatch follows the shared [spectral contract](spectral.md), preserving
+  block-atomic snapshot phase at the actual render quantum.
 - Construction-fixed power-of-two N=8..256, H=N/2 or N/4. Rebuild to change.
 - Instantiate with an explicit subgraph name and call exactly once per sample
   inside stride-1 `forSample`, passing its native `everyNSamples`.
@@ -16,11 +19,11 @@ locking, human sound approval, or real-time clearance.
   synthesis, forward unnormalized DFT, inverse 1/N, WOLA scale 2H/N, internal
   2^128 scaling, and live reference delay N.
 - A committed frame at t=mH consumes [t-N,t), excludes current input, and samples
-  controls at t. Missing startup/reset history is zero padded. H<=128 divides
-  the native 128-sample block; there are no eager noncommitting frame calls.
-  The existing N1024 single-input clearance is not inherited: two full framers
-  add cost and scheduling/state proof obligations. N<=256 bounds that initial
-  composition and avoids H>128's eager noncommitting hooks entirely.
+  controls at t. Missing startup/reset history is zero padded. Dispatch occurs
+  every `gcd(H, 128, renderQuantumSize)` samples; off-phase work is eager and
+  commits no overlap. At the original quantum 128, H<=128 needs no off-phase
+  calls. Smaller or coprime quanta add work; the N1024 single-input evidence is
+  not inherited by this two-framer composition. N<=256 retains its initial bound.
 - Clamp amount to [0,1]; NaN becomes 0, infinities clamp. Interpolation is linear
   in bin magnitude, not dB, power, audio time, or equal-power gain. It replaces
   newly committed frames; previous overlap remains until it finishes within N.
@@ -31,7 +34,7 @@ locking, human sound approval, or real-time clearance.
 
 ## Frequency-magnitude blur
 
-`spectralBlur({ size, hopSize, radius }).tick(input, amount, reset, everyNSamples)`
+`spectralBlur({ size, hopSize, radius, renderQuantumSize }).tick(input, amount, reset, everyNSamples)`
 
 Radius is a fixed integer 1..min(8,N/2-1). Let X[k] be the full two-sided complex
 DFT and A[k]=|X[k]|. Define a circular triangular blur on the raw, two-sided DFT
@@ -76,7 +79,7 @@ not a time-memory blur or a freeze.
 
 ## Gain-bounded cross-synthesis
 
-`spectralCrossSynthesis({ size, hopSize, maxGain }).tick(carrier, modulator, amount, reset, everyNSamples)`
+`spectralCrossSynthesis({ size, hopSize, maxGain, renderQuantumSize }).tick(carrier, modulator, amount, reset, everyNSamples)`
 
 maxGain is a finite construction-fixed number in [1,16]. Let C[k], M[k] be the
 synchronized carrier/modulator frames, A[k]=|C[k]|, and B[k]=|M[k]|:
@@ -124,11 +127,12 @@ per instance. Magnitudes, FFT buffers, windows and sampled controls are transien
 and are fully recomputed before use at the next frame. No cross-frame blur
 memory or private snapshot format is introduced.
 
-Only full native same-graph/configuration/sample-rate snapshots are supported.
+Only full native same-graph/configuration/sample-rate/quantum snapshots are supported.
 Restoring only one member of a cross-synthesis pair is outside the contract.
 Tests must prove exact continuation across every legal H class at native
-128-sample boundaries, including active processing, pending reset, and held
-reset. No cross-configuration/schema/rate migration is promised.
+block boundaries, including non-128-aligned boundaries, active processing,
+pending reset, and held reset. No cross-configuration/schema/rate/quantum
+migration is promised.
 
 ## Ideal headroom and validation
 

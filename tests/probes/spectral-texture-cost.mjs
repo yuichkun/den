@@ -3,15 +3,16 @@
 // Local loaded native cost only. No browser or real-time acceptance is implied.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { audioInput, audioOutput, compile, defineProcessor, forSample, instantiate } from '@unworklet/core';
 import { spectralBlur, spectralCrossSynthesis } from '../../dist/spectral-texture.js';
 
 const mode = process.argv[2]; assert(['blur', 'cross'].includes(mode));
 const size = 256, hopSize = 64, captureStart = performance.now();
-const processor = defineProcessor(() => {
+const processor = defineProcessor(ctx => {
   const input = audioInput({ channels: 4, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-  const unit = instantiate(mode === 'blur' ? spectralBlur : spectralCrossSynthesis, { size, hopSize, radius: 8, maxGain: 16 }, { name: 'unit' });
+  const unit = instantiate(mode === 'blur' ? spectralBlur : spectralCrossSynthesis, { renderQuantumSize: ctx.renderQuantumSize, size, hopSize, radius: 8, maxGain: 16 }, { name: 'unit' });
   return { process() { forSample((i, every) => {
     const carrier = input.ch(0).at(i), modulator = input.ch(1).at(i), amount = input.ch(2).at(i), reset = input.ch(3).at(i).gt(0);
     output.ch(0).at(i).write(mode === 'blur' ? unit.tick(carrier, amount, reset, every) : unit.tick(carrier, modulator, amount, reset, every));
@@ -34,7 +35,7 @@ for (let quantum = 0; quantum < 640; quantum++) {
 assert(output.some(x => x !== 0)); assert.equal(instance.scrubbedSamples(), 0); assert.equal(instance.memory.buffer.byteLength, memoryBytes);
 const stats = times => { const ordered = [...times].sort((a, b) => a - b); return { count: times.length, p50Ms: ordered[Math.floor(times.length * .5)], p99Ms: ordered[Math.floor(times.length * .99)], maxMs: ordered.at(-1) }; };
 console.log(JSON.stringify({ status: 'CANDIDATE', mode, size, hopSize, radius: mode === 'blur' ? 8 : null, maxGain: mode === 'cross' ? 16 : null,
-  sampleRate: 48000, node: process.version, unworklet: '0.4.1', captureMs, compileMs, coldQuantumMs: startup[0],
+  sampleRate: 48000, node: process.version, unworklet: JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], captureMs, compileMs, coldQuantumMs: startup[0],
   startup: stats(startup), warm: stats(measured), includesInputOutputCopies: true, copyBytesPerQuantum: 2560,
   memoryBytes, wasmBytes: compiled.wasm.byteLength, wasmSha256: createHash('sha256').update(compiled.wasm).digest('hex'),
   graphBytes: JSON.stringify(compiled.graph).length, peakProcessRssBytes: process.resourceUsage().maxRSS * 1024, scrubbedSamples: 0,

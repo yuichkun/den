@@ -4,9 +4,9 @@ import { renderOffline } from '@unworklet/offline';
 import { partitionedConvolution } from '../src/convolution.js';
 
 function fixture(blockSize: number, impulse: readonly number[]) {
-  return defineProcessor(() => {
+  return defineProcessor(ctx => {
     const input = audioInput({ channels: 2, name: 'main' }), output = audioOutput({ channels: 1, name: 'main' });
-    const convolution = instantiate(partitionedConvolution, { blockSize, impulse }, { name: 'convolution' });
+    const convolution = instantiate(partitionedConvolution, { renderQuantumSize: ctx.renderQuantumSize, blockSize, impulse }, { name: 'convolution' });
     return { process() { forSample((i, everyNSamples) => {
       output.ch(0).at(i).write(convolution.tick(input.ch(0).at(i), input.ch(1).at(i).gt(0), everyNSamples));
     }); } };

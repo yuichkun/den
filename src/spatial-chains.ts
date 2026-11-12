@@ -5,6 +5,8 @@ import { algorithmicReverb } from './reverb.js';
 import { windowedPitchShift } from './windowed-pitch-shift.js';
 
 export interface SpatialChainConfig {
+  /** Pass ctx.renderQuantumSize for the early convolution snapshot phase. */
+  renderQuantumSize: number;
   /** Match the enclosing ctx.sampleRate; integer 8000..192000. */
   sampleRate: number;
 }
@@ -31,12 +33,12 @@ export interface FeedforwardPitchedReverbControls extends SpatialChainControls {
 
 // Construction-only composition. Each existing module retains its own state,
 // scheduler and native snapshot contract; no new runtime routing is introduced.
-function spatialPaths({ sampleRate }: SpatialChainConfig) {
+function spatialPaths({ sampleRate, renderQuantumSize }: SpatialChainConfig) {
   if (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 192000) {
     throw new RangeError('spatial chains require integer sampleRate [8000,192000]');
   }
   const color = instantiate(partitionedConvolution, {
-    blockSize: 8, impulse: [.625, 0, 0, .25, 0, 0, 0, -.125],
+    renderQuantumSize, blockSize: 8, impulse: [.625, 0, 0, .25, 0, 0, 0, -.125],
   }, { name: 'earlyColor' });
   const reflections = instantiate(multiTapDelay, {
     sampleRate, maxDelaySeconds: .023,

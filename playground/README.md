@@ -17,8 +17,10 @@ reference recordings or a claim of real-time performance on every device.
 
 A `.processor.ts` file exports a default `CompiledProcessor` made with
 `defineProcessor`. Use one `main` output with one or two channels. The host uses
-48 kHz. Code is checked against the declarations from the same installed, packed
-den package used to compile it. Completion, hover, signatures and errors come
+the AudioContext's actual sample rate and render quantum (128 samples when the
+browser does not expose `renderQuantumSize`). Code is checked against the
+declarations from the same installed, packed den package used to compile it.
+Completion, hover, signatures and errors come
 from the real TypeScript language service, not hand-written declaration stubs.
 
 Optional named exports are **plain playground setup data**, not additional den
@@ -60,10 +62,11 @@ declarations, and builds the app. Only the generated app is staged in
 `site-dist`; former public audition and diagnostic routes stay absent.
 
 Monaco 0.55.1, TypeScript 5.9.3 and esbuild 0.28.2 are isolated to this app.
-The library's unworklet 0.4.1 dependency is unchanged. Large compiler dependencies
+The library and playground use unworklet 0.6.0. Large compiler dependencies
 are served as separate browser modules to keep the build bounded. Binaryen's
 published ESM is copied without modifying its semantics.
 
 Browser acceptance covers completion and diagnostics, audible native output,
-repeat/Stop, cancellation/error/retry, navigation, search and mobile layout.
+44.1/96 kHz with 32/256-sample render quanta, repeat/Stop,
+cancellation/error/retry, navigation, search and mobile layout.
 Numerical render tests are distinct from listening acceptance.

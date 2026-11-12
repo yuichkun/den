@@ -10,8 +10,8 @@ vi.setConfig({ testTimeout: 60000 });
 function fixture(width?: number) {
   return defineProcessor(ctx => {
     const input = audioInput({ name: 'main', channels: 7 }), output = audioOutput({ name: 'main', channels: width === undefined ? 2 : 3 });
-    const plain = width === undefined ? instantiate(hybridReverb, { sampleRate: ctx.sampleRate }, { name: 'space' }) : undefined;
-    const pitched = width === undefined ? undefined : instantiate(feedforwardPitchedReverb, { sampleRate: ctx.sampleRate, windowSamples: width }, { name: 'space' });
+    const plain = width === undefined ? instantiate(hybridReverb, { renderQuantumSize: ctx.renderQuantumSize, sampleRate: ctx.sampleRate }, { name: 'space' }) : undefined;
+    const pitched = width === undefined ? undefined : instantiate(feedforwardPitchedReverb, { renderQuantumSize: ctx.renderQuantumSize, sampleRate: ctx.sampleRate, windowSamples: width }, { name: 'space' });
     return { process() { forSample((i, everyNSamples) => {
       const c = { mix: input.ch(1).at(i), bypass: input.ch(2).at(i).gt(0), reset: input.ch(3).at(i).gt(0) };
       if (plain) {
@@ -136,8 +136,8 @@ test('the complete pitched composition retains the undersized-window cancellatio
 });
 
 test('construction bounds validate exact public rates and pitch windows', () => {
-  const plain = (config: SpatialChainConfig) => defineProcessor(() => { instantiate(hybridReverb, config, { name: 'x' }); return { process() {} }; });
-  const pitched = (config: FeedforwardPitchedReverbConfig) => defineProcessor(() => { instantiate(feedforwardPitchedReverb, config, { name: 'x' }); return { process() {} }; });
+  const plain = (config: Omit<SpatialChainConfig, 'renderQuantumSize'>) => defineProcessor(ctx => { instantiate(hybridReverb, { ...config, renderQuantumSize: ctx.renderQuantumSize }, { name: 'x' }); return { process() {} }; });
+  const pitched = (config: Omit<FeedforwardPitchedReverbConfig, 'renderQuantumSize'>) => defineProcessor(ctx => { instantiate(feedforwardPitchedReverb, { ...config, renderQuantumSize: ctx.renderQuantumSize }, { name: 'x' }); return { process() {} }; });
   for (const sampleRate of [NaN, Infinity, 7999, 192001, 48000.5]) {
     expect(() => plain({ sampleRate })).toThrow(RangeError); expect(() => pitched({ sampleRate })).toThrow(RangeError);
   }

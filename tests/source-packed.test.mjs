@@ -35,7 +35,7 @@ test('packed sources/resonators: isolated strict types, actual renders, snapshot
     'tests/fixtures/comb-output-normalization-before.ts', 'tests/source-packed.test.mjs', 'tests/source-consumer/processor.ts', 'tests/source-consumer/render.mjs', 'package.json', 'package-lock.json'];
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ status: 'CANDIDATE', sourceCommit: run('git', ['rev-parse', 'HEAD'], root).trim(),
     sourceDirty: run('git', ['status', '--porcelain'], root).trim() !== '', sourceHashes: Object.fromEntries(sources.map(file => [file, hash(join(root, file))])),
-    packageIntegrity: pack.integrity, consumerLockHash: hash(join(consumer, 'package-lock.json')), unworklet: '0.4.1', node: process.version,
+    packageIntegrity: pack.integrity, consumerLockHash: hash(join(consumer, 'package-lock.json')), unworklet: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).devDependencies['@unworklet/core'], node: process.version,
     publicSubpaths: ['/source', '/resonator'], offlineSampleRates: [44100, 48000, 96000], browserSampleRates: [], frames: 8192,
     settings: { pm: { carrierHz: 440, modulatorHz: 110, depthRadians: 2, feedbackRadians: 0 }, fm: { carrierHz: 440, modulatorHz: 110, deviationHz: 220, feedbackHz: 0 },
       additive: '32 partials ratio i+1 gain 1/(i+1), base110Hz', unison: '8 sine voices centered linear pan, ±28cent detune, base220Hz',

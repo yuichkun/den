@@ -14,8 +14,9 @@ for(const sampleRate of [44100,48000,96000]){
  const peak=x=>x.reduce((m,v)=>Math.max(m,Math.abs(v)),0),paired=out=>[peak(out[6]),peak(out[7])];
  const savedControls={level:0,disturb:1,freeze:1,reset:0},mutatedControls={level:0,disturb:1,freeze:0,reset:0};
  const original=await compiled.driver.instantiate();controls(original,{level:.15,disturb:0,freeze:0,reset:0});process(original,100);controls(original,{level:0,disturb:0,freeze:1,reset:0});process(original,75);controls(original,savedControls);const blocked=process(original,75);assert.deepEqual(paired(blocked),[0,0]);const snapshot=capture(original);
- // Mirrors worklet applyRestoreSlots: copy persistent states and buffers only.
- // Deliberately preserve transient wet taps, all host parameter values and IO.
+ // Historical 0.4.1 restore-order simulation, using manual persistent byte copies.
+ // Deliberately preserve transient taps, host parameters and IO. This bypasses
+ // 0.6.0's public restore, which applies saved parameters before persistent state.
  const makeMutated=async()=>{const d=await compiled.driver.instantiate();restore(d,snapshot);controls(d,{level:0,disturb:0,freeze:0,reset:0});process(d,300);controls(d,{reset:1});process(d,50);controls(d,mutatedControls);const out=process(d,75);assert(peak(out[6])>1e-5);return d;};
  const cold=await compiled.driver.instantiate();restore(cold,snapshot);controls(cold,savedControls);const coldOut=process(cold,75);
  assert.deepEqual(paired(coldOut),[0,0]);
@@ -31,4 +32,4 @@ for(const sampleRate of [44100,48000,96000]){
 }
 // This fixture intentionally mirrors native persistent-slot overlay only.
 // It is a deterministic regression, not a production restore implementation.
-const report={status:'DIAGNOSIS ONLY / CANDIDATE NOT_CLEARED',sourceProcessorSha256:createHash('sha256').update(readFileSync('freeze-processor.ts')).digest('hex'),method:'Actual native compiled driver; reproduce persistent byte-copy restore order from pinned core 0.4.1; host parameter gap simulated deterministically in processing blocks; no production changes.',conclusion:'Live core restore is not atomic with host AudioParam restoration. Paired freeze histories diverge after any tested stale live-control gap; synchronizing saved controls before persistent restore preserves exact equality and matches fresh native restore despite poisoned transient taps.',reports};writeFileSync('freeze-live-restore-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+const report={status:'DIAGNOSIS ONLY / CANDIDATE NOT_CLEARED',sourceProcessorSha256:createHash('sha256').update(readFileSync('freeze-processor.ts')).digest('hex'),method:'Current native compiled driver; manually simulate the historical core 0.4.1 persistent-byte-copy-before-parameters order and a deterministic stale-control gap. This bypasses the current public restore API.',conclusion:'The simulated historical ordering corrupts paired freeze histories after the tested stale-control gaps. Applying saved controls before persistent bytes preserves exact equality despite poisoned transient taps. Core 0.6.0 orders AudioParams before persistent state; this simulation is not a reproduction of a current public restore failure or proof of general transactional rollback.',reports};writeFileSync('freeze-live-restore-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
